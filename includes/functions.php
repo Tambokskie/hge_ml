@@ -45,3 +45,55 @@ function redirect(string $path): void
     header('Location: ' . $path);
     exit;
 }
+
+function ensure_session(): void
+{
+    if (session_status() === PHP_SESSION_NONE) {
+        session_set_cookie_params([
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+        session_start();
+    }
+}
+
+function flash_set(string $type, string $message): void
+{
+    ensure_session();
+    $_SESSION['flash'] = ['type' => $type, 'message' => $message];
+}
+
+function flash_get(): ?array
+{
+    ensure_session();
+    if (empty($_SESSION['flash'])) {
+        return null;
+    }
+
+    $flash = $_SESSION['flash'];
+    unset($_SESSION['flash']);
+    return $flash;
+}
+
+function get_dashboard_stats(PDO $pdo): array
+{
+    $totalGraduates = (int) $pdo->query('SELECT COUNT(*) FROM latin_honor_graduates')->fetchColumn();
+    $totalSchools = (int) $pdo->query('SELECT COUNT(DISTINCT school_id) FROM latin_honor_uploads')->fetchColumn();
+    $totalUploads = (int) $pdo->query('SELECT COUNT(*) FROM latin_honor_uploads')->fetchColumn();
+    $currentYear = $pdo->query('SELECT MAX(graduation_year) FROM latin_honor_graduates')->fetchColumn();
+
+    $currentYearRecords = 0;
+    if ($currentYear !== null) {
+        $stmt = $pdo->prepare('SELECT COUNT(*) FROM latin_honor_graduates WHERE graduation_year = :year');
+        $stmt->execute(['year' => $currentYear]);
+        $currentYearRecords = (int) $stmt->fetchColumn();
+    }
+
+    return [
+        'total_graduates' => $totalGraduates,
+        'total_schools' => $totalSchools,
+        'total_uploads' => $totalUploads,
+        'current_year' => $currentYear !== null ? (int) $currentYear : null,
+        'current_year_records' => $currentYearRecords,
+    ];
+}
