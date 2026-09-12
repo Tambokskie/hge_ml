@@ -26,8 +26,14 @@ function connect_pdo(array $config): PDO
 
 function get_pdo(): PDO
 {
+    static $pdo = null;
+
+    if ($pdo !== null) {
+        return $pdo;
+    }
+
     try {
-        return connect_pdo(get_db_config());
+        return $pdo = connect_pdo(get_db_config());
     } catch (PDOException $e) {
         error_log('Database connection failed: ' . $e->getMessage());
         http_response_code(500);

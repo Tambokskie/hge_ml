@@ -55,4 +55,14 @@ class DatabaseTest extends TestCase
             'pass' => '',
         ]);
     }
+
+    public function testGetPdoReturnsTheSameInstanceAcrossCalls(): void
+    {
+        putenv('DB_NAME=hge_masterlist_test');
+        $first = get_pdo();
+        $second = get_pdo();
+        putenv('DB_NAME');
+
+        $this->assertSame($first, $second);
+    }
 }
