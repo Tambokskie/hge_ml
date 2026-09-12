@@ -1,0 +1,10 @@
+{
+    "name": "hge-masterlist-assets",
+    "private": true,
+    "devDependencies": {
+        "tailwindcss": "^3.4.14"
+    },
+    "scripts": {
+        "build:css": "tailwindcss -i ./assets/css/input.css -o ./assets/css/app.css --minify"
+    }
+}
