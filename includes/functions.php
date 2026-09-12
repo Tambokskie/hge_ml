@@ -115,3 +115,12 @@ function create_or_update_admin(PDO $pdo, string $username, string $email, strin
         'status' => 'active',
     ]);
 }
+
+function sidebar_nav_class(string $currentPage, string $navPage): string
+{
+    if ($currentPage === $navPage) {
+        return 'bg-accent-600/20 text-accent-300 border-l-2 border-accent-500';
+    }
+
+    return 'text-gray-400 hover:bg-white/5 hover:text-white border-l-2 border-transparent';
+}
