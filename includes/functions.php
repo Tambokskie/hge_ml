@@ -97,3 +97,21 @@ function get_dashboard_stats(PDO $pdo): array
         'current_year_records' => $currentYearRecords,
     ];
 }
+
+function create_or_update_admin(PDO $pdo, string $username, string $email, string $password): void
+{
+    $stmt = $pdo->prepare(
+        'INSERT INTO users (name, username, email, password, role, status)
+         VALUES (:name, :username, :email, :password, :role, :status)
+         ON DUPLICATE KEY UPDATE password = VALUES(password), role = VALUES(role), status = VALUES(status)'
+    );
+
+    $stmt->execute([
+        'name' => 'System Administrator',
+        'username' => $username,
+        'email' => $email,
+        'password' => password_hash($password, PASSWORD_DEFAULT),
+        'role' => 'administrator',
+        'status' => 'active',
+    ]);
+}
