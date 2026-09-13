@@ -24,6 +24,14 @@ if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK
 }
 
 $currentUser = current_user();
-$result = handle_upload_request(get_pdo(), $_POST, $_FILES, (int) $currentUser['id'], __DIR__ . '/../storage/pdfs');
+
+try {
+    $result = handle_upload_request(get_pdo(), $_POST, $_FILES, (int) $currentUser['id'], __DIR__ . '/../storage/pdfs');
+} catch (\Throwable $e) {
+    error_log('PDF upload failed: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => 'THE UPLOAD COULD NOT BE COMPLETED. PLEASE TRY AGAIN.']);
+    exit;
+}
 
 echo json_encode($result);
