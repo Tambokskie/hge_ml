@@ -62,3 +62,34 @@ function create_upload_record(PDO $pdo, array $data): array
         'records_extracted' => 0,
     ];
 }
+
+function get_recent_uploads(PDO $pdo, int $limit = 5): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT u.id, u.school_year, u.original_filename, u.stored_filename, u.uploaded_at, u.records_extracted, s.school_name
+         FROM latin_honor_uploads u
+         JOIN schools s ON s.id = u.school_id
+         ORDER BY u.uploaded_at DESC, u.id DESC
+         LIMIT :limit'
+    );
+    $stmt->bindValue('limit', $limit, PDO::PARAM_INT);
+    $stmt->execute();
+
+    return $stmt->fetchAll();
+}
+
+function get_upload_by_id(PDO $pdo, int $id): ?array
+{
+    $stmt = $pdo->prepare(
+        'SELECT u.id, u.school_id, u.school_year, u.original_filename, u.stored_filename, u.file_path,
+                u.file_size, u.uploaded_at, u.extraction_status, u.records_extracted, s.school_name
+         FROM latin_honor_uploads u
+         JOIN schools s ON s.id = u.school_id
+         WHERE u.id = :id
+         LIMIT 1'
+    );
+    $stmt->execute(['id' => $id]);
+    $row = $stmt->fetch();
+
+    return $row === false ? null : $row;
+}
