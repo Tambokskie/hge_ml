@@ -442,8 +442,8 @@ at the same page size as the recent-uploads table.
 HONOR, GRADUATION YEAR, VIEW action. VIEW opens a `modal.js` modal (the
 same reusable component from Phases 2-3) showing the full graduate
 record plus its source upload's `original_filename` and `uploaded_at`,
-and a "VIEW SOURCE PDF" link opening `api/serve_pdf.php?upload_id=` in a
-new tab. Zero matches render the spec's literal empty state — "NO HONOR
+and a "VIEW SOURCE PDF" link opening `api/serve_pdf.php?id=` (the upload's
+id — `serve_pdf.php` reads `$_GET['id']`, per Phase 2) in a new tab. Zero matches render the spec's literal empty state — "NO HONOR
 GRADUATE RECORD FOUND" — styled as a real empty-state panel, never a
 blank table.
 
