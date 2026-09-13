@@ -68,3 +68,47 @@ function clear_extraction_review(): void
     ensure_session();
     unset($_SESSION['extraction_review']);
 }
+
+function set_staged_row(int $uploadId, ?int $rowIndex, array $data): array
+{
+    $review = get_extraction_review($uploadId);
+    if ($review === null) {
+        return ['ok' => false, 'error' => 'NO ACTIVE REVIEW SESSION FOR THIS UPLOAD.'];
+    }
+
+    $row = [
+        'graduate_name' => trim((string) ($data['graduate_name'] ?? '')),
+        'latin_honor' => (string) ($data['latin_honor'] ?? ''),
+        'graduation_date' => (($data['graduation_date'] ?? '') !== '') ? $data['graduation_date'] : null,
+        'graduation_year' => (int) ($data['graduation_year'] ?? 0),
+    ];
+
+    $rows = $review['rows'];
+    if ($rowIndex !== null && array_key_exists($rowIndex, $rows)) {
+        $rows[$rowIndex] = $row;
+    } else {
+        $rows[] = $row;
+    }
+
+    $_SESSION['extraction_review']['rows'] = $rows;
+
+    return ['ok' => true];
+}
+
+function remove_staged_row(int $uploadId, int $rowIndex): array
+{
+    $review = get_extraction_review($uploadId);
+    if ($review === null) {
+        return ['ok' => false, 'error' => 'NO ACTIVE REVIEW SESSION FOR THIS UPLOAD.'];
+    }
+
+    $rows = $review['rows'];
+    if (!array_key_exists($rowIndex, $rows)) {
+        return ['ok' => false, 'error' => 'RECORD NOT FOUND.'];
+    }
+
+    unset($rows[$rowIndex]);
+    $_SESSION['extraction_review']['rows'] = array_values($rows);
+
+    return ['ok' => true];
+}
