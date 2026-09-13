@@ -43,6 +43,12 @@ document.addEventListener('DOMContentLoaded', function () {
         showFileInfo(fileInput.files[0]);
     });
 
+    function escapeHtml(value) {
+        var div = document.createElement('div');
+        div.textContent = value;
+        return div.innerHTML;
+    }
+
     function submitForm(extraFields) {
         var formData = new FormData(form);
         if (extraFields) {
@@ -66,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else if (data.status === 'duplicate') {
                     showModal({
                         title: 'POSSIBLE DUPLICATE UPLOAD',
-                        bodyHtml: data.message + '<br><br>Existing file: ' + data.existing_upload.original_filename,
+                        bodyHtml: escapeHtml(data.message) + '<br><br>Existing file: ' + escapeHtml(data.existing_upload.original_filename),
                         buttons: [
                             {
                                 label: 'CANCEL',
