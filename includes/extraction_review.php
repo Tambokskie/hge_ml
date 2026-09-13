@@ -26,7 +26,7 @@ function validate_staged_row(array $row): array
     }
 
     $year = $row['graduation_year'] ?? null;
-    if (!is_numeric($year) || (int) $year < 1900 || (int) $year > 2100) {
+    if (!is_numeric($year) || (int) $year < 1901 || (int) $year > 2155) {
         $errors[] = 'YEAR GRADUATED MUST BE A VALID 4-DIGIT YEAR.';
     }
 

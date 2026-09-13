@@ -91,6 +91,30 @@ class ExtractionReviewCoreTest extends TestCase
         $this->assertFalse($result['ok']);
     }
 
+    public function testValidateStagedRowRejectsYearBelowMysqlYearColumnRange(): void
+    {
+        $result = validate_staged_row([
+            'graduate_name' => 'Juan Dela Cruz',
+            'latin_honor' => 'CUM LAUDE',
+            'graduation_date' => null,
+            'graduation_year' => 1900,
+        ]);
+
+        $this->assertFalse($result['ok']);
+    }
+
+    public function testValidateStagedRowAcceptsMinimumValidMysqlYear(): void
+    {
+        $result = validate_staged_row([
+            'graduate_name' => 'Juan Dela Cruz',
+            'latin_honor' => 'CUM LAUDE',
+            'graduation_date' => null,
+            'graduation_year' => 1901,
+        ]);
+
+        $this->assertTrue($result['ok']);
+    }
+
     public function testValidateStagedRowRejectsMalformedDate(): void
     {
         $result = validate_staged_row([
