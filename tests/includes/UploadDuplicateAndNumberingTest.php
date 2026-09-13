@@ -37,6 +37,24 @@ class UploadDuplicateAndNumberingTest extends TestCase
         $this->assertSame('a.pdf', $existing['original_filename']);
     }
 
+    public function testFindExistingUploadReturnsHighestUploadNumberWhenMultipleExist(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec(
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number)
+             VALUES (1, '2025', 'a.pdf', 'ABC_UNIVERSITY_2025_1.pdf', '/x/a.pdf', 10, SHA2('a',256), 1, 1)"
+        );
+        $pdo->exec(
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number)
+             VALUES (1, '2025', 'b.pdf', 'ABC_UNIVERSITY_2025_2.pdf', '/x/b.pdf', 10, SHA2('b',256), 1, 2)"
+        );
+
+        $existing = find_existing_upload($pdo, 1, '2025');
+
+        $this->assertNotNull($existing);
+        $this->assertSame('b.pdf', $existing['original_filename']);
+    }
+
     public function testNextUploadNumberIsOneWhenNoneExistYet(): void
     {
         $this->assertSame(1, next_upload_number(TestDb::pdo(), 1, '2025'));
