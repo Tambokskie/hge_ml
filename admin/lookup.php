@@ -12,28 +12,33 @@ $pdo = get_pdo();
 $schools = get_active_schools_list($pdo);
 $years = get_distinct_graduation_years($pdo);
 
-$schoolId = (isset($_GET['school_id']) && $_GET['school_id'] !== '') ? (int) $_GET['school_id'] : null;
-$year = (isset($_GET['year']) && $_GET['year'] !== '') ? (int) $_GET['year'] : null;
+$schoolId = (isset($_GET['school_id']) && (int) $_GET['school_id'] > 0) ? (int) $_GET['school_id'] : null;
+$year = (isset($_GET['year']) && (int) $_GET['year'] > 0) ? (int) $_GET['year'] : null;
 $name = trim((string) ($_GET['name'] ?? ''));
 $page = max(1, (int) ($_GET['page'] ?? 1));
 
 $filters = ['school_id' => $schoolId, 'graduation_year' => $year, 'name' => $name];
 $hasFilters = $schoolId !== null || $year !== null || $name !== '';
 
+$currentUser = current_user();
+$currentPage = 'lookup';
+
 $searchResult = null;
+$searchFailed = false;
 if ($hasFilters) {
     try {
         $searchResult = search_graduates($pdo, $filters, $page);
-        $currentUser = current_user();
-        log_activity($pdo, $currentUser['id'] ?? null, 'search', build_search_log_details($filters));
+
+        try {
+            log_activity($pdo, $currentUser['id'] ?? null, 'search', build_search_log_details($filters));
+        } catch (\Throwable $logError) {
+            error_log('Activity log failed: ' . $logError->getMessage());
+        }
     } catch (\Throwable $e) {
         error_log('Graduate search failed: ' . $e->getMessage());
-        $searchResult = ['rows' => [], 'pagination' => paginate(0, 1)];
+        $searchFailed = true;
     }
 }
-
-$currentUser = current_user();
-$currentPage = 'lookup';
 
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
@@ -75,6 +80,10 @@ include __DIR__ . '/../includes/sidebar.php';
             <?php if (!$hasFilters): ?>
                 <div class="rounded-xl border border-white/10 bg-surface-900 p-10 text-center text-gray-400">
                     <p class="text-sm">SEARCH BY NAME, SCHOOL, OR YEAR TO FIND HONOR GRADUATE RECORDS.</p>
+                </div>
+            <?php elseif ($searchFailed): ?>
+                <div class="rounded-xl border border-red-500/30 bg-red-500/10 p-10 text-center text-red-400">
+                    <p class="text-sm font-medium">THE SEARCH COULD NOT BE COMPLETED. PLEASE TRY AGAIN.</p>
                 </div>
             <?php elseif (empty($searchResult['rows'])): ?>
                 <div class="rounded-xl border border-white/10 bg-surface-900 p-10 text-center text-gray-400">

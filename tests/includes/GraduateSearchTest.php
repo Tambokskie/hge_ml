@@ -124,4 +124,15 @@ class GraduateSearchTest extends TestCase
         $this->assertSame('', build_search_log_details([]));
         $this->assertSame('', build_search_log_details(['school_id' => null, 'graduation_year' => null, 'name' => '']));
     }
+
+    public function testUnderscoreInNameSearchIsLiteralNotWildcard(): void
+    {
+        $this->insertGraduate(1, 1, 'A_B Test', 'CUM LAUDE', '2025-06-15', 2025);
+        $this->insertGraduate(1, 1, 'AXB Test', 'CUM LAUDE', '2025-06-15', 2025);
+
+        $result = search_graduates(TestDb::pdo(), ['name' => 'A_B'], 1);
+
+        $this->assertCount(1, $result['rows']);
+        $this->assertSame('A_B Test', $result['rows'][0]['graduate_name']);
+    }
 }

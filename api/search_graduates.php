@@ -9,8 +9,8 @@ require_login();
 
 header('Content-Type: application/json');
 
-$schoolId = (isset($_GET['school_id']) && $_GET['school_id'] !== '') ? (int) $_GET['school_id'] : null;
-$year = (isset($_GET['year']) && $_GET['year'] !== '') ? (int) $_GET['year'] : null;
+$schoolId = (isset($_GET['school_id']) && (int) $_GET['school_id'] > 0) ? (int) $_GET['school_id'] : null;
+$year = (isset($_GET['year']) && (int) $_GET['year'] > 0) ? (int) $_GET['year'] : null;
 $name = trim((string) ($_GET['name'] ?? ''));
 $page = max(1, (int) ($_GET['page'] ?? 1));
 
@@ -31,8 +31,12 @@ try {
     $pdo = get_pdo();
     $result = search_graduates($pdo, $filters, $page);
 
-    $currentUser = current_user();
-    log_activity($pdo, $currentUser['id'] ?? null, 'search', build_search_log_details($filters));
+    try {
+        $currentUser = current_user();
+        log_activity($pdo, $currentUser['id'] ?? null, 'search', build_search_log_details($filters));
+    } catch (\Throwable $logError) {
+        error_log('Activity log failed: ' . $logError->getMessage());
+    }
 
     echo json_encode([
         'status' => 'success',

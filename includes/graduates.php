@@ -20,7 +20,7 @@ function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25
     $name = trim((string) ($filters['name'] ?? ''));
     if ($name !== '') {
         $conditions[] = 'g.graduate_name LIKE :name';
-        $params['name'] = '%' . $name . '%';
+        $params['name'] = '%' . addcslashes($name, '\\%_') . '%';
     }
 
     $whereSql = empty($conditions) ? '' : ('WHERE ' . implode(' AND ', $conditions));
