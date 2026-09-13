@@ -178,3 +178,15 @@ function handle_upload_request(PDO $pdo, array $post, array $files, int $uploade
         'upload' => $upload,
     ];
 }
+
+function update_upload_extraction_status(PDO $pdo, int $uploadId, string $status, int $recordsExtracted): void
+{
+    $stmt = $pdo->prepare(
+        'UPDATE latin_honor_uploads SET extraction_status = :status, records_extracted = :records WHERE id = :id'
+    );
+    $stmt->execute([
+        'status' => $status,
+        'records' => $recordsExtracted,
+        'id' => $uploadId,
+    ]);
+}
