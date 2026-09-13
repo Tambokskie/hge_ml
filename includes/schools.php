@@ -39,3 +39,9 @@ function get_active_school_names(PDO $pdo): array
     $stmt = $pdo->query("SELECT school_name FROM schools WHERE status = 'active' ORDER BY school_name ASC");
     return $stmt->fetchAll(PDO::FETCH_COLUMN);
 }
+
+function get_active_schools_list(PDO $pdo): array
+{
+    $stmt = $pdo->query("SELECT id, school_name FROM schools WHERE status = 'active' ORDER BY school_name ASC");
+    return $stmt->fetchAll();
+}

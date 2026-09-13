@@ -57,4 +57,19 @@ class SchoolsTest extends TestCase
 
         $this->assertSame(['ABC University', 'XYZ College'], $names);
     }
+
+    public function testGetActiveSchoolsListReturnsIdAndNameForActiveSchoolsOnly(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec("INSERT INTO schools (school_name, status) VALUES ('XYZ College', 'active')");
+        $pdo->exec("INSERT INTO schools (school_name, status) VALUES ('ABC University', 'active')");
+        $pdo->exec("INSERT INTO schools (school_name, status) VALUES ('Disabled School', 'disabled')");
+
+        $schools = get_active_schools_list($pdo);
+
+        $this->assertCount(2, $schools);
+        $this->assertSame('ABC University', $schools[0]['school_name']);
+        $this->assertSame('XYZ College', $schools[1]['school_name']);
+        $this->assertArrayHasKey('id', $schools[0]);
+    }
 }

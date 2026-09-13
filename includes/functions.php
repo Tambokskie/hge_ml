@@ -124,3 +124,19 @@ function sidebar_nav_class(string $currentPage, string $navPage): string
 
     return 'text-gray-400 hover:bg-white/5 hover:text-white border-l-2 border-transparent';
 }
+
+function get_distinct_graduation_years(PDO $pdo): array
+{
+    $stmt = $pdo->query('SELECT DISTINCT graduation_year FROM latin_honor_graduates ORDER BY graduation_year DESC');
+    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
+function log_activity(PDO $pdo, ?int $userId, string $action, ?string $details = null): void
+{
+    $stmt = $pdo->prepare('INSERT INTO activity_log (user_id, action, details) VALUES (:user_id, :action, :details)');
+    $stmt->execute([
+        'user_id' => $userId,
+        'action' => $action,
+        'details' => $details,
+    ]);
+}
