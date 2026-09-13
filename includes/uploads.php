@@ -104,6 +104,14 @@ function handle_upload_request(PDO $pdo, array $post, array $files, int $uploade
         return ['status' => 'error', 'message' => 'SCHOOL NAME AND SCHOOL YEAR ARE REQUIRED.'];
     }
 
+    if (mb_strlen($schoolName) > 255) {
+        return ['status' => 'error', 'message' => 'SCHOOL NAME IS TOO LONG.'];
+    }
+
+    if (mb_strlen($schoolYear) > 9) {
+        return ['status' => 'error', 'message' => 'SCHOOL YEAR IS TOO LONG.'];
+    }
+
     $file = $files['pdf_file'] ?? null;
     if (!is_array($file) || ($file['tmp_name'] ?? '') === '') {
         return ['status' => 'error', 'message' => 'PLEASE SELECT A PDF FILE TO UPLOAD.'];
@@ -127,24 +135,42 @@ function handle_upload_request(PDO $pdo, array $post, array $files, int $uploade
     }
 
     $uploadNumber = next_upload_number($pdo, $school['id'], $schoolYear);
-    $storedFilename = build_stored_filename($schoolName, $schoolYear, $uploadNumber);
-    $destination = rtrim($storageDir, '/\\') . DIRECTORY_SEPARATOR . $storedFilename;
+    $storedFilename = build_stored_filename($school['school_name'], $schoolYear, $uploadNumber);
+
+    $resolvedStorageDir = realpath($storageDir);
+    if ($resolvedStorageDir === false) {
+        return ['status' => 'error', 'message' => 'THE FILE COULD NOT BE SAVED. PLEASE TRY AGAIN.'];
+    }
+    $destination = $resolvedStorageDir . DIRECTORY_SEPARATOR . $storedFilename;
+
+    if (file_exists($destination)) {
+        return [
+            'status' => 'error',
+            'message' => 'A FILE WITH THIS NAME ALREADY EXISTS FOR A DIFFERENT SCHOOL. PLEASE CONTACT AN ADMINISTRATOR.',
+        ];
+    }
 
     if (!copy($file['tmp_name'], $destination)) {
         return ['status' => 'error', 'message' => 'THE FILE COULD NOT BE SAVED. PLEASE TRY AGAIN.'];
     }
 
-    $upload = create_upload_record($pdo, [
-        'school_id' => $school['id'],
-        'school_year' => $schoolYear,
-        'original_filename' => (string) ($file['name'] ?? $storedFilename),
-        'stored_filename' => $storedFilename,
-        'file_path' => $destination,
-        'file_size' => filesize($destination),
-        'file_hash' => hash_file('sha256', $destination),
-        'uploaded_by' => $uploadedBy,
-        'upload_number' => $uploadNumber,
-    ]);
+    try {
+        $upload = create_upload_record($pdo, [
+            'school_id' => $school['id'],
+            'school_year' => $schoolYear,
+            'original_filename' => (string) ($file['name'] ?? $storedFilename),
+            'stored_filename' => $storedFilename,
+            'file_path' => $destination,
+            'file_size' => filesize($destination),
+            'file_hash' => hash_file('sha256', $destination),
+            'uploaded_by' => $uploadedBy,
+            'upload_number' => $uploadNumber,
+        ]);
+    } catch (\Throwable $e) {
+        error_log('create_upload_record failed after file copy: ' . $e->getMessage());
+        @unlink($destination);
+        return ['status' => 'error', 'message' => 'THE RECORD COULD NOT BE SAVED. PLEASE TRY AGAIN.'];
+    }
 
     return [
         'status' => 'success',
