@@ -108,7 +108,11 @@ noted below):
   detection), uploaded_by (FK users), **extraction_status** enum
   (`pending`,`extracted`,`reviewed`,`failed`) — *addition*: gives the
   review-before-save workflow a durable state instead of only living in a PHP
-  session between steps, records_extracted, uploaded_at, updated_at.
+  session between steps, records_extracted, uploaded_at, updated_at,
+  **upload_number** (*Phase 2 addition*, see section 11) — INT UNSIGNED, 1 for
+  a school+year's first upload, incrementing per subsequent "UPLOAD ANYWAY"
+  duplicate upload; UNIQUE on (school_id, school_year, upload_number) so
+  numbering is race-safe and query-able.
 - **latin_honor_graduates**: id, upload_id (FK), school_id (FK), graduate_name,
   latin_honor enum(`CUM LAUDE`,`MAGNA CUM LAUDE`,`SUMMA CUM LAUDE`),
   graduation_date, graduation_year, created_at, updated_at.
@@ -196,3 +200,72 @@ across pages rather than duplicated per page.
 - School-specific extractor implementations beyond the generic one — the
   interface supports adding them later; none are written now since no
   school-specific sample beyond the one PDF provided exists yet.
+
+## 11. Phase 2 addendum — Schools + Upload/Storage (decided 2026-09-13)
+
+Phase 1 is merged. These decisions were made when brainstorming Phase 2 and
+refine (not replace) sections 4-10 above.
+
+**School creation — inline, not a dedicated admin page.** The upload form's
+SCHOOL NAME field is free text with an HTML `<datalist>` populated
+server-side from existing active schools (no separate autocomplete
+endpoint needed at this scale). On submit, `find_or_create_school()`
+attempts an INSERT; the `schools.school_name` UNIQUE constraint (inherited
+`utf8mb4_unicode_ci` collation, case-insensitive) catches near-duplicate
+casing automatically — a caught duplicate-key error means "look up and
+reuse the existing row" rather than an error. A dedicated Schools admin
+page (spec section 29's full CRUD table) is deferred past Phase 2; nothing
+in Phase 2 blocks adding it later.
+
+**Filename convention.** `stored_filename` =
+`{SCHOOL_NAME_SANITIZED}_{SCHOOL_YEAR}_{UPLOAD_NUMBER}.pdf`, uppercase,
+non-alphanumeric characters in the school name replaced with underscores
+(e.g. `ABC_UNIVERSITY_2025_1.PDF`). `original_filename` (the uploader's own
+filename) is preserved unmodified for display, per section 6. This
+supersedes section 30's simpler filename example, which didn't anticipate
+multiple uploads per school+year.
+
+**Duplicate flow.** The trigger is `(school_id, school_year)` match only —
+not `file_hash` comparison, even though `file_hash` (sha256) is still
+computed and stored on every upload per section 5/6, kept for future
+integrity/dedup use rather than as this phase's trigger. Upload is AJAX
+(`fetch` to `api/upload_pdf.php`, `multipart/form-data`). If an upload
+already exists for that `(school_id, school_year)`, the API responds
+`{"status":"duplicate", ...}`
+instead of erroring, carrying the existing upload's metadata. The frontend
+shows a modal: VIEW EXISTING (opens `admin/view_upload.php?id=`), CANCEL
+(dismiss), UPLOAD ANYWAY (resubmits with a `confirm_duplicate=1` flag,
+`upload_number` increments by 1). `admin/view_upload.php` is new — a single
+page showing one upload's metadata + VIEW PDF button; it's the target for
+both this modal's VIEW EXISTING and the dashboard's VIEW action, and gets
+a "records" section that's a placeholder ("0 records — extraction not yet
+run") until Phase 3 populates it.
+
+**New reusable UI components** (spec section 25/26 require these; Phase 1
+didn't need them yet): `assets/js/toast.js` (success/error/warning
+notifications for the AJAX upload flow) and a modal shell
+(`assets/js/modal.js` + Tailwind classes) for the duplicate-warning dialog
+— both plain JS, no libraries, matching Phase 1's approach.
+
+**Storage protection.** `storage/pdfs/` gets the same deny-all `.htaccess`
+pattern Phase 1 used for `includes/`/`config/`/`database/` (see Phase 1's
+final-review fix). Files are reachable only through `api/serve_pdf.php`.
+
+**Dashboard tie-in.** The "LATEST UPLOAD" table (section 5) ships now since
+real upload rows will exist: last 5 uploads, VIEW (→ `view_upload.php`) and
+VIEW PDF (→ `serve_pdf.php`) actions working. No VIEW RECORDS action yet —
+added when Phase 3 makes it meaningful.
+
+**Schema migration approach.** No production data exists yet, so
+`database/schema.sql` is edited directly to add `upload_number` (rather
+than introducing a formal migrations system), and both the dev
+(`hge_masterlist`) and test (`hge_masterlist_test`) databases get dropped
+and recreated from the updated file.
+
+**Max upload size:** 20 MB, enforced both by a PHP-side check and (for
+defense in depth) documented as a recommended `upload_max_filesize`/
+`post_max_size` php.ini floor in the phase's setup notes.
+
+**Out of scope for Phase 2** (unchanged from section 10's spirit): the
+Schools admin CRUD page, anything about PDF *content* (extraction is
+Phase 3), and any change to `admin/graduates.php`/`admin/users.php`.
