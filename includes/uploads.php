@@ -26,3 +26,39 @@ function next_upload_number(PDO $pdo, int $schoolId, string $schoolYear): int
 
     return ((int) $stmt->fetchColumn()) + 1;
 }
+
+function create_upload_record(PDO $pdo, array $data): array
+{
+    $stmt = $pdo->prepare(
+        'INSERT INTO latin_honor_uploads
+            (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number)
+         VALUES
+            (:school_id, :school_year, :original_filename, :stored_filename, :file_path, :file_size, :file_hash, :uploaded_by, :upload_number)'
+    );
+    $stmt->execute([
+        'school_id' => $data['school_id'],
+        'school_year' => $data['school_year'],
+        'original_filename' => $data['original_filename'],
+        'stored_filename' => $data['stored_filename'],
+        'file_path' => $data['file_path'],
+        'file_size' => $data['file_size'],
+        'file_hash' => $data['file_hash'],
+        'uploaded_by' => $data['uploaded_by'],
+        'upload_number' => $data['upload_number'],
+    ]);
+
+    return [
+        'id' => (int) $pdo->lastInsertId(),
+        'school_id' => $data['school_id'],
+        'school_year' => $data['school_year'],
+        'original_filename' => $data['original_filename'],
+        'stored_filename' => $data['stored_filename'],
+        'file_path' => $data['file_path'],
+        'file_size' => $data['file_size'],
+        'file_hash' => $data['file_hash'],
+        'uploaded_by' => $data['uploaded_by'],
+        'upload_number' => $data['upload_number'],
+        'extraction_status' => 'pending',
+        'records_extracted' => 0,
+    ];
+}
