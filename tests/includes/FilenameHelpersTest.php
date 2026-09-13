@@ -1,0 +1,31 @@
+<?php
+
+namespace Tests\Includes;
+
+use PHPUnit\Framework\TestCase;
+
+require_once __DIR__ . '/../../includes/pdf_files.php';
+
+class FilenameHelpersTest extends TestCase
+{
+    public function testSanitizeForFilenameUppercasesAndCollapsesSymbols(): void
+    {
+        $this->assertSame('ABC_UNIVERSITY', sanitize_for_filename('ABC University'));
+        $this->assertSame('ST_JOSEPH_S_COLLEGE', sanitize_for_filename("  St. Joseph's College!!  "));
+    }
+
+    public function testSanitizeForFilenameTrimsLeadingAndTrailingUnderscores(): void
+    {
+        $this->assertSame('EASTERN_VISAYAS_STATE_UNIVERSITY', sanitize_for_filename('---Eastern Visayas State University---'));
+    }
+
+    public function testBuildStoredFilenameProducesExpectedPattern(): void
+    {
+        $this->assertSame('ABC_UNIVERSITY_2025_1.pdf', build_stored_filename('ABC University', '2025', 1));
+    }
+
+    public function testBuildStoredFilenameIncludesUploadNumber(): void
+    {
+        $this->assertSame('ABC_UNIVERSITY_2025_3.pdf', build_stored_filename('ABC University', '2025', 3));
+    }
+}
