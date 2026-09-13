@@ -112,3 +112,54 @@ function remove_staged_row(int $uploadId, int $rowIndex): array
 
     return ['ok' => true];
 }
+
+function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows): array
+{
+    if (empty($rows)) {
+        return ['status' => 'error', 'message' => 'THERE ARE NO RECORDS TO SAVE.'];
+    }
+
+    $incomplete = [];
+    foreach ($rows as $index => $row) {
+        if (staged_row_status($row) !== 'VALID') {
+            $incomplete[] = $index + 1;
+        }
+    }
+
+    if (!empty($incomplete)) {
+        return [
+            'status' => 'error',
+            'message' => 'RECORD(S) ' . implode(', ', $incomplete) . ' ARE INCOMPLETE. PLEASE FIX THEM BEFORE SAVING.',
+        ];
+    }
+
+    try {
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare(
+            'INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, latin_honor, graduation_date, graduation_year)
+             VALUES (:upload_id, :school_id, :graduate_name, :latin_honor, :graduation_date, :graduation_year)'
+        );
+
+        foreach ($rows as $row) {
+            $stmt->execute([
+                'upload_id' => $uploadId,
+                'school_id' => $schoolId,
+                'graduate_name' => $row['graduate_name'],
+                'latin_honor' => $row['latin_honor'],
+                'graduation_date' => $row['graduation_date'],
+                'graduation_year' => $row['graduation_year'],
+            ]);
+        }
+
+        update_upload_extraction_status($pdo, $uploadId, 'reviewed', count($rows));
+
+        $pdo->commit();
+    } catch (\Throwable $e) {
+        $pdo->rollBack();
+        error_log('save_staged_records failed: ' . $e->getMessage());
+        return ['status' => 'error', 'message' => 'THE RECORDS COULD NOT BE SAVED. PLEASE TRY AGAIN.'];
+    }
+
+    return ['status' => 'success', 'message' => count($rows) . ' RECORD(S) SAVED SUCCESSFULLY.'];
+}
