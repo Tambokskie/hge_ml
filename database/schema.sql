@@ -32,6 +32,7 @@ CREATE TABLE latin_honor_uploads (
   file_size INT UNSIGNED NOT NULL,
   file_hash CHAR(64) NOT NULL,
   uploaded_by INT UNSIGNED NOT NULL,
+  upload_number INT UNSIGNED NOT NULL DEFAULT 1,
   extraction_status ENUM('pending','extracted','reviewed','failed') NOT NULL DEFAULT 'pending',
   records_extracted INT UNSIGNED NOT NULL DEFAULT 0,
   uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -39,7 +40,8 @@ CREATE TABLE latin_honor_uploads (
   FOREIGN KEY (school_id) REFERENCES schools(id),
   FOREIGN KEY (uploaded_by) REFERENCES users(id),
   KEY idx_school_id (school_id),
-  KEY idx_file_hash (file_hash)
+  KEY idx_file_hash (file_hash),
+  UNIQUE KEY uq_school_year_uploadnum (school_id, school_year, upload_number)
 ) ENGINE=InnoDB;
 
 CREATE TABLE latin_honor_graduates (

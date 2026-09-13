@@ -42,4 +42,23 @@ class SchemaTest extends TestCase
         $this->assertNotEmpty($indexes);
         $this->assertSame('FULLTEXT', $indexes[0]['Index_type']);
     }
+
+    public function testUploadNumberColumnAndUniqueConstraintExist(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec("INSERT INTO schools (school_name) VALUES ('TEST UNIVERSITY')");
+        $pdo->exec(
+            "INSERT INTO users (name, username, email, password, role) VALUES ('Admin', 'admin', 'a@a.com', 'x', 'administrator')"
+        );
+        $pdo->exec(
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number)
+             VALUES (1, '2025', 'list.pdf', 'TEST_UNIVERSITY_2025_1.pdf', '/storage/pdfs/x.pdf', 100, SHA2('a', 256), 1, 1)"
+        );
+
+        $this->expectException(\PDOException::class);
+        $pdo->exec(
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number)
+             VALUES (1, '2025', 'list2.pdf', 'TEST_UNIVERSITY_2025_1.pdf', '/storage/pdfs/y.pdf', 100, SHA2('b', 256), 1, 1)"
+        );
+    }
 }
