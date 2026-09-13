@@ -18,6 +18,7 @@ try {
 
 $currentUser = current_user();
 $currentPage = 'upload';
+$csrfToken = csrf_token();
 
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
@@ -51,6 +52,17 @@ include __DIR__ . '/../includes/sidebar.php';
                 <div>
                     <p class="text-xs text-gray-500">RECORDS</p>
                     <p class="text-sm text-white"><?= (int) $upload['records_extracted'] ?> RECORDS — <?= e_upper($upload['extraction_status']) ?></p>
+                    <?php if (user_has_role($currentUser, 'administrator') && $upload['extraction_status'] !== 'reviewed'): ?>
+                        <?php if ($upload['extraction_status'] === 'pending'): ?>
+                            <button type="button" id="extract-records-btn" data-upload-id="<?= (int) $upload['id'] ?>"
+                                class="mt-2 inline-block rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium px-4 py-2 transition-colors">EXTRACT RECORDS</button>
+                        <?php else: ?>
+                            <a href="<?= e(APP_BASE_URL) ?>/admin/review.php?upload_id=<?= (int) $upload['id'] ?>"
+                                class="mt-2 inline-block rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium px-4 py-2 transition-colors">CONTINUE REVIEW</a>
+                            <button type="button" id="extract-records-btn" data-upload-id="<?= (int) $upload['id'] ?>"
+                                class="mt-2 ml-2 inline-block rounded-lg border border-white/10 text-gray-300 hover:bg-white/5 text-sm px-4 py-2 transition-colors">RE-EXTRACT RECORDS</button>
+                        <?php endif; ?>
+                    <?php endif; ?>
                 </div>
                 <a href="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $upload['id'] ?>" target="_blank"
                    class="inline-block rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium px-4 py-2 transition-colors">VIEW PDF</a>
@@ -59,3 +71,12 @@ include __DIR__ . '/../includes/sidebar.php';
     </div>
 </main>
 <?php include __DIR__ . '/../includes/footer.php'; ?>
+<?php if (user_has_role($currentUser, 'administrator') && $upload !== null && $upload['extraction_status'] !== 'reviewed'): ?>
+<script>
+window.HGE_VIEW_UPLOAD = {
+    csrfToken: <?= json_encode($csrfToken) ?>,
+    apiBase: <?= json_encode(APP_BASE_URL) ?>
+};
+</script>
+<script src="<?= e(APP_BASE_URL) ?>/assets/js/view_upload.js"></script>
+<?php endif; ?>
