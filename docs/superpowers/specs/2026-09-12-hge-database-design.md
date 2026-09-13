@@ -269,3 +269,134 @@ defense in depth) documented as a recommended `upload_max_filesize`/
 **Out of scope for Phase 2** (unchanged from section 10's spirit): the
 Schools admin CRUD page, anything about PDF *content* (extraction is
 Phase 3), and any change to `admin/graduates.php`/`admin/users.php`.
+
+## 12. Phase 3 addendum — Extraction + Review (decided 2026-09-13)
+
+Phase 2 is merged. These decisions refine (not replace) section 7's
+extraction workflow, validated against two real test PDFs during
+brainstorming: the user's actual sample (`List of Honor Graduates_Second
+Semester AY 2025-2026.pdf`, from UP Tacloban) and a synthetic PDF built to
+the same real-world layout for testing the successful-extraction path.
+
+**Key finding that shaped this design:** the user's real sample turned out
+to be a *scanned/image-based* PDF — confirmed via `smalot/pdfparser`
+extracting 0 characters, and via raw byte inspection showing `/DCTDecode`
+(JPEG) image streams and zero `/Font` objects. This is exactly the
+"scanned/image-based PDF" case section 12 of the original request
+anticipated, and it validates the failure-detection rule below using real
+data. A second, synthetic, text-based PDF (built to the same visual
+structure: letterhead, a `Name of Honor Graduates | GWA | Degree | Honors
+Received | Date of Graduation` table, signature block) was used to
+develop and verify the successful-extraction heuristic.
+
+**Extractor interface.** `extractors/ExtractorInterface.php` declares one
+method: `extract(string $filePath): array`, returning
+`['status' => 'ok'|'failed', 'rows' => array]`, where each row is
+`['graduate_name' => string, 'latin_honor' => string, 'graduation_date' => ?string]`
+(`graduation_date` in `Y-m-d` or `null`). `extractors/generic_extractor.php`
+implements it.
+
+**Generic extractor algorithm** (validated against both test PDFs):
+1. `smalot/pdfparser`'s `Parser::parseFile()->getText()` gets the raw text.
+   `getText()` preserves one output line per drawn text line, confirmed by
+   direct testing — this is what makes per-line regex matching viable
+   rather than needing layout/coordinate analysis.
+2. For each line, check for a Latin Honor phrase case- and
+   whitespace-insensitively (`/SUMMA\s+CUM\s+LAUDE/i`, then
+   `/MAGNA\s+CUM\s+LAUDE/i`, then `/CUM\s+LAUDE/i` — checked in that order
+   since "cum laude" is a substring of the other two). A line with no match
+   is prose/header/signature and is skipped entirely — this alone correctly
+   separates the letterhead, salutation, and closing signature from data
+   rows with no separate header-row detection needed, confirmed against
+   both test PDFs (9/9 correct rows, 0 false positives on ~15 lines of
+   prose in the synthetic test).
+3. For a matching line, split on runs of 2+ whitespace characters; the
+   first resulting column is the graduate name, trimmed. This exploits the
+   fact that PDF-extracted tabular text typically has single spaces within
+   a name but wider gaps between columns — confirmed against the synthetic
+   sample including names with internal punctuation (`O'Brien-Smith, Jose
+   Miguel`).
+4. Search the full line for a date in one of several common formats (`02
+   July 2026`, `2 Jul 2026`, `July 2, 2026`, `2026-07-02`, `07/02/2026`),
+   parse via `strtotime()`, store as `Y-m-d`. No match found → `null`.
+5. **Zero matched rows → `status: 'failed'`.** No separate raw-character-count
+   threshold is needed: this single rule correctly covers both a genuinely
+   scanned/image PDF (confirmed: 0 characters extracted from the real
+   sample) and a text-based PDF in an unrecognized format. `failed` status
+   surfaces "TEXT COULD NOT BE RELIABLY EXTRACTED FROM THIS PDF" and routes
+   to the same manual-entry path (ADD RECORD, below) rather than silently
+   creating bad records.
+
+**Missing-date fallback.** When a row has no parseable date,
+`graduation_year` defaults to the *last* 4-digit year found in the
+upload's own `school_year` field (e.g. `"2025-2026"` → `2026`) — fully
+editable by the admin afterward via EDIT. `graduation_date` stays `null`
+in that case (the schema already allows this).
+
+**Staging: PHP session, one active review.** Extracted (unconfirmed) rows
+live in `$_SESSION['extraction_review'] = ['upload_id' => int, 'rows' =>
+array]` — keyed array, each row identified by its array index during the
+review — rather than a new database table. This matches how the app
+already uses sessions (CSRF tokens, flash messages) and fits the
+single-administrator, one-review-at-a-time usage pattern. Rows are only
+written to `latin_honor_graduates` on explicit SAVE RECORDS.
+
+**Workflow:**
+1. `admin/view_upload.php` (from Phase 2) gains an "EXTRACT RECORDS" button,
+   shown when `extraction_status` is `pending` or `failed` (re-extraction is
+   allowed any time before `reviewed`, replacing the session staging fresh).
+2. `api/extract_pdf.php` runs the extractor, stores rows into
+   `$_SESSION['extraction_review']`, sets `extraction_status` to `extracted`
+   or `failed` and updates `records_extracted`, then the page navigates to
+   `admin/review.php?upload_id=`.
+3. `admin/review.php` renders the original request's section 13 table (NO. / GRADUATE NAME
+   / LATIN HONOR / DATE OF GRADUATION / YEAR / STATUS / ACTION) from the
+   session staging, with a running `TOTAL RECORDS: N` count.
+4. **EDIT** opens a modal (GRADUATE NAME, LATIN HONOR as a dropdown of
+   exactly the 3 enum values, DATE OF GRADUATION, YEAR GRADUATED) that
+   updates one staged row via `api/update_graduate.php`.
+5. **REMOVE** shows a confirmation modal ("REMOVE THIS GRADUATE RECORD?"
+   with the graduate's name) before deleting one staged row via
+   `api/delete_graduate.php`.
+6. **ADD RECORD is always available** (not only on extraction failure, per
+   the brainstorming decision) — the same modal as EDIT, blank, appends a
+   new staged row. This single affordance satisfies both the spec's
+   required manual-entry fallback for failed extraction and lets an admin
+   add a name the extractor missed on an otherwise-successful run, without
+   re-uploading.
+7. Each staged row's **STATUS** is `VALID` (graduate_name non-empty,
+   latin_honor is one of the 3 enum values, graduation_year is a valid
+   4-digit year) or `INCOMPLETE` (any of those missing/invalid — the
+   realistic case for a freshly-added blank row via ADD RECORD; a
+   machine-extracted row is `VALID` by construction, since the extractor
+   only ever produces rows that already passed the honor-phrase match).
+8. **SAVE RECORDS** validates every staged row per spec section 39 and
+   **blocks with a clear message naming the incomplete row(s)** rather than
+   silently skipping them, then inserts all rows into
+   `latin_honor_graduates` in one transaction, sets `extraction_status =
+   'reviewed'` and `records_extracted` to the final count, clears the
+   session staging, and redirects to `admin/view_upload.php` with a success
+   toast.
+9. **CANCEL** discards the session staging only — `extraction_status` is
+   left as whatever the extraction run set it to (`extracted`/`failed`), so
+   the admin can re-trigger EXTRACT RECORDS later.
+
+**api/update_graduate.php and api/delete_graduate.php operate on the
+session staging only in this phase** — not on already-saved
+`latin_honor_graduates` rows. This matches spec sections 14/15's literal
+framing ("Update/Remove *Extracted* Record"). Editing or removing an
+already-saved graduate record is out of scope for Phase 3 (see below).
+
+**Composer note:** `packagist.org` had one transient connectivity timeout
+during brainstorming (unrelated to this project — `getcomposer.org` and
+`github.com` both worked fine throughout, and `repo.packagist.org` was
+reachable again minutes later). No action needed, just noted in case
+`composer require smalot/pdfparser` needs a retry during implementation.
+
+**Out of scope for Phase 3:** browsing/managing already-*saved* graduate
+records (`admin/graduates.php`, listed in the folder structure but not
+built this phase — that's Phase 4/5 territory), school-specific extractor
+implementations (still just the generic one, per section 10 — no second
+real-world PDF format sample exists to justify one yet), and the
+Look-up/Verification UI (Phase 4, which will be the first real *consumer*
+of the `latin_honor_graduates` rows this phase produces).
