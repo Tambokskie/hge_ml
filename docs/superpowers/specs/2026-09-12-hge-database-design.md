@@ -400,3 +400,70 @@ implementations (still just the generic one, per section 10 — no second
 real-world PDF format sample exists to justify one yet), and the
 Look-up/Verification UI (Phase 4, which will be the first real *consumer*
 of the `latin_honor_graduates` rows this phase produces).
+
+## 13. Phase 4 addendum — Look-up + Verification (decided 2026-09-13)
+
+Phase 3 is merged. These decisions refine (not replace) section 8's
+look-up & verification design.
+
+**Access.** `admin/lookup.php` and `api/search_graduates.php` both call
+`require_login()` only, not `require_role('administrator')` — both
+`administrator` and `user` roles can search and view results, matching
+section 6's "user: search, view graduate details, view PDF if permitted"
+and matching `api/serve_pdf.php`'s existing role-agnostic
+`require_login()` check (Phase 2). No new permission tier is introduced.
+
+**Filters — exactly the three section 8 names, no additions.** SCHOOL
+(`<select>` from active schools), GRADUATION YEAR (`<select>` from
+`SELECT DISTINCT graduation_year FROM latin_honor_graduates ORDER BY
+graduation_year DESC`), GRADUATE NAME (partial, case-insensitive `LIKE
+%term%` — not FULLTEXT; the table is small enough that LIKE is simpler
+and sufficient, FULLTEXT is a later upgrade if search performance ever
+demands it). All three are optional and combined with AND when present.
+
+**Default (no-filter) state.** Unlike the dashboard's "recent uploads"
+table, `lookup.php` does not dump the full `latin_honor_graduates` table
+on first load — it shows an instructional empty state ("Search by name,
+school, or year to find honor graduate records") until at least one
+filter is submitted. This is a look-up tool, not a browse tool; keeps the
+page fast regardless of how large the graduates table grows.
+
+**Interaction model.** Filter bar submits via `fetch` to
+`api/search_graduates.php` (JSON), no full page reload, mirroring the
+upload page's AJAX pattern. Applied filters and the current page number
+are reflected in the URL query string (`?name=&school_id=&year=&page=`)
+so a search is shareable/back-button-safe; `lookup.php`'s initial
+server-side render honors any of those query params already present on
+load, so a direct link into a filtered search works even before JS runs.
+Results use the existing `paginate()` helper from `includes/functions.php`
+at the same page size as the recent-uploads table.
+
+**Results → details modal.** Table columns: GRADUATE NAME, SCHOOL, LATIN
+HONOR, GRADUATION YEAR, VIEW action. VIEW opens a `modal.js` modal (the
+same reusable component from Phases 2-3) showing the full graduate
+record plus its source upload's `original_filename` and `uploaded_at`,
+and a "VIEW SOURCE PDF" link opening `api/serve_pdf.php?upload_id=` in a
+new tab. Zero matches render the spec's literal empty state — "NO HONOR
+GRADUATE RECORD FOUND" — styled as a real empty-state panel, never a
+blank table.
+
+**Duplicate uploads produce duplicate-looking rows, by design.** Because
+Phase 2's UPLOAD ANYWAY flow allows more than one `reviewed` upload for
+the same `(school_id, school_year)`, the same graduate name can
+legitimately appear more than once in results if two uploads both
+contain it. This phase does not deduplicate or supersede — every saved
+`latin_honor_graduates` row is real, reviewed data, and each result row
+is traceable to its own `upload_id`/source PDF via the details modal.
+Any future de-duplication UX is deferred, not designed here.
+
+**Activity logging.** `activity_log.action` has carried a `search` enum
+value since Phase 1's schema (section 5), unused until now. Each search
+request logs one `activity_log` row (`user_id` = searcher, `details` =
+a short summary of the filters used, e.g. `school_id=3, year=2025,
+name=cruz`) so Phase 5's audit log has real data to show.
+
+**Out of scope for Phase 4:** editing or deleting already-*saved*
+`latin_honor_graduates` rows (`admin/graduates.php`'s browse/manage
+capability stays deferred, as noted in section 12 — look-up is
+read-only), FULLTEXT search, and any de-duplication of graduate rows
+across multiple uploads for the same school+year (see above).
