@@ -93,3 +93,62 @@ function get_upload_by_id(PDO $pdo, int $id): ?array
 
     return $row === false ? null : $row;
 }
+
+function handle_upload_request(PDO $pdo, array $post, array $files, int $uploadedBy, string $storageDir, int $maxBytes = 20971520): array
+{
+    $schoolName = trim((string) ($post['school_name'] ?? ''));
+    $schoolYear = trim((string) ($post['school_year'] ?? ''));
+    $confirmDuplicate = !empty($post['confirm_duplicate']);
+
+    if ($schoolName === '' || $schoolYear === '') {
+        return ['status' => 'error', 'message' => 'SCHOOL NAME AND SCHOOL YEAR ARE REQUIRED.'];
+    }
+
+    $file = $files['pdf_file'] ?? null;
+    if (!is_array($file) || ($file['tmp_name'] ?? '') === '') {
+        return ['status' => 'error', 'message' => 'PLEASE SELECT A PDF FILE TO UPLOAD.'];
+    }
+
+    $size = filesize($file['tmp_name']);
+    $validation = validate_pdf_file_content($file['tmp_name'], $size === false ? PHP_INT_MAX : $size, $maxBytes);
+    if (!$validation['ok']) {
+        return ['status' => 'error', 'message' => $validation['error']];
+    }
+
+    $school = find_or_create_school($pdo, $schoolName);
+
+    $existing = find_existing_upload($pdo, $school['id'], $schoolYear);
+    if ($existing !== null && !$confirmDuplicate) {
+        return [
+            'status' => 'duplicate',
+            'message' => 'A LATIN HONOR LIST FOR THIS SCHOOL AND SCHOOL YEAR ALREADY EXISTS.',
+            'existing_upload' => $existing,
+        ];
+    }
+
+    $uploadNumber = next_upload_number($pdo, $school['id'], $schoolYear);
+    $storedFilename = build_stored_filename($schoolName, $schoolYear, $uploadNumber);
+    $destination = rtrim($storageDir, '/\\') . DIRECTORY_SEPARATOR . $storedFilename;
+
+    if (!copy($file['tmp_name'], $destination)) {
+        return ['status' => 'error', 'message' => 'THE FILE COULD NOT BE SAVED. PLEASE TRY AGAIN.'];
+    }
+
+    $upload = create_upload_record($pdo, [
+        'school_id' => $school['id'],
+        'school_year' => $schoolYear,
+        'original_filename' => (string) ($file['name'] ?? $storedFilename),
+        'stored_filename' => $storedFilename,
+        'file_path' => $destination,
+        'file_size' => filesize($destination),
+        'file_hash' => hash_file('sha256', $destination),
+        'uploaded_by' => $uploadedBy,
+        'upload_number' => $uploadNumber,
+    ]);
+
+    return [
+        'status' => 'success',
+        'message' => 'LATIN HONOR LIST UPLOADED SUCCESSFULLY.',
+        'upload' => $upload,
+    ];
+}
