@@ -13,6 +13,11 @@
         <a href="<?= e(APP_BASE_URL) ?>/admin/upload.php" class="flex items-center gap-3 rounded-lg px-3 py-2 <?= sidebar_nav_class($currentPage, 'upload') ?>">
             UPLOAD LATIN HONOR LIST
         </a>
+        <?php if (user_has_role($currentUser ?? null, 'administrator')): ?>
+        <a href="<?= e(APP_BASE_URL) ?>/admin/users.php" class="flex items-center gap-3 rounded-lg px-3 py-2 <?= sidebar_nav_class($currentPage, 'users') ?>">
+            USER MANAGEMENT
+        </a>
+        <?php endif; ?>
     </nav>
     <div class="px-3 py-4 border-t border-white/10">
         <a href="<?= e(APP_BASE_URL) ?>/logout.php" class="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-400 hover:bg-white/5 hover:text-white text-sm">
