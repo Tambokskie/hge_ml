@@ -60,4 +60,22 @@ class GraduateLookupHelpersTest extends TestCase
         $this->assertNull($row['user_id']);
         $this->assertNull($row['details']);
     }
+
+    public function testLogActivityPurgesEntriesOlderThanSixMonths(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec("INSERT INTO activity_log (user_id, action, details, created_at) VALUES (1, 'login', 'old', DATE_SUB(NOW(), INTERVAL 7 MONTH))");
+        $pdo->exec("INSERT INTO activity_log (user_id, action, details, created_at) VALUES (1, 'login', 'recent', DATE_SUB(NOW(), INTERVAL 1 MONTH))");
+
+        log_activity($pdo, 1, 'search', 'name=test');
+
+        $count = (int) $pdo->query('SELECT COUNT(*) FROM activity_log')->fetchColumn();
+        $this->assertSame(2, $count);
+
+        $oldStillExists = (int) $pdo->query("SELECT COUNT(*) FROM activity_log WHERE details = 'old'")->fetchColumn();
+        $this->assertSame(0, $oldStillExists);
+
+        $recentStillExists = (int) $pdo->query("SELECT COUNT(*) FROM activity_log WHERE details = 'recent'")->fetchColumn();
+        $this->assertSame(1, $recentStillExists);
+    }
 }

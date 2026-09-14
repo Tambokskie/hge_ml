@@ -139,4 +139,6 @@ function log_activity(PDO $pdo, ?int $userId, string $action, ?string $details =
         'action' => $action,
         'details' => $details,
     ]);
+
+    $pdo->exec('DELETE FROM activity_log WHERE created_at < (NOW() - INTERVAL 6 MONTH)');
 }
