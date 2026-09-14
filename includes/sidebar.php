@@ -17,6 +17,7 @@
         <a href="<?= e(APP_BASE_URL) ?>/admin/users.php" class="flex items-center gap-3 rounded-lg px-3 py-2 <?= sidebar_nav_class($currentPage, 'users') ?>">
             USER MANAGEMENT
         </a>
+        <!-- Task 10 adds ACTIVITY LOG link here -->
         <?php endif; ?>
     </nav>
     <div class="px-3 py-4 border-t border-white/10">
