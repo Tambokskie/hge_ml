@@ -658,3 +658,152 @@ disabling a school that has existing uploads/graduates (the UPLOADS/
 GRADUATES counts already shown in the table give an administrator
 enough visibility before deciding — YAGNI beyond that), and any bulk
 operations (bulk-disable, CSV import of schools, etc.) — none requested.
+
+## 16. School details + remove + settings nav addendum (decided 2026-09-14)
+
+Section 15 is merged. This addendum, requested the same day, adds
+ADDRESS/CAMPUS fields to schools, a scoped hard-delete (REMOVE) that
+section 15 explicitly ruled out for the general case, a confirm-before-save
+step on create/edit, and a SETTINGS submenu grouping the three admin-only
+sidebar links. It does not reopen section 15's core policy — rename/disable
+remain the everyday path; REMOVE is a narrow, guarded exception for schools
+that were created in error and never used.
+
+**Schema: `schools` gains `address` and `campus`, uniqueness becomes
+composite.** Two new columns: `address VARCHAR(500) NOT NULL` and
+`campus VARCHAR(255) NOT NULL DEFAULT ''`. CAMPUS is optional input
+(blank allowed, stored as `''`, never `NULL`) — deliberately not
+nullable, because MySQL treats every `NULL` in a unique index as
+distinct from every other `NULL`, which would silently let two
+identical blank-campus duplicates through. The existing
+`UNIQUE KEY uq_school_name (school_name)` is replaced with
+`UNIQUE KEY uq_school_name_campus (school_name, campus)` — two rows
+may now share a `school_name` as long as `campus` differs (e.g. "Eastern
+Visayas State University" / Main Campus and the same name / Tanauan
+Campus are two valid, distinct rows), but the same name+campus pair
+may not repeat.
+
+**`create_school()` and `rename_school()` gain `address`/`campus`
+parameters.** New signatures:
+- `create_school(PDO $pdo, string $name, string $address, string $campus): array`
+- `rename_school(PDO $pdo, int $id, string $newName, string $address, string $campus): array`
+  — kept as `rename_school()` rather than introducing a new function
+  name, since it already owns the "editable text fields" half of a
+  school's row (status stays separate, in `set_school_status()`); it now
+  updates all three text fields together in one statement.
+
+Both trim all three string inputs. ADDRESS is required — empty after
+trimming returns `SCHOOL ADDRESS IS REQUIRED.`, mirroring the existing
+`SCHOOL NAME IS REQUIRED.` check. CAMPUS has no required check (empty
+string is valid input, not an error). The existing SQLSTATE 23000
+duplicate-catch logic is unchanged in shape; it now fires against the
+composite key and should return a message identifying both fields, e.g.
+`A SCHOOL WITH THIS NAME AND CAMPUS ALREADY EXISTS.`
+
+**New `remove_school()` — a guarded hard delete, not a policy reversal.**
+
+```
+remove_school(PDO $pdo, int $id, int $requestingUserId, string $password): array
+```
+
+Steps, in order:
+1. Verify `$password` against the *requesting admin's own* stored
+   password hash. `current_user()` cannot supply it — `attempt_login()`
+   already does `unset($user['password'])` before the array reaches the
+   session, so the session's user array never carries the hash. This
+   step must run its own fresh, minimal query —
+   `SELECT password FROM users WHERE id = :id` against
+   `$requestingUserId` — then `password_verify($password, $hash)`, the
+   same primitive `attempt_login()` uses, just not that whole function
+   (which looks up by username, not id, and is shaped for the
+   unauthenticated login form). Wrong password → `['status' => 'error',
+   'message' => 'INCORRECT PASSWORD.']`, nothing else happens. This is a
+   re-authentication check on the acting admin, not a lookup of the
+   target school — no username-enumeration concern applies (the caller
+   is already an authenticated administrator), so the timing-safe-dummy-hash
+   trick `attempt_login()` uses is not needed here.
+2. Confirm the school exists (same `SELECT 1 ... WHERE id = :id` shape
+   used elsewhere in this project) — not found → `SCHOOL NOT FOUND.`
+3. Check `upload_count`/`graduate_count` (reuse the same correlated
+   subqueries `get_all_schools_with_counts()` already runs, scoped to
+   this one id). Either > 0 → `['status' => 'error', 'message' =>
+   'CANNOT REMOVE — THIS SCHOOL HAS ' . $uploads . ' UPLOAD(S) AND ' .
+   $graduates . ' GRADUATE RECORD(S).']`. Nothing is deleted. This is
+   the section 15 policy holding: real data is never destroyed by this
+   feature, only a school that was created and never used can actually
+   go away.
+4. Otherwise, `DELETE FROM schools WHERE id = :id` and return success.
+
+No transaction is needed — this is a single statement with no other
+table mutated in the success path (steps 1-3 are all reads).
+
+**`api/remove_school.php`** — new thin wrapper, same shape as every
+other `api/*.php` in this project: `require_role('administrator')`
+first, `csrf_verify()` returning HTTP 400 on failure, reads `school_id`
+and `password` from `$_POST`, calls `remove_school()` with
+`current_user()['id']`, logs `school_removed` (school name + id in
+`details`) only on success, generic 500 JSON on any `\Throwable`.
+
+**`admin/schools.php` UI changes:**
+- Table gains a leading checkbox column and two new columns, CAMPUS and
+  ADDRESS, landing as: checkbox, SCHOOL NAME, CAMPUS, ADDRESS, STATUS,
+  UPLOADS, GRADUATES, ACTION (ACTION keeps the existing per-row EDIT
+  button — no new per-row button is added).
+- The `<h1>` and the sidebar link both change from "SCHOOLS MANAGEMENT"
+  to "SCHOOL MANAGEMENT" for consistency with how this addendum refers
+  to the page.
+- CREATE SCHOOL moves into a new toolbar row directly under the `<h1>`,
+  alongside a new REMOVE button. REMOVE is disabled until exactly one
+  checkbox is checked; checking a row's box unchecks any other
+  (single-select only — checkboxes are the UI control requested, but
+  their behavior is exclusive, like radio buttons). No bulk removal.
+- CREATE SCHOOL and EDIT open the same two-field-set forms as today
+  (now including ADDRESS/CAMPUS) but no longer POST directly. Submitting
+  the form opens a second **review modal** — reusing the existing
+  `showModal()` helper already used throughout this project, no new UI
+  primitive — showing the entered NAME / ADDRESS / CAMPUS / STATUS
+  (edit only) as read-only text with CONFIRM and GO BACK buttons. GO
+  BACK returns to the editable form with values intact; only CONFIRM
+  fires the actual `postJson()` call to `create_school.php` /
+  `update_school.php`.
+- REMOVE opens a confirmation modal naming the selected school
+  ("PERMANENTLY REMOVE <SCHOOL NAME>? THIS CANNOT BE UNDONE.") with a
+  password input and CONFIRM/CANCEL buttons. CONFIRM POSTs to
+  `api/remove_school.php` with the school id, CSRF token, and the
+  entered password; a wrong-password or has-data error from the
+  endpoint is shown via the existing `showToast('error', ...)` pattern
+  and the modal stays open for another attempt (matching how every
+  other modal in this project surfaces a server-side validation error).
+
+**Activity logging — third `activity_log.action` ENUM value,
+`school_removed`.** Same three-step pattern this project always needs,
+now used a third time (`user_created`/`user_updated` in Phase 5,
+`school_created`/`school_updated` in section 15): `database/schema.sql`'s
+CREATE TABLE updated, a live `ALTER TABLE ... MODIFY COLUMN action
+ENUM(...)` against the already-existing dev database, and a new entry in
+`admin/activity_log.php`'s `$actionTypes` filter array — the exact step
+section 15's final review caught as missed the first time.
+
+**Sidebar: SETTINGS as a native collapsible submenu.** The existing
+`<?php if (user_has_role($currentUser ?? null, 'administrator')):
+?>` block's three flat links (USER MANAGEMENT, ACTIVITY LOG, SCHOOL
+MANAGEMENT) move inside a `<details>`/`<summary>` element labeled
+SETTINGS — no new JavaScript, no new client-side state; native browser
+disclosure behavior styled with Tailwind, consistent with this
+project's pattern of keeping static navigation server-rendered. The
+`<details>` carries the `open` attribute whenever `$currentPage` is
+`users`, `activity_log`, or `schools`, so navigating directly to any of
+the three pages shows the submenu already expanded with its link
+highlighted, rather than landing on a collapsed menu that hides where
+you are.
+
+**Out of scope for this addendum:** editing address/campus without
+going through the same review-modal confirmation step (there is no
+"quick edit" path); removing a school that has ever had data, at any
+point, even after that data is later deleted through some other means
+(no such means exists elsewhere in this project, so this is purely
+theoretical); bulk removal (explicitly ruled out this round, unlike
+section 15 where it simply hadn't come up); campus/address search or
+filtering anywhere else in the app (`admin/lookup.php`'s SCHOOL filter,
+the upload form's datalist) — those continue to key off `school_name`
+alone, unchanged by this addendum.
