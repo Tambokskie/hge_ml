@@ -467,3 +467,114 @@ name=cruz`) so Phase 5's audit log has real data to show.
 capability stays deferred, as noted in section 12 — look-up is
 read-only), FULLTEXT search, and any de-duplication of graduate rows
 across multiple uploads for the same school+year (see above).
+
+## 14. Phase 5 addendum — Admin + Hardening (decided 2026-09-14)
+
+Phase 4 is merged. This is the final phase of the original 5-phase
+breakdown (section 2). These decisions refine section 2's "user
+management, activity log, CSRF/session hardening pass, full end-to-end
+workflow test."
+
+**Schools admin CRUD stays deferred.** Section 11's Phase 2 deferral
+("nothing in Phase 2 blocks adding it later") is not picked up here —
+Phase 5's own scope is already the full list above; schools remain
+manageable only via inline creation on the upload form.
+
+**`admin/users.php` — user management, `require_role('administrator')`.**
+A table of all users (NAME, USERNAME, EMAIL, ROLE, STATUS, ACTION).
+CREATE USER opens a `modal.js` modal (name/username/email/password/role).
+Each row's ACTION supports: change role (`administrator`/`user`), toggle
+`active`/`disabled` status, and admin-initiated password reset (the
+administrator sets a new password directly for that user — no email
+flow, consistent with this app having none). **Self-lockout guard:** an
+administrator cannot disable their own account or change their own role
+away from `administrator` — enforced both in the UI (the row for the
+logged-in user's own account omits those two actions) and server-side in
+the API (a request that would do so is rejected), so the guard can't be
+bypassed by calling the API directly.
+
+**`admin/activity_log.php` — activity log viewer, `require_role('administrator')`.**
+Filters: user (dropdown, all users who have any log rows), action type
+(dropdown — the eight `activity_log.action` enum values), and a
+date-from/date-to range, defaulting to no range (shows the full
+retained window — see retention below). Built the same way as Phase 4's
+`admin/lookup.php`: `api/search_activity_log.php` (GET, JSON) plus a
+server-rendered initial state on `admin/activity_log.php` itself for
+shareable URLs, `history.pushState` for filter/page changes, paginated
+via the existing `paginate()` helper. Results table: TIMESTAMP, USER
+(or "SYSTEM" for a null `user_id`), ACTION, DETAILS. Per Phase 4's final
+review finding that `search` rows are technically forgeable
+cross-site (the endpoint that writes them is intentionally GET with no
+CSRF check), this page's copy is factual, not accusatory — e.g.
+"SEARCH — school_id=3, year=2025" rather than anything implying
+confirmed deliberate intent.
+
+**Activity log retention: hard purge at 6 months, opportunistic
+trigger.** `log_activity()` (added Phase 4, `includes/functions.php`)
+is extended so that every time it inserts a new row, it also deletes
+any `activity_log` rows with `created_at` older than 6 months
+(`DELETE FROM activity_log WHERE created_at < (NOW() - INTERVAL 6 MONTH)`,
+same statement/transaction context as the insert). No cron or scheduled
+task exists in this project, and activity logging already happens on
+every login/upload/search/etc., so this keeps the table self-bounded
+without new infrastructure. This is a genuine data-loss decision, not
+cosmetic — entries older than 6 months are gone, not merely hidden from
+the default view.
+
+**Hardening fixes (six items; two more — a project-wide global
+exception handler and review-table pagination — were considered and
+explicitly deferred, not picked up in this phase):**
+
+1. **CSRF token rotated at login.** `login_user()` (`includes/auth.php`)
+   additionally clears `$_SESSION['csrf_token']` before/alongside its
+   existing `session_regenerate_id(true)` call, so a pre-login CSRF
+   token can't remain valid after authenticating. The next
+   `csrf_token()` call issues a fresh one.
+2. **Session cookie cleared on logout.** `logout_user()`
+   (`includes/auth.php`) additionally expires the session cookie
+   client-side (via `setcookie()` with the params from
+   `session_get_cookie_params()`, matching the standard PHP
+   session-cookie-clearing idiom) — `session_destroy()` alone does not
+   unset the browser's cookie.
+3. **Timing side-channel closed in `attempt_login()`.**
+   (`includes/auth.php`) Currently returns immediately when the
+   username doesn't exist, skipping `password_verify()` entirely —
+   observably faster than the wrong-password path, which lets an
+   attacker enumerate valid usernames by response time. Fixed by always
+   calling `password_verify()`: against the real user's hash when
+   found, against a fixed dummy bcrypt hash (pre-generated once, not
+   regenerated per request) when not found, before evaluating whether
+   to return null.
+4. **`assets/js/upload.js`'s `escapeHtml()` replaced.** Its current
+   `div.textContent`/`.innerHTML` round-trip implementation is the same
+   pattern already found unsafe (doesn't escape quote characters) and
+   fixed in `review.js` and `lookup.js` during Phases 3 and 4 — this
+   copy was simply never revisited. Replaced with the same safe
+   entity-replacement implementation (`& < > " '`, `&` first) already
+   used in those two files.
+5. **`.gitignore` gains `.phpunit.result.cache` and `composer.phar`** —
+   both have shown up as untracked noise in every phase's `git status`
+   so far.
+6. **`save_staged_records()`'s rollback call guarded.**
+   (`includes/extraction_review.php`) The `catch` block's
+   `$pdo->rollBack()` call is wrapped in its own try/catch so that if
+   the rollback itself throws, the original exception's error message
+   is still what gets logged, rather than an unhandled fatal masking
+   it.
+
+**Task 6 (this phase's own end-to-end workflow task, mirroring every
+prior phase's final manual-verification task): a scripted browser
+walkthrough**, not a new automated test suite. One continuous session
+covering the full journey Phases 1-4 built: log in as administrator →
+upload a PDF (Phase 2) → extract records (Phase 3) → edit/review →
+save → look up the saved graduate (Phase 4) → verify via VIEW SOURCE
+PDF → confirm the search appears in the new activity log → create a
+`user`-role account via the new `admin/users.php` → log in as that
+user → repeat the look-up/verify steps to confirm role-agnostic access
+still holds → log back in as administrator and confirm the self-lockout
+guard refuses to disable/demote the currently-logged-in account.
+
+**Out of scope for Phase 5:** Schools admin CRUD (see above), a
+project-wide global exception/error handler, pagination on
+`admin/review.php`'s table, and any email-based password reset flow
+(this app has no email infrastructure at any point in the design).
