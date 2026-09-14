@@ -156,7 +156,11 @@ function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows
 
         $pdo->commit();
     } catch (\Throwable $e) {
-        $pdo->rollBack();
+        try {
+            $pdo->rollBack();
+        } catch (\Throwable $rollbackError) {
+            error_log('save_staged_records rollback failed: ' . $rollbackError->getMessage());
+        }
         error_log('save_staged_records failed: ' . $e->getMessage());
         return ['status' => 'error', 'message' => 'THE RECORDS COULD NOT BE SAVED. PLEASE TRY AGAIN.'];
     }

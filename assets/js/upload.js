@@ -43,12 +43,6 @@ document.addEventListener('DOMContentLoaded', function () {
         showFileInfo(fileInput.files[0]);
     });
 
-    function escapeHtml(value) {
-        var div = document.createElement('div');
-        div.textContent = value;
-        return div.innerHTML;
-    }
-
     function submitForm(extraFields) {
         var formData = new FormData(form);
         if (extraFields) {

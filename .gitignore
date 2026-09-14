@@ -4,3 +4,5 @@
 /storage/pdfs/*
 !/storage/pdfs/.htaccess
 !/storage/pdfs/.gitkeep
+.phpunit.result.cache
+composer.phar
