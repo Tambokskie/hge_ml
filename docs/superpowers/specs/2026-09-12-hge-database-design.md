@@ -578,3 +578,83 @@ guard refuses to disable/demote the currently-logged-in account.
 project-wide global exception/error handler, pagination on
 `admin/review.php`'s table, and any email-based password reset flow
 (this app has no email infrastructure at any point in the design).
+
+## 15. Schools admin CRUD addendum (decided 2026-09-14)
+
+Phase 5 is merged; all 5 original phases are complete. This is new scope
+beyond the original plan, picking up the Schools admin page deferred
+since section 11 (Phase 2) and again explicitly out of scope in
+section 14 (Phase 5).
+
+**No delete, only rename + enable/disable — matching the no-delete
+pattern `admin/users.php` already established.** Schools have exactly
+two mutable fields (`school_name`, `status`); a school with real
+uploaded honor-graduate data should never be truly removable, and
+`status = 'disabled'` already has real, working effect today —
+`get_active_school_names()`/`get_active_schools_list()` (used by the
+upload form's datalist and `admin/lookup.php`'s SCHOOL filter dropdown)
+already filter on `status = 'active'`, so disabling a school simply
+stops it appearing in those pickers. No FK/data changes are needed for
+rename or disable: `latin_honor_uploads`/`latin_honor_graduates`
+reference schools by `school_id`, never by name.
+
+**`includes/schools.php` gains three new functions** (alongside the
+existing `find_or_create_school()` and the two `get_active_school*()`
+helpers, all unchanged):
+- `get_all_schools_with_counts(PDO $pdo): array` — every school
+  regardless of status, each row carrying `upload_count` and
+  `graduate_count` (cheap correlated-subquery aggregates against
+  `latin_honor_uploads`/`latin_honor_graduates`), ordered by name.
+- `create_school(PDO $pdo, string $name): array` — a NEW function,
+  distinct from `find_or_create_school()`. That existing function's
+  "silently reuse the existing row on a name collision" semantic is
+  correct for the upload form's inline autocomplete (an uploader
+  typing an existing school's name should attach to it, not error),
+  but wrong for an explicit CREATE SCHOOL button on this new page —
+  here a duplicate name must return a clear error, matching
+  `create_user()`'s established error-on-duplicate pattern from
+  Phase 5.
+- `rename_school(PDO $pdo, int $id, string $newName): array` — same
+  duplicate-name validation as `create_school()`.
+- `set_school_status(PDO $pdo, int $id, string $status): array` —
+  validates `active`/`disabled` only.
+
+No self-lockout equivalent is needed — schools aren't a login identity,
+so there is no "can't disable the school you're currently using"
+concern the way Phase 5's user management needed one.
+
+**`api/create_school.php` + `api/update_school.php`** — both
+`require_role('administrator')`, following the exact thin-wrapper
+pattern established since Phase 2: CSRF check, delegate to the data
+layer, `try`/`catch(\Throwable)` returning a generic 500 on failure.
+`api/update_school.php` combines rename + status into one endpoint
+(mirroring `api/update_user.php`'s combined role+status+password
+pattern from Phase 5), applied inside a transaction matching that
+same file's final-review hardening.
+
+**`admin/schools.php`** follows `admin/users.php`'s exact page+modal
+shape: a CREATE SCHOOL button opening a `modal.js` create modal (just a
+NAME field), a table (SCHOOL NAME, STATUS, UPLOADS, GRADUATES, ACTION),
+and an EDIT modal per row (rename field + status toggle). A new
+`assets/js/schools.js` uses the shared `escapeHtml()` from
+`assets/js/utils.js` (added in Phase 5) — no new local copy, continuing
+that phase's consolidation rather than reintroducing the per-file
+redefinition pattern that caused two earlier real XSS bugs in this
+project. A `SCHOOLS` link is added to the sidebar's existing
+administrator-only nav block (the same `<?php if
+(user_has_role($currentUser ?? null, 'administrator')): ?>` block
+`USER MANAGEMENT` and `ACTIVITY LOG` already share).
+
+**Activity logging.** Two new `activity_log.action` ENUM values,
+`school_created` and `school_updated`, extending the exact audit-trail
+pattern Phase 5 established for `user_created`/`user_updated` —
+`database/schema.sql` updated, plus the same live-database `ALTER
+TABLE ... MODIFY COLUMN action ENUM(...)` step Phase 5 needed (schema.sql
+is only read for fresh `CREATE TABLE`s, never retroactively applied to
+an already-existing table).
+
+**Out of scope for this addendum:** any warning/confirmation UI when
+disabling a school that has existing uploads/graduates (the UPLOADS/
+GRADUATES counts already shown in the table give an administrator
+enough visibility before deciding — YAGNI beyond that), and any bulk
+operations (bulk-disable, CSV import of schools, etc.) — none requested.
