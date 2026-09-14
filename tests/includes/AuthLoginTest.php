@@ -78,4 +78,20 @@ class AuthLoginTest extends TestCase
         $newToken = csrf_token();
         $this->assertNotSame($oldToken, $newToken);
     }
+
+    public function testFetchCurrentRoleAndStatusReturnsRoleAndStatus(): void
+    {
+        $pdo = TestDb::pdo();
+        $adminId = (int) $pdo->query("SELECT id FROM users WHERE username = 'admin'")->fetchColumn();
+
+        $result = fetch_current_role_and_status($pdo, $adminId);
+
+        $this->assertSame('administrator', $result['role']);
+        $this->assertSame('active', $result['status']);
+    }
+
+    public function testFetchCurrentRoleAndStatusReturnsNullForUnknownId(): void
+    {
+        $this->assertNull(fetch_current_role_and_status(TestDb::pdo(), 999999));
+    }
 }

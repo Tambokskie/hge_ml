@@ -22,6 +22,10 @@ function create_user(PDO $pdo, array $data): array
         return ['status' => 'error', 'message' => 'PASSWORD MUST BE AT LEAST 8 CHARACTERS.'];
     }
 
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return ['status' => 'error', 'message' => 'PLEASE ENTER A VALID EMAIL ADDRESS.'];
+    }
+
     if (!in_array($role, ['administrator', 'user'], true)) {
         return ['status' => 'error', 'message' => 'INVALID ROLE.'];
     }

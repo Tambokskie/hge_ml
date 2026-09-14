@@ -41,11 +41,21 @@ if ($isSelf && $status === 'disabled') {
 
 try {
     $pdo = get_pdo();
+
+    $existsStmt = $pdo->prepare('SELECT 1 FROM users WHERE id = :id');
+    $existsStmt->execute(['id' => $userId]);
+    if ($existsStmt->fetchColumn() === false) {
+        echo json_encode(['status' => 'error', 'message' => 'USER NOT FOUND.']);
+        exit;
+    }
+
+    $pdo->beginTransaction();
     $details = [];
 
     if ($role !== null) {
         $result = update_user_role($pdo, $userId, $role);
         if ($result['status'] !== 'success') {
+            $pdo->rollBack();
             echo json_encode($result);
             exit;
         }
@@ -55,6 +65,7 @@ try {
     if ($status !== null) {
         $result = set_user_status($pdo, $userId, $status);
         if ($result['status'] !== 'success') {
+            $pdo->rollBack();
             echo json_encode($result);
             exit;
         }
@@ -64,6 +75,7 @@ try {
     if ($newPassword !== null) {
         $result = reset_user_password($pdo, $userId, $newPassword);
         if ($result['status'] !== 'success') {
+            $pdo->rollBack();
             echo json_encode($result);
             exit;
         }
@@ -71,9 +83,12 @@ try {
     }
 
     if (empty($details)) {
+        $pdo->rollBack();
         echo json_encode(['status' => 'error', 'message' => 'NO CHANGES WERE SUBMITTED.']);
         exit;
     }
+
+    $pdo->commit();
 
     try {
         log_activity($pdo, $currentUser['id'] ?? null, 'user_updated', 'user_id=' . $userId . ', ' . implode(', ', $details));
@@ -83,6 +98,9 @@ try {
 
     echo json_encode(['status' => 'success', 'message' => 'USER UPDATED SUCCESSFULLY.']);
 } catch (\Throwable $e) {
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log('Update user failed: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['status' => 'error', 'message' => 'THE USER COULD NOT BE UPDATED. PLEASE TRY AGAIN.']);

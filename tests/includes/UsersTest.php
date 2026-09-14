@@ -70,6 +70,12 @@ class UsersTest extends TestCase
         $this->assertSame('error', $result['status']);
     }
 
+    public function testCreateUserRejectsInvalidEmail(): void
+    {
+        $result = create_user(TestDb::pdo(), ['name' => 'Ana', 'username' => 'ana', 'email' => 'not-an-email', 'password' => 'secret123']);
+        $this->assertSame('error', $result['status']);
+    }
+
     public function testCreateUserRejectsInvalidRole(): void
     {
         $result = create_user(TestDb::pdo(), ['name' => 'Ana', 'username' => 'ana', 'email' => 'ana@a.com', 'password' => 'secret123', 'role' => 'superadmin']);
