@@ -23,8 +23,14 @@ if ($schoolId <= 0) {
     exit;
 }
 
-$name = isset($_POST['name']) && trim((string) $_POST['name']) !== '' ? trim((string) $_POST['name']) : null;
+$nameSubmitted = isset($_POST['name']);
+$name = $nameSubmitted ? trim((string) $_POST['name']) : null;
 $status = isset($_POST['status']) && $_POST['status'] !== '' ? (string) $_POST['status'] : null;
+
+if ($nameSubmitted && $name === '') {
+    echo json_encode(['status' => 'error', 'message' => 'SCHOOL NAME IS REQUIRED.']);
+    exit;
+}
 
 try {
     $pdo = get_pdo();
