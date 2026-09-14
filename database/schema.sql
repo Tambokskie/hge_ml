@@ -66,7 +66,7 @@ CREATE TABLE latin_honor_graduates (
 CREATE TABLE activity_log (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NULL,
-  action ENUM('login','logout','pdf_upload','pdf_delete','record_created','record_updated','record_removed','search') NOT NULL,
+  action ENUM('login','logout','pdf_upload','pdf_delete','record_created','record_updated','record_removed','search','user_created','user_updated') NOT NULL,
   details TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id)
