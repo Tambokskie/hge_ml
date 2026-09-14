@@ -37,11 +37,14 @@ function attempt_login(PDO $pdo, string $username, string $password): ?array
     $stmt->execute(['username' => $username]);
     $user = $stmt->fetch();
 
-    if (!$user || $user['status'] !== 'active') {
-        return null;
-    }
+    // A fixed, pre-generated bcrypt hash with no matching plaintext password.
+    // Used only to keep password_verify()'s timing identical whether or not
+    // the username exists, closing a username-enumeration side channel.
+    $dummyHash = '$2y$10$237rIx3i.u4rgcupmeT9IeWgfVojp/ALex2FJywvBWhCDVYo0GCo.';
+    $hashToVerify = ($user && $user['status'] === 'active') ? $user['password'] : $dummyHash;
+    $passwordValid = password_verify($password, $hashToVerify);
 
-    if (!password_verify($password, $user['password'])) {
+    if (!$user || $user['status'] !== 'active' || !$passwordValid) {
         return null;
     }
 
@@ -53,6 +56,7 @@ function login_user(array $user): void
 {
     ensure_session();
     session_regenerate_id(true);
+    unset($_SESSION['csrf_token']);
     $_SESSION['user'] = [
         'id' => $user['id'],
         'name' => $user['name'],
@@ -65,6 +69,12 @@ function logout_user(): void
 {
     ensure_session();
     $_SESSION = [];
+
+    if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+    }
+
     session_destroy();
 }
 

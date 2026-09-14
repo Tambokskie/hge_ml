@@ -68,4 +68,14 @@ class AuthLoginTest extends TestCase
 
         $this->assertNull(current_user());
     }
+
+    public function testLoginUserRotatesCsrfToken(): void
+    {
+        $oldToken = csrf_token();
+        $user = attempt_login(TestDb::pdo(), 'admin', 'secret123');
+        login_user($user);
+
+        $newToken = csrf_token();
+        $this->assertNotSame($oldToken, $newToken);
+    }
 }
