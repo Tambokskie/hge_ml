@@ -115,7 +115,7 @@ class SchoolsTest extends TestCase
     {
         $pdo = TestDb::pdo();
 
-        $result = create_school($pdo, 'New School');
+        $result = create_school($pdo, 'New School', '123 Main St', 'Main Campus');
 
         $this->assertSame('success', $result['status']);
         $this->assertArrayHasKey('id', $result);
@@ -125,51 +125,96 @@ class SchoolsTest extends TestCase
 
     public function testCreateSchoolRejectsEmptyName(): void
     {
-        $result = create_school(TestDb::pdo(), '   ');
+        $result = create_school(TestDb::pdo(), '   ', '123 Main St', '');
         $this->assertSame('error', $result['status']);
     }
 
-    public function testCreateSchoolRejectsDuplicateName(): void
+    public function testCreateSchoolRejectsEmptyAddress(): void
+    {
+        $result = create_school(TestDb::pdo(), 'ABC University', '   ', '');
+        $this->assertSame('error', $result['status']);
+    }
+
+    public function testCreateSchoolAcceptsEmptyCampus(): void
+    {
+        $result = create_school(TestDb::pdo(), 'ABC University', '123 Main St', '');
+        $this->assertSame('success', $result['status']);
+    }
+
+    public function testCreateSchoolRejectsDuplicateNameAndCampus(): void
     {
         $pdo = TestDb::pdo();
-        create_school($pdo, 'ABC University');
+        create_school($pdo, 'ABC University', '123 Main St', 'Main Campus');
 
-        $result = create_school($pdo, 'ABC University');
+        $result = create_school($pdo, 'ABC University', '456 Other St', 'Main Campus');
 
         $this->assertSame('error', $result['status']);
         $count = (int) $pdo->query("SELECT COUNT(*) FROM schools WHERE school_name = 'ABC University'")->fetchColumn();
         $this->assertSame(1, $count);
     }
 
+    public function testCreateSchoolAllowsSameNameDifferentCampus(): void
+    {
+        $pdo = TestDb::pdo();
+        $first = create_school($pdo, 'ABC University', '123 Main St', 'Main Campus');
+        $second = create_school($pdo, 'ABC University', '456 Other St', 'Tanauan Campus');
+
+        $this->assertSame('success', $first['status']);
+        $this->assertSame('success', $second['status']);
+        $count = (int) $pdo->query("SELECT COUNT(*) FROM schools WHERE school_name = 'ABC University'")->fetchColumn();
+        $this->assertSame(2, $count);
+    }
+
     public function testRenameSchoolChangesName(): void
     {
         $pdo = TestDb::pdo();
-        $created = create_school($pdo, 'Old Name');
+        $created = create_school($pdo, 'Old Name', '123 Main St', '');
 
-        $result = rename_school($pdo, $created['id'], 'New Name');
+        $result = rename_school($pdo, $created['id'], 'New Name', '123 Main St', '');
 
         $this->assertSame('success', $result['status']);
         $name = $pdo->query("SELECT school_name FROM schools WHERE id = {$created['id']}")->fetchColumn();
         $this->assertSame('New Name', $name);
     }
 
-    public function testRenameSchoolRejectsDuplicateName(): void
+    public function testRenameSchoolRejectsEmptyAddress(): void
     {
         $pdo = TestDb::pdo();
-        create_school($pdo, 'ABC University');
-        $created = create_school($pdo, 'XYZ College');
+        $created = create_school($pdo, 'ABC University', '123 Main St', '');
 
-        $result = rename_school($pdo, $created['id'], 'ABC University');
+        $result = rename_school($pdo, $created['id'], 'ABC University', '   ', '');
+
+        $this->assertSame('error', $result['status']);
+    }
+
+    public function testRenameSchoolRejectsDuplicateNameAndCampus(): void
+    {
+        $pdo = TestDb::pdo();
+        create_school($pdo, 'ABC University', '123 Main St', 'Main Campus');
+        $created = create_school($pdo, 'XYZ College', '456 Other St', '');
+
+        $result = rename_school($pdo, $created['id'], 'ABC University', '456 Other St', 'Main Campus');
 
         $this->assertSame('error', $result['status']);
         $name = $pdo->query("SELECT school_name FROM schools WHERE id = {$created['id']}")->fetchColumn();
         $this->assertSame('XYZ College', $name);
     }
 
+    public function testRenameSchoolAllowsSameNameDifferentCampus(): void
+    {
+        $pdo = TestDb::pdo();
+        create_school($pdo, 'ABC University', '123 Main St', 'Main Campus');
+        $created = create_school($pdo, 'XYZ College', '456 Other St', '');
+
+        $result = rename_school($pdo, $created['id'], 'ABC University', '456 Other St', 'Tanauan Campus');
+
+        $this->assertSame('success', $result['status']);
+    }
+
     public function testSetSchoolStatusTogglesStatus(): void
     {
         $pdo = TestDb::pdo();
-        $created = create_school($pdo, 'ABC University');
+        $created = create_school($pdo, 'ABC University', '123 Main St', '');
 
         $result = set_school_status($pdo, $created['id'], 'disabled');
 
@@ -181,6 +226,79 @@ class SchoolsTest extends TestCase
     public function testSetSchoolStatusRejectsInvalidStatus(): void
     {
         $result = set_school_status(TestDb::pdo(), 1, 'archived');
+        $this->assertSame('error', $result['status']);
+    }
+
+    public function testRemoveSchoolBlocksWhenUploadsExist(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec("INSERT INTO users (name, username, email, password, role) VALUES ('Admin', 'admin', 'a@a.com', '" . password_hash('secret123', PASSWORD_DEFAULT) . "', 'administrator')");
+        $school = create_school($pdo, 'ABC University', '123 Main St', '');
+        $pdo->exec(
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number)
+             VALUES ({$school['id']}, '2025', 'a.pdf', 'ABC_2025_1.pdf', '/x/a.pdf', 10, SHA2('a', 256), 1, 1)"
+        );
+
+        $result = remove_school($pdo, $school['id'], 1, 'secret123');
+
+        $this->assertSame('error', $result['status']);
+        $count = (int) $pdo->query("SELECT COUNT(*) FROM schools WHERE id = {$school['id']}")->fetchColumn();
+        $this->assertSame(1, $count);
+    }
+
+    public function testRemoveSchoolBlocksWhenGraduatesExist(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec("INSERT INTO users (name, username, email, password, role) VALUES ('Admin', 'admin', 'a@a.com', '" . password_hash('secret123', PASSWORD_DEFAULT) . "', 'administrator')");
+        $school = create_school($pdo, 'ABC University', '123 Main St', '');
+        $pdo->exec(
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number)
+             VALUES ({$school['id']}, '2025', 'a.pdf', 'ABC_2025_1.pdf', '/x/a.pdf', 10, SHA2('a', 256), 1, 1)"
+        );
+        $pdo->exec(
+            "INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, latin_honor, graduation_date, graduation_year)
+             VALUES (1, {$school['id']}, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025)"
+        );
+
+        $result = remove_school($pdo, $school['id'], 1, 'secret123');
+
+        $this->assertSame('error', $result['status']);
+    }
+
+    public function testRemoveSchoolSucceedsWhenEmpty(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec("INSERT INTO users (name, username, email, password, role) VALUES ('Admin', 'admin', 'a@a.com', '" . password_hash('secret123', PASSWORD_DEFAULT) . "', 'administrator')");
+        $school = create_school($pdo, 'ABC University', '123 Main St', '');
+
+        $result = remove_school($pdo, $school['id'], 1, 'secret123');
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame('ABC University', $result['school_name']);
+        $count = (int) $pdo->query("SELECT COUNT(*) FROM schools WHERE id = {$school['id']}")->fetchColumn();
+        $this->assertSame(0, $count);
+    }
+
+    public function testRemoveSchoolRejectsWrongPassword(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec("INSERT INTO users (name, username, email, password, role) VALUES ('Admin', 'admin', 'a@a.com', '" . password_hash('secret123', PASSWORD_DEFAULT) . "', 'administrator')");
+        $school = create_school($pdo, 'ABC University', '123 Main St', '');
+
+        $result = remove_school($pdo, $school['id'], 1, 'wrong-password');
+
+        $this->assertSame('error', $result['status']);
+        $count = (int) $pdo->query("SELECT COUNT(*) FROM schools WHERE id = {$school['id']}")->fetchColumn();
+        $this->assertSame(1, $count);
+    }
+
+    public function testRemoveSchoolRejectsNonexistentSchool(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec("INSERT INTO users (name, username, email, password, role) VALUES ('Admin', 'admin', 'a@a.com', '" . password_hash('secret123', PASSWORD_DEFAULT) . "', 'administrator')");
+
+        $result = remove_school($pdo, 999, 1, 'secret123');
+
         $this->assertSame('error', $result['status']);
     }
 }

@@ -16,10 +16,12 @@ CREATE TABLE users (
 CREATE TABLE schools (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   school_name VARCHAR(255) NOT NULL,
+  address VARCHAR(500) NOT NULL DEFAULT '',
+  campus VARCHAR(255) NOT NULL DEFAULT '',
   status ENUM('active','disabled') NOT NULL DEFAULT 'active',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_school_name (school_name)
+  UNIQUE KEY uq_school_name_campus (school_name, campus)
 ) ENGINE=InnoDB;
 
 CREATE TABLE latin_honor_uploads (
@@ -66,7 +68,7 @@ CREATE TABLE latin_honor_graduates (
 CREATE TABLE activity_log (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NULL,
-  action ENUM('login','logout','pdf_upload','pdf_delete','record_created','record_updated','record_removed','search','user_created','user_updated','school_created','school_updated') NOT NULL,
+  action ENUM('login','logout','pdf_upload','pdf_delete','record_created','record_updated','record_removed','search','user_created','user_updated','school_created','school_updated','school_removed') NOT NULL,
   details TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id),
