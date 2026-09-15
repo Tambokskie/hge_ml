@@ -33,7 +33,7 @@ try {
     $searchFailed = true;
 }
 
-$actionTypes = ['login', 'logout', 'pdf_upload', 'pdf_delete', 'record_created', 'record_updated', 'record_removed', 'search', 'user_created', 'user_updated', 'school_created', 'school_updated'];
+$actionTypes = ['login', 'logout', 'pdf_upload', 'pdf_delete', 'record_created', 'record_updated', 'record_removed', 'search', 'user_created', 'user_updated', 'school_created', 'school_updated', 'school_removed'];
 
 $currentUser = current_user();
 $currentPage = 'activity_log';

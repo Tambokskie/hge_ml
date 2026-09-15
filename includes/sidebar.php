@@ -14,15 +14,22 @@
             UPLOAD LATIN HONOR LIST
         </a>
         <?php if (user_has_role($currentUser ?? null, 'administrator')): ?>
-        <a href="<?= e(APP_BASE_URL) ?>/admin/users.php" class="flex items-center gap-3 rounded-lg px-3 py-2 <?= sidebar_nav_class($currentPage, 'users') ?>">
-            USER MANAGEMENT
-        </a>
-        <a href="<?= e(APP_BASE_URL) ?>/admin/activity_log.php" class="flex items-center gap-3 rounded-lg px-3 py-2 <?= sidebar_nav_class($currentPage, 'activity_log') ?>">
-            ACTIVITY LOG
-        </a>
-        <a href="<?= e(APP_BASE_URL) ?>/admin/schools.php" class="flex items-center gap-3 rounded-lg px-3 py-2 <?= sidebar_nav_class($currentPage, 'schools') ?>">
-            SCHOOLS
-        </a>
+        <details <?= in_array($currentPage, ['users', 'activity_log', 'schools'], true) ? 'open' : '' ?>>
+            <summary class="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-400 hover:bg-white/5 hover:text-white cursor-pointer">
+                SETTINGS
+            </summary>
+            <div class="ml-3 mt-1 space-y-1">
+                <a href="<?= e(APP_BASE_URL) ?>/admin/users.php" class="flex items-center gap-3 rounded-lg px-3 py-2 <?= sidebar_nav_class($currentPage, 'users') ?>">
+                    USER MANAGEMENT
+                </a>
+                <a href="<?= e(APP_BASE_URL) ?>/admin/activity_log.php" class="flex items-center gap-3 rounded-lg px-3 py-2 <?= sidebar_nav_class($currentPage, 'activity_log') ?>">
+                    ACTIVITY LOG
+                </a>
+                <a href="<?= e(APP_BASE_URL) ?>/admin/schools.php" class="flex items-center gap-3 rounded-lg px-3 py-2 <?= sidebar_nav_class($currentPage, 'schools') ?>">
+                    SCHOOL MANAGEMENT
+                </a>
+            </div>
+        </details>
         <?php endif; ?>
     </nav>
     <div class="px-3 py-4 border-t border-white/10">
