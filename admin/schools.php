@@ -44,7 +44,8 @@ include __DIR__ . '/../includes/sidebar.php';
                             <td class="px-4 py-3">
                                 <input type="checkbox" class="school-checkbox"
                                     data-school-id="<?= (int) $school['id'] ?>"
-                                    data-name="<?= e($school['school_name']) ?>">
+                                    data-name="<?= e($school['school_name']) ?>"
+                                    data-campus="<?= e($school['campus']) ?>">
                             </td>
                             <td class="px-4 py-3"><?= e_upper($school['school_name']) ?></td>
                             <td class="px-4 py-3"><?= $school['campus'] !== '' ? e_upper($school['campus']) : '—' ?></td>

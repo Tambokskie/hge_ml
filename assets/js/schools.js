@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function openCreateModal(prefill) {
+        var submitting = false;
         prefill = prefill || { name: '', address: '', campus: '' };
         var bodyHtml =
             '<div class="space-y-3">' +
@@ -83,6 +84,10 @@ document.addEventListener('DOMContentLoaded', function () {
                                 { label: 'CAMPUS', value: values.campus !== '' ? values.campus : '—' },
                             ],
                             function (confirmModalClose) {
+                                if (submitting) {
+                                    return;
+                                }
+                                submitting = true;
                                 postJson(config.apiBase + '/api/create_school.php', {
                                     csrf_token: config.csrfToken,
                                     name: values.name,
@@ -95,10 +100,12 @@ document.addEventListener('DOMContentLoaded', function () {
                                             confirmModalClose();
                                             reload();
                                         } else {
+                                            submitting = false;
                                             showToast('error', data.message);
                                         }
                                     })
                                     .catch(function () {
+                                        submitting = false;
                                         showToast('error', 'THE SCHOOL COULD NOT BE CREATED. PLEASE TRY AGAIN.');
                                     });
                             },
@@ -113,6 +120,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function openEditModal(defaults) {
+        var submitting = false;
         var bodyHtml =
             '<div class="space-y-3">' +
             '<div><label class="block text-xs text-gray-400 mb-1">SCHOOL NAME</label>' +
@@ -153,6 +161,10 @@ document.addEventListener('DOMContentLoaded', function () {
                                 { label: 'STATUS', value: values.status.toUpperCase() },
                             ],
                             function (confirmModalClose) {
+                                if (submitting) {
+                                    return;
+                                }
+                                submitting = true;
                                 postJson(config.apiBase + '/api/update_school.php', {
                                     csrf_token: config.csrfToken,
                                     school_id: values.schoolId,
@@ -167,10 +179,12 @@ document.addEventListener('DOMContentLoaded', function () {
                                             confirmModalClose();
                                             reload();
                                         } else {
+                                            submitting = false;
                                             showToast('error', data.message);
                                         }
                                     })
                                     .catch(function () {
+                                        submitting = false;
                                         showToast('error', 'THE SCHOOL COULD NOT BE UPDATED. PLEASE TRY AGAIN.');
                                     });
                             },
@@ -185,9 +199,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function openRemoveConfirmModal(target) {
+        var submitting = false;
+        var displayName = target.campus !== '' ? target.name + ' (' + target.campus + ')' : target.name;
         var bodyHtml =
             '<div class="space-y-3">' +
-            '<p class="text-sm text-gray-300">PERMANENTLY REMOVE <span class="text-white font-medium">' + escapeHtml(target.name) + '</span>? THIS CANNOT BE UNDONE.</p>' +
+            '<p class="text-sm text-gray-300">PERMANENTLY REMOVE <span class="text-white font-medium">' + escapeHtml(displayName) + '</span>? THIS CANNOT BE UNDONE.</p>' +
             '<div><label class="block text-xs text-gray-400 mb-1">ENTER YOUR PASSWORD TO CONFIRM</label>' +
             '<input id="modal-remove-password" type="password" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
             '</div>';
@@ -201,6 +217,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     label: 'CONFIRM',
                     className: 'rounded-lg px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white',
                     onClick: function (modalClose) {
+                        if (submitting) {
+                            return;
+                        }
+                        submitting = true;
                         var password = document.getElementById('modal-remove-password').value;
                         postJson(config.apiBase + '/api/remove_school.php', {
                             csrf_token: config.csrfToken,
@@ -213,10 +233,12 @@ document.addEventListener('DOMContentLoaded', function () {
                                     modalClose();
                                     reload();
                                 } else {
+                                    submitting = false;
                                     showToast('error', data.message);
                                 }
                             })
                             .catch(function () {
+                                submitting = false;
                                 showToast('error', 'THE SCHOOL COULD NOT BE REMOVED. PLEASE TRY AGAIN.');
                             });
                     },
@@ -277,6 +299,7 @@ document.addEventListener('DOMContentLoaded', function () {
             openRemoveConfirmModal({
                 schoolId: checked.dataset.schoolId,
                 name: checked.dataset.name,
+                campus: checked.dataset.campus,
             });
         });
     }

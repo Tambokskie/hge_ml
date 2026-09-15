@@ -46,6 +46,18 @@ class SchoolsTest extends TestCase
         $this->assertSame(1, $count);
     }
 
+    public function testFindOrCreateSchoolReusesExistingSchoolThatHasACampus(): void
+    {
+        $pdo = TestDb::pdo();
+        $created = create_school($pdo, 'Eastern Visayas State University', '123 Main St', 'Main Campus');
+
+        $found = find_or_create_school($pdo, 'Eastern Visayas State University');
+
+        $this->assertSame($created['id'], $found['id']);
+        $count = (int) $pdo->query("SELECT COUNT(*) FROM schools WHERE school_name = 'Eastern Visayas State University'")->fetchColumn();
+        $this->assertSame(1, $count);
+    }
+
     public function testGetActiveSchoolNamesReturnsOnlyActiveSchoolsSortedAlphabetically(): void
     {
         $pdo = TestDb::pdo();

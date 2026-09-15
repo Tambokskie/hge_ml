@@ -4,6 +4,23 @@ function find_or_create_school(PDO $pdo, string $schoolName): array
 {
     $name = trim($schoolName);
 
+    $stmt = $pdo->prepare('SELECT id, school_name FROM schools WHERE school_name = :name LIMIT 1');
+    $stmt->execute(['name' => $name]);
+    $row = $stmt->fetch();
+
+    if ($row === false) {
+        $stmt = $pdo->prepare('SELECT id, school_name FROM schools WHERE LOWER(school_name) = LOWER(:name) LIMIT 1');
+        $stmt->execute(['name' => $name]);
+        $row = $stmt->fetch();
+    }
+
+    if ($row !== false) {
+        return [
+            'id' => (int) $row['id'],
+            'school_name' => $row['school_name'],
+        ];
+    }
+
     try {
         $stmt = $pdo->prepare('INSERT INTO schools (school_name) VALUES (:name)');
         $stmt->execute(['name' => $name]);
@@ -18,15 +35,10 @@ function find_or_create_school(PDO $pdo, string $schoolName): array
         }
     }
 
+    // Race fallback: another request inserted the same name between our SELECT and INSERT.
     $stmt = $pdo->prepare('SELECT id, school_name FROM schools WHERE school_name = :name LIMIT 1');
     $stmt->execute(['name' => $name]);
     $row = $stmt->fetch();
-
-    if ($row === false) {
-        $stmt = $pdo->prepare('SELECT id, school_name FROM schools WHERE LOWER(school_name) = LOWER(:name) LIMIT 1');
-        $stmt->execute(['name' => $name]);
-        $row = $stmt->fetch();
-    }
 
     return [
         'id' => (int) $row['id'],
@@ -57,7 +69,7 @@ function get_all_schools_with_counts(PDO $pdo): array
     return $stmt->fetchAll();
 }
 
-function create_school(PDO $pdo, string $name, string $address = '', string $campus = ''): array
+function create_school(PDO $pdo, string $name, string $address, string $campus = ''): array
 {
     $name = trim($name);
     $address = trim($address);
@@ -96,7 +108,7 @@ function create_school(PDO $pdo, string $name, string $address = '', string $cam
     return ['status' => 'success', 'message' => 'SCHOOL CREATED SUCCESSFULLY.', 'id' => (int) $pdo->lastInsertId()];
 }
 
-function rename_school(PDO $pdo, int $id, string $newName, string $address = '', string $campus = ''): array
+function rename_school(PDO $pdo, int $id, string $newName, string $address, string $campus = ''): array
 {
     $newName = trim($newName);
     $address = trim($address);
