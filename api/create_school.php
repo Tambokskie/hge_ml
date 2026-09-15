@@ -18,13 +18,15 @@ if (!csrf_verify($_POST['csrf_token'] ?? null)) {
 try {
     $pdo = get_pdo();
     $name = trim((string) ($_POST['name'] ?? ''));
+    $address = trim((string) ($_POST['address'] ?? ''));
+    $campus = trim((string) ($_POST['campus'] ?? ''));
 
-    $result = create_school($pdo, $name);
+    $result = create_school($pdo, $name, $address, $campus);
 
     if ($result['status'] === 'success') {
         try {
             $currentUser = current_user();
-            log_activity($pdo, $currentUser['id'] ?? null, 'school_created', 'school_name=' . $name);
+            log_activity($pdo, $currentUser['id'] ?? null, 'school_created', 'school_name=' . $name . ', address=' . $address . ', campus=' . $campus);
         } catch (\Throwable $logError) {
             error_log('Activity log failed: ' . $logError->getMessage());
         }

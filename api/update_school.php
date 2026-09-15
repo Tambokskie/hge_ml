@@ -25,6 +25,8 @@ if ($schoolId <= 0) {
 
 $nameSubmitted = isset($_POST['name']);
 $name = $nameSubmitted ? trim((string) $_POST['name']) : null;
+$address = $nameSubmitted ? trim((string) ($_POST['address'] ?? '')) : null;
+$campus = $nameSubmitted ? trim((string) ($_POST['campus'] ?? '')) : null;
 $status = isset($_POST['status']) && $_POST['status'] !== '' ? (string) $_POST['status'] : null;
 
 if ($nameSubmitted && $name === '') {
@@ -46,13 +48,13 @@ try {
     $details = [];
 
     if ($name !== null) {
-        $result = rename_school($pdo, $schoolId, $name);
+        $result = rename_school($pdo, $schoolId, $name, $address, $campus);
         if ($result['status'] !== 'success') {
             $pdo->rollBack();
             echo json_encode($result);
             exit;
         }
-        $details[] = 'name=' . $name;
+        $details[] = 'name=' . $name . ', address=' . $address . ', campus=' . $campus;
     }
 
     if ($status !== null) {
