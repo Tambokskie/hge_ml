@@ -807,3 +807,132 @@ section 15 where it simply hadn't come up); campus/address search or
 filtering anywhere else in the app (`admin/lookup.php`'s SCHOOL filter,
 the upload form's datalist) — those continue to key off `school_name`
 alone, unchanged by this addendum.
+
+## 17. OCR fallback addendum (decided 2026-09-16)
+
+Sections 15/16 are merged. This addendum addresses a real gap found while
+debugging a genuine user-reported issue: a real uploaded PDF (`List of
+Honor Graduates_Second Semester AY 2025-2026.pdf`) turned out to be a
+*scanned/photographed* document — confirmed via direct diagnostic testing
+(`smalot/pdfparser` extracts 0 characters; each of its 2 pages is a single
+full-page `/DCTDecode` JPEG image, 2456x3484px, zero `/Font` objects). This
+is exactly the "scanned/image-based PDF" case section 12/13 already
+anticipated and designed a graceful failure path for (`extraction_status`
+becomes `failed`, `admin/review.php` shows "TEXT COULD NOT BE RELIABLY
+EXTRACTED FROM THIS PDF" with a manual-entry fallback) — that path works
+correctly today. This addendum adds an automatic OCR retry so a scanned
+PDF like this one can often be extracted without falling all the way back
+to manual entry.
+
+**Engine choice: local Tesseract OCR + Ghostscript, not a cloud OCR API.**
+Matches this project's fully self-hosted posture (nothing else in this app
+sends data to a third party) — cloud OCR would mean real student names and
+honor records leaving the machine per upload, plus per-page cost and a
+credentials-management burden this local build has no precedent for. Both
+binaries are already installed and verified on the dev machine used to
+write this addendum: Tesseract v5.4.0.20240606 (`UB-Mannheim.TesseractOCR`,
+the standard trusted Windows build, Apache-2.0, published by Mannheim
+University Library) at `C:\Program Files\Tesseract-OCR\tesseract.exe`, and
+Ghostscript v10.08.0 (official Artifex release, verified against the
+project's published SHA512SUMS before install) at
+`C:\Program Files\gs\gs10.08.0\bin\gswin64c.exe`.
+
+**Architecture: shared row-parsing trait + new `OcrExtractor`, both behind
+the unchanged `ExtractorInterface`.** The line-parsing logic currently
+inline in `GenericExtractor` (`parseLine()`, `normalizeLatinHonor()`,
+`extractDate()`) moves into a shared trait, call it `ParsesHonorRows`,
+with one method, `parseRows(string $text): array`, doing exactly what
+`GenericExtractor::extract()` does today: split on line breaks, run each
+line through the honor/name/date matching, collect non-null rows. Both
+`GenericExtractor` and the new `OcrExtractor` `use` this trait and differ
+only in how they obtain `$text`.
+
+`GenericExtractor::extract()` is otherwise unchanged, except every row it
+returns now carries an added `'source' => 'text'` key.
+
+**`OcrExtractor::extract(string $filePath): array`:**
+1. Build a temp directory (`sys_get_temp_dir() . '/hge_ocr_' . uniqid()`),
+   created just before use.
+2. Rasterize every page to a PNG via a direct Ghostscript CLI call,
+   `<GHOSTSCRIPT_PATH> -dNOPAUSE -dBATCH -dSAFER -sDEVICE=png16m -r300
+   -sOutputFile=<tmpdir>/page_%03d.png <filePath>` (all paths through
+   `escapeshellarg()`), 300 DPI being the common floor for usable OCR
+   accuracy. If Ghostscript isn't found/executable or produces zero page
+   images, log a clear diagnostic (matching `GenericExtractor`'s
+   `error_log()` style) and return `['status' => 'failed', 'rows' => []]`
+   immediately, no Tesseract call attempted.
+3. For each generated page image (`glob()`'d and sorted), run Tesseract via
+   the `thiagoalessio/tesseract_ocr` Composer package, `(new
+   TesseractOCR($imagePath))->executable(getenv('TESSERACT_PATH') ?:
+   'C:\Program Files\Tesseract-OCR\tesseract.exe')->run()`. A single page's
+   OCR failure is caught, logged, and that page's contribution to the text
+   is simply skipped (not fatal to the whole document) — a 3-page scan
+   where page 2 fails to OCR should still yield rows from pages 1 and 3
+   rather than discarding everything.
+4. Concatenate all successfully-OCR'd pages' text with newline separators
+   into one blob (mirroring `getText()`'s one-blob-per-document shape),
+   run it through the shared `parseRows()` trait method.
+5. Delete every generated page image and the temp directory, in a
+   `finally` block, so cleanup happens whether extraction succeeded,
+   returned zero rows, or threw partway through.
+6. Every returned row carries `'source' => 'ocr'`.
+7. `status` is `'ok'` if any rows were parsed, `'failed'` otherwise, same
+   rule `GenericExtractor` already uses.
+
+**Orchestration in `api/extract_pdf.php`: automatic fallback.** Try
+`GenericExtractor` first (fast, unchanged). If its result is `status:
+'failed'`, automatically retry with `OcrExtractor` before giving up, the
+admin still just clicks EXTRACT once. Whichever extractor produces rows
+determines the final `extraction_status`; if both fail, behavior is
+byte-for-byte what it is today (routes to the manual-entry review page
+with the existing warning banner). `max_execution_time` is raised for just
+this one endpoint (`ini_set('max_execution_time', 120)` at the top of
+`api/extract_pdf.php`) since a multi-page OCR pass can run well past PHP's
+usual default, today's code has no such override and would risk a hard
+timeout mid-OCR with no partial result surfaced.
+
+**Confidence flag + provenance rule.** `admin/review.php`'s table gains a
+badge next to LATIN HONOR, "OCR — VERIFY", rendered whenever a staged
+row's `source` is `'ocr'`; rows with `source: 'text'` or `'manual'` show
+nothing extra. `set_staged_row()` (`includes/extraction_review.php`,
+backing both the ADD RECORD and EDIT flows) is extended to always set
+`'source' => 'manual'` on whatever row it writes, regardless of that row's
+previous source, once a human has typed or corrected a row through the
+review UI, it is no longer an unverified OCR guess, so the flag clears.
+`start_extraction_review()`'s session-stored row shape and
+`save_staged_records()`'s DB insert are otherwise unaffected, `source` is
+a review-time-only field, never written to `latin_honor_graduates` (that
+table has no such column and none is added; provenance is a review-UI
+concern, not a permanent audit trail).
+
+**Configuration.** Two new env vars, `TESSERACT_PATH` and
+`GHOSTSCRIPT_PATH`, read via the same `getenv() ?: <default>` pattern
+`config/database.php` already establishes. Defaults are the exact
+confirmed-working paths on this dev machine (above), a different machine
+overrides via environment, same mechanism `DB_HOST`/`DB_USER`/etc. already
+use.
+
+**Composer dependency:** `thiagoalessio/tesseract_ocr` (thin, well-known
+PHP wrapper around the Tesseract CLI, handles argument escaping and
+process invocation safely; the Tesseract *binary* itself is still a
+separate OS-level install, this package doesn't bundle or replace it).
+
+**Testing.** `OcrExtractorTest` (new) exercises the real pipeline against
+real fixture images/PDFs where Tesseract + Ghostscript are present, true
+here, on this dev machine, where both are installed and verified. The
+test guards with `markTestSkipped()` when either binary can't be found,
+so the suite stays green on a machine without them (this project has no
+CI; "green on whichever machine runs `phpunit`" is the only bar that
+exists) rather than silently masking a real absence as a pass.
+
+**Out of scope for this addendum:** async/queued OCR processing (runs
+synchronously in the request, matching every other operation in this
+app, no queue infrastructure exists anywhere in this project);
+configurable OCR language (assumes English/`eng` traineddata, which the
+UB-Mannheim installer includes by default, every sample document seen so
+far is English-language); per-word/per-row OCR confidence scoring beyond
+the binary "OCR vs not" flag (Tesseract exposes this, but surfacing it
+granularly is real added complexity with no clear payoff yet); any page-
+count or document-size ceiling specific to OCR beyond the upload form's
+existing file-size cap, a very large scanned document would simply take
+longer, bounded by the new `max_execution_time`.
