@@ -12,13 +12,19 @@ $pdo = get_pdo();
 $schools = get_active_schools_list($pdo);
 $years = get_distinct_graduation_years($pdo);
 
+$isFreshLoad = empty($_GET);
+
 $schoolId = (isset($_GET['school_id']) && (int) $_GET['school_id'] > 0) ? (int) $_GET['school_id'] : null;
 $year = (isset($_GET['year']) && (int) $_GET['year'] > 0) ? (int) $_GET['year'] : null;
 $name = trim((string) ($_GET['name'] ?? ''));
 $page = max(1, (int) ($_GET['page'] ?? 1));
 
+if ($isFreshLoad) {
+    $year = (int) date('Y');
+}
+
 $filters = ['school_id' => $schoolId, 'graduation_year' => $year, 'name' => $name];
-$hasFilters = $schoolId !== null || $year !== null || $name !== '';
+$hasFilters = $isFreshLoad || $schoolId !== null || $year !== null || $name !== '';
 
 $currentUser = current_user();
 $currentPage = 'lookup';
@@ -95,6 +101,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <thead>
                             <tr class="text-xs text-gray-500 border-b border-white/10">
                                 <th class="px-4 py-3">GRADUATE NAME</th>
+                                <th class="px-4 py-3">DEGREE/COURSE</th>
                                 <th class="px-4 py-3">SCHOOL</th>
                                 <th class="px-4 py-3">LATIN HONOR</th>
                                 <th class="px-4 py-3">GRADUATION YEAR</th>
@@ -105,12 +112,14 @@ include __DIR__ . '/../includes/sidebar.php';
                             <?php foreach ($searchResult['rows'] as $row): ?>
                                 <tr class="border-b border-white/5 hover:bg-white/5">
                                     <td class="px-4 py-3"><?= e_upper($row['graduate_name']) ?></td>
+                                    <td class="px-4 py-3"><?= ($row['course'] ?? '') !== '' ? e_upper($row['course']) : '—' ?></td>
                                     <td class="px-4 py-3"><?= e_upper($row['school_name']) ?></td>
                                     <td class="px-4 py-3"><?= e($row['latin_honor']) ?></td>
                                     <td class="px-4 py-3"><?= e((string) $row['graduation_year']) ?></td>
                                     <td class="px-4 py-3">
                                         <button type="button" class="view-graduate-btn text-accent-400 hover:underline"
                                             data-name="<?= e($row['graduate_name']) ?>"
+                                            data-course="<?= e($row['course'] ?? '') ?>"
                                             data-school="<?= e($row['school_name']) ?>"
                                             data-honor="<?= e($row['latin_honor']) ?>"
                                             data-date="<?= e(format_date_display($row['graduation_date'])) ?>"

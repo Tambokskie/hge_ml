@@ -4,9 +4,12 @@ trait ParsesHonorRows
 {
     protected function parseRows(string $text): array
     {
+        $hasGwaColumn = (bool) preg_match('/\bGWA\b|\bGPA\b/i', $text);
+        $hasCourseColumn = (bool) preg_match('/\bDEGREE\b|\bCOURSE\b|\bPROGRAM\b/i', $text);
+
         $rows = [];
         foreach (preg_split('/\r\n|\r|\n/', $text) as $line) {
-            $row = $this->parseLine($line);
+            $row = $this->parseLine($line, $hasGwaColumn, $hasCourseColumn);
             if ($row !== null) {
                 $rows[] = $row;
             }
@@ -15,36 +18,64 @@ trait ParsesHonorRows
         return $rows;
     }
 
-    private function parseLine(string $line): ?array
+    private function parseLine(string $line, bool $hasGwaColumn, bool $hasCourseColumn): ?array
     {
-        $honor = $this->normalizeLatinHonor($line);
-        if ($honor === null) {
+        $trimmed = trim($line);
+
+        $honorMatch = $this->matchHonor($trimmed);
+        if ($honorMatch === null) {
             return null;
         }
+        $honor = $honorMatch['honor'];
+        $honorPosition = $honorMatch['position'];
 
-        $columns = preg_split('/\s{2,}/', trim($line));
-        $name = trim($columns[0] ?? '');
+        $name = null;
+        $courseStart = null;
+
+        if ($hasGwaColumn && preg_match('/\b\d{1,2}\.\d{2,4}\b/', $trimmed, $gwaMatch, PREG_OFFSET_CAPTURE)) {
+            $gwaStart = $gwaMatch[0][1];
+            $gwaEnd = $gwaStart + strlen($gwaMatch[0][0]);
+            if ($gwaStart < $honorPosition) {
+                $name = trim(substr($trimmed, 0, $gwaStart));
+                $courseStart = $gwaEnd;
+            }
+        }
+
+        if ($name === null || $name === '') {
+            $columns = preg_split('/\s{2,}/', $trimmed);
+            $name = trim($columns[0] ?? '');
+            $courseStart = strlen($name);
+        }
+
         if ($name === '') {
             return null;
         }
 
+        $course = '';
+        if ($hasCourseColumn && $courseStart !== null && $courseStart < $honorPosition) {
+            $course = trim(substr($trimmed, $courseStart, $honorPosition - $courseStart));
+        }
+
         return [
             'graduate_name' => $name,
+            'course' => $course,
             'latin_honor' => $honor,
             'graduation_date' => $this->extractDate($line),
         ];
     }
 
-    private function normalizeLatinHonor(string $text): ?string
+    private function matchHonor(string $text): ?array
     {
-        if (preg_match('/SUMMA\s*CUM\s*LAUDE/i', $text)) {
-            return 'SUMMA CUM LAUDE';
-        }
-        if (preg_match('/MAGNA\s*CUM\s*LAUDE/i', $text)) {
-            return 'MAGNA CUM LAUDE';
-        }
-        if (preg_match('/CUM\s*LAUDE/i', $text)) {
-            return 'CUM LAUDE';
+        $patterns = [
+            'SUMMA CUM LAUDE' => '/SUMMA\s*CUM\s*LAUDE/i',
+            'MAGNA CUM LAUDE' => '/MAGNA\s*CUM\s*LAUDE/i',
+            'CUM LAUDE' => '/CUM\s*LAUDE/i',
+        ];
+
+        foreach ($patterns as $honor => $pattern) {
+            if (preg_match($pattern, $text, $m, PREG_OFFSET_CAPTURE)) {
+                return ['honor' => $honor, 'position' => $m[0][1]];
+            }
         }
 
         return null;

@@ -57,6 +57,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     <tr class="text-xs text-gray-500 border-b border-white/10">
                         <th class="px-4 py-3">NO.</th>
                         <th class="px-4 py-3">GRADUATE NAME</th>
+                        <th class="px-4 py-3">DEGREE/COURSE</th>
                         <th class="px-4 py-3">LATIN HONOR</th>
                         <th class="px-4 py-3">DATE OF GRADUATION</th>
                         <th class="px-4 py-3">YEAR</th>
@@ -66,13 +67,14 @@ include __DIR__ . '/../includes/sidebar.php';
                 </thead>
                 <tbody>
                     <?php if (empty($rows)): ?>
-                        <tr><td colspan="7" class="px-4 py-6 text-center text-gray-500">NO RECORDS YET. CLICK ADD RECORD BELOW.</td></tr>
+                        <tr><td colspan="8" class="px-4 py-6 text-center text-gray-500">NO RECORDS YET. CLICK ADD RECORD BELOW.</td></tr>
                     <?php else: ?>
                         <?php foreach ($rows as $index => $row): ?>
                             <?php $status = staged_row_status($row); ?>
                             <tr class="border-b border-white/5 hover:bg-white/5">
                                 <td class="px-4 py-3"><?= $index + 1 ?></td>
                                 <td class="px-4 py-3"><?= e_upper($row['graduate_name']) ?></td>
+                                <td class="px-4 py-3"><?= ($row['course'] ?? '') !== '' ? e_upper($row['course']) : '—' ?></td>
                                 <td class="px-4 py-3">
                                     <?= e($row['latin_honor']) ?>
                                     <?php if (($row['source'] ?? null) === 'ocr'): ?>
@@ -88,6 +90,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <button type="button" class="edit-row-btn text-accent-400 hover:underline mr-3"
                                         data-row-index="<?= $index ?>"
                                         data-name="<?= e($row['graduate_name']) ?>"
+                                        data-course="<?= e($row['course'] ?? '') ?>"
                                         data-honor="<?= e($row['latin_honor']) ?>"
                                         data-date="<?= e((string) $row['graduation_date']) ?>"
                                         data-year="<?= e((string) $row['graduation_year']) ?>">EDIT</button>

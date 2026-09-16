@@ -29,16 +29,17 @@ class GraduateSearchTest extends TestCase
         );
     }
 
-    private function insertGraduate(int $uploadId, int $schoolId, string $name, string $honor, ?string $date, int $year): void
+    private function insertGraduate(int $uploadId, int $schoolId, string $name, string $honor, ?string $date, int $year, string $course = ''): void
     {
         $stmt = TestDb::pdo()->prepare(
-            'INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, latin_honor, graduation_date, graduation_year)
-             VALUES (:upload_id, :school_id, :name, :honor, :date, :year)'
+            'INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, course, latin_honor, graduation_date, graduation_year)
+             VALUES (:upload_id, :school_id, :name, :course, :honor, :date, :year)'
         );
         $stmt->execute([
             'upload_id' => $uploadId,
             'school_id' => $schoolId,
             'name' => $name,
+            'course' => $course,
             'honor' => $honor,
             'date' => $date,
             'year' => $year,
@@ -123,6 +124,15 @@ class GraduateSearchTest extends TestCase
         $this->assertSame('name=cruz', build_search_log_details(['name' => 'cruz']));
         $this->assertSame('', build_search_log_details([]));
         $this->assertSame('', build_search_log_details(['school_id' => null, 'graduation_year' => null, 'name' => '']));
+    }
+
+    public function testResultRowsIncludeCourse(): void
+    {
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025, 'BS Computer Science');
+
+        $result = search_graduates(TestDb::pdo(), ['name' => 'Juan'], 1);
+
+        $this->assertSame('BS Computer Science', $result['rows'][0]['course']);
     }
 
     public function testUnderscoreInNameSearchIsLiteralNotWildcard(): void

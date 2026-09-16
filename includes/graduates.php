@@ -31,7 +31,7 @@ function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25
 
     $pagination = paginate($totalRows, $page, $perPage);
 
-    $sql = "SELECT g.id, g.graduate_name, g.latin_honor, g.graduation_date, g.graduation_year,
+    $sql = "SELECT g.id, g.graduate_name, g.course, g.latin_honor, g.graduation_date, g.graduation_year,
                    s.school_name, u.id AS upload_id, u.original_filename, u.uploaded_at
             FROM latin_honor_graduates g
             JOIN schools s ON s.id = g.school_id

@@ -88,4 +88,49 @@ class GenericExtractorTest extends TestCase
             $this->assertSame('text', $row['source']);
         }
     }
+
+    public function testCourseIsExtractedIntoItsOwnFieldSeparateFromName(): void
+    {
+        $result = (new \GenericExtractor())->extract($this->sample);
+
+        $expectedCourses = [
+            'BA Psychology',
+            'BS Management',
+            'BS Biology',
+            'BS Management',
+            'BS Management',
+            'BA Political Science',
+            'BA Political Science',
+            'BS Management',
+            'BS Biology',
+        ];
+
+        foreach ($expectedCourses as $index => $expectedCourse) {
+            $this->assertSame($expectedCourse, $result['rows'][$index]['course'], "Row {$index} course mismatch");
+        }
+
+        // Name must no longer carry the GWA number or the course text.
+        $this->assertSame('Abrio, Jeny Lumpay', $result['rows'][0]['graduate_name']);
+    }
+
+    public function testCourseIsBlankWhenDocumentHasNoDegreeOrGwaColumnHeader(): void
+    {
+        // A minimal single-row document with no "GWA"/"Degree" header at all —
+        // the parser must not invent a course value out of nothing.
+        $text = "Some Honor List\nJuan Dela Cruz    cum laude    02 July 2026\n";
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('Juan Dela Cruz', $rows[0]['graduate_name']);
+        $this->assertSame('', $rows[0]['course']);
+    }
+
+    private function callParseRows(\GenericExtractor $extractor, string $text): array
+    {
+        $reflection = new \ReflectionMethod($extractor, 'parseRows');
+        $reflection->setAccessible(true);
+
+        return $reflection->invoke($extractor, $text);
+    }
 }

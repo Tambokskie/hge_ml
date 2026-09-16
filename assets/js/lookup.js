@@ -63,14 +63,17 @@ document.addEventListener('DOMContentLoaded', function () {
         var rowsHtml = data.rows.map(function (row) {
             var displayDate = formatDisplayDate(row.graduation_date);
             var displayUploadedAt = formatDisplayDate(row.uploaded_at);
+            var courseDisplay = row.course ? escapeHtml(String(row.course).toUpperCase()) : '—';
             return '<tr class="border-b border-white/5 hover:bg-white/5">' +
                 '<td class="px-4 py-3">' + escapeHtml(String(row.graduate_name).toUpperCase()) + '</td>' +
+                '<td class="px-4 py-3">' + courseDisplay + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(String(row.school_name).toUpperCase()) + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(row.latin_honor) + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(String(row.graduation_year)) + '</td>' +
                 '<td class="px-4 py-3">' +
                 '<button type="button" class="view-graduate-btn text-accent-400 hover:underline" ' +
                 'data-name="' + escapeHtml(row.graduate_name) + '" ' +
+                'data-course="' + escapeHtml(row.course || '') + '" ' +
                 'data-school="' + escapeHtml(row.school_name) + '" ' +
                 'data-honor="' + escapeHtml(row.latin_honor) + '" ' +
                 'data-date="' + escapeHtml(displayDate) + '" ' +
@@ -93,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function () {
         resultsContainer.innerHTML =
             '<div class="bg-surface-900 border border-white/10 rounded-xl overflow-x-auto"><table class="w-full text-sm text-left">' +
             '<thead><tr class="text-xs text-gray-500 border-b border-white/10">' +
-            '<th class="px-4 py-3">GRADUATE NAME</th><th class="px-4 py-3">SCHOOL</th><th class="px-4 py-3">LATIN HONOR</th>' +
+            '<th class="px-4 py-3">GRADUATE NAME</th><th class="px-4 py-3">DEGREE/COURSE</th><th class="px-4 py-3">SCHOOL</th><th class="px-4 py-3">LATIN HONOR</th>' +
             '<th class="px-4 py-3">GRADUATION YEAR</th><th class="px-4 py-3">ACTION</th></tr></thead>' +
             '<tbody id="lookup-results-tbody">' + rowsHtml + '</tbody></table></div>' + paginationHtml;
     }
@@ -126,6 +129,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var bodyHtml =
             '<div class="space-y-2">' +
             '<div><span class="text-xs text-gray-500">GRADUATE NAME</span><p class="text-white">' + escapeHtml(data.name) + '</p></div>' +
+            '<div><span class="text-xs text-gray-500">DEGREE/COURSE</span><p class="text-white">' + escapeHtml(data.course || '—') + '</p></div>' +
             '<div><span class="text-xs text-gray-500">SCHOOL</span><p class="text-white">' + escapeHtml(data.school) + '</p></div>' +
             '<div><span class="text-xs text-gray-500">LATIN HONOR</span><p class="text-white">' + escapeHtml(data.honor) + '</p></div>' +
             '<div><span class="text-xs text-gray-500">DATE OF GRADUATION</span><p class="text-white">' + escapeHtml(data.date) + '</p></div>' +
@@ -159,6 +163,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (viewBtn) {
             openDetailsModal({
                 name: viewBtn.dataset.name,
+                course: viewBtn.dataset.course,
                 school: viewBtn.dataset.school,
                 honor: viewBtn.dataset.honor,
                 date: viewBtn.dataset.date,

@@ -34,6 +34,35 @@ class ExtractionReviewMutationTest extends TestCase
         $this->assertSame('SUMMA CUM LAUDE', $rows[0]['latin_honor']);
     }
 
+    public function testSetStagedRowStoresTrimmedCourse(): void
+    {
+        $result = set_staged_row(1, 0, [
+            'graduate_name' => 'Juan D. Cruz',
+            'course' => '  BS Computer Science  ',
+            'latin_honor' => 'CUM LAUDE',
+            'graduation_date' => null,
+            'graduation_year' => 2026,
+        ]);
+
+        $this->assertTrue($result['ok']);
+        $rows = get_extraction_review(1)['rows'];
+        $this->assertSame('BS Computer Science', $rows[0]['course']);
+    }
+
+    public function testSetStagedRowDefaultsCourseToEmptyStringWhenOmitted(): void
+    {
+        $result = set_staged_row(1, 0, [
+            'graduate_name' => 'Juan D. Cruz',
+            'latin_honor' => 'CUM LAUDE',
+            'graduation_date' => null,
+            'graduation_year' => 2026,
+        ]);
+
+        $this->assertTrue($result['ok']);
+        $rows = get_extraction_review(1)['rows'];
+        $this->assertSame('', $rows[0]['course']);
+    }
+
     public function testSetStagedRowAppendsNewRowWhenIndexIsNull(): void
     {
         $result = set_staged_row(1, null, [

@@ -51,6 +51,7 @@ CREATE TABLE latin_honor_graduates (
   upload_id INT UNSIGNED NOT NULL,
   school_id INT UNSIGNED NOT NULL,
   graduate_name VARCHAR(255) NOT NULL,
+  course VARCHAR(255) NOT NULL DEFAULT '',
   latin_honor ENUM('CUM LAUDE','MAGNA CUM LAUDE','SUMMA CUM LAUDE') NOT NULL,
   graduation_date DATE NULL,
   graduation_year YEAR NOT NULL,

@@ -20,6 +20,7 @@ $rowIndex = isset($_POST['row_index']) && $_POST['row_index'] !== '' ? (int) $_P
 
 $data = [
     'graduate_name' => trim((string) ($_POST['graduate_name'] ?? '')),
+    'course' => trim((string) ($_POST['course'] ?? '')),
     'latin_honor' => (string) ($_POST['latin_honor'] ?? ''),
     'graduation_date' => (string) ($_POST['graduation_date'] ?? ''),
     'graduation_year' => (string) ($_POST['graduation_year'] ?? ''),

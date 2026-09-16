@@ -25,8 +25,8 @@ class SaveStagedRecordsTest extends TestCase
     private function validRows(): array
     {
         return [
-            ['graduate_name' => 'Juan Dela Cruz', 'latin_honor' => 'CUM LAUDE', 'graduation_date' => '2025-06-15', 'graduation_year' => 2025],
-            ['graduate_name' => 'Maria Santos', 'latin_honor' => 'MAGNA CUM LAUDE', 'graduation_date' => null, 'graduation_year' => 2025],
+            ['graduate_name' => 'Juan Dela Cruz', 'course' => 'BS Computer Science', 'latin_honor' => 'CUM LAUDE', 'graduation_date' => '2025-06-15', 'graduation_year' => 2025],
+            ['graduate_name' => 'Maria Santos', 'course' => 'BA Political Science', 'latin_honor' => 'MAGNA CUM LAUDE', 'graduation_date' => null, 'graduation_year' => 2025],
         ];
     }
 
@@ -44,6 +44,30 @@ class SaveStagedRecordsTest extends TestCase
         $upload = $pdo->query('SELECT extraction_status, records_extracted FROM latin_honor_uploads WHERE id = 1')->fetch();
         $this->assertSame('reviewed', $upload['extraction_status']);
         $this->assertSame(2, (int) $upload['records_extracted']);
+    }
+
+    public function testSavesCourseFieldAlongsideEachRow(): void
+    {
+        $pdo = TestDb::pdo();
+
+        save_staged_records($pdo, 1, 1, $this->validRows());
+
+        $courses = $pdo->query('SELECT course FROM latin_honor_graduates WHERE upload_id = 1 ORDER BY id')->fetchAll(\PDO::FETCH_COLUMN);
+        $this->assertSame(['BS Computer Science', 'BA Political Science'], $courses);
+    }
+
+    public function testSavesEmptyCourseWhenRowHasNoCourseKey(): void
+    {
+        $pdo = TestDb::pdo();
+        $rows = [
+            ['graduate_name' => 'Pedro Reyes', 'latin_honor' => 'CUM LAUDE', 'graduation_date' => null, 'graduation_year' => 2025],
+        ];
+
+        $result = save_staged_records($pdo, 1, 1, $rows);
+
+        $this->assertSame('success', $result['status']);
+        $course = $pdo->query('SELECT course FROM latin_honor_graduates WHERE upload_id = 1')->fetchColumn();
+        $this->assertSame('', $course);
     }
 
     public function testRejectsEmptyRowsWithoutTouchingTheDatabase(): void

@@ -78,6 +78,7 @@ function set_staged_row(int $uploadId, ?int $rowIndex, array $data): array
 
     $row = [
         'graduate_name' => trim((string) ($data['graduate_name'] ?? '')),
+        'course' => trim((string) ($data['course'] ?? '')),
         'latin_honor' => (string) ($data['latin_honor'] ?? ''),
         'graduation_date' => (($data['graduation_date'] ?? '') !== '') ? $data['graduation_date'] : null,
         'graduation_year' => (int) ($data['graduation_year'] ?? 0),
@@ -138,8 +139,8 @@ function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows
         $pdo->beginTransaction();
 
         $stmt = $pdo->prepare(
-            'INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, latin_honor, graduation_date, graduation_year)
-             VALUES (:upload_id, :school_id, :graduate_name, :latin_honor, :graduation_date, :graduation_year)'
+            'INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, course, latin_honor, graduation_date, graduation_year)
+             VALUES (:upload_id, :school_id, :graduate_name, :course, :latin_honor, :graduation_date, :graduation_year)'
         );
 
         foreach ($rows as $row) {
@@ -147,6 +148,7 @@ function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows
                 'upload_id' => $uploadId,
                 'school_id' => $schoolId,
                 'graduate_name' => $row['graduate_name'],
+                'course' => $row['course'] ?? '',
                 'latin_honor' => $row['latin_honor'],
                 'graduation_date' => $row['graduation_date'],
                 'graduation_year' => $row['graduation_year'],

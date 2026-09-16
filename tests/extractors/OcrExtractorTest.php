@@ -80,4 +80,33 @@ class OcrExtractorTest extends TestCase
         $this->assertSame('failed', $result['status']);
         $this->assertSame([], $result['rows']);
     }
+
+    public function testCourseIsExtractedFromRealOcrOutputDespiteNoisySpacing(): void
+    {
+        $result = (new \OcrExtractor())->extract($this->sample);
+
+        $expectedCoursesByNameFragment = [
+            'Abrio' => 'BA Psychology',
+            'Agudera' => 'BS Management',
+            'Amarillo' => 'BS Biology',
+            'Amascual' => 'BS Management',
+            'Balmonte' => 'BS Management',
+            'Bersoza' => 'BA Political Science',
+            'Borja' => 'BA Political Science',
+            'Cabagio' => 'BS Management',
+        ];
+
+        foreach ($expectedCoursesByNameFragment as $nameFragment => $expectedCourse) {
+            $row = null;
+            foreach ($result['rows'] as $candidate) {
+                if (stripos($candidate['graduate_name'], $nameFragment) !== false) {
+                    $row = $candidate;
+                    break;
+                }
+            }
+
+            $this->assertNotNull($row, "Expected to find a row for \"{$nameFragment}\" in the OCR output.");
+            $this->assertSame($expectedCourse, $row['course'], "Course mismatch for \"{$nameFragment}\"");
+        }
+    }
 }

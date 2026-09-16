@@ -30,6 +30,8 @@ document.addEventListener('DOMContentLoaded', function () {
             '<div class="space-y-3">' +
             '<div><label class="block text-xs text-gray-400 mb-1">GRADUATE NAME</label>' +
             '<input id="modal-graduate-name" type="text" value="' + escapeHtml(defaults.name || '') + '" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-400 mb-1">DEGREE/COURSE</label>' +
+            '<input id="modal-course" type="text" value="' + escapeHtml(defaults.course || '') + '" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
             '<div><label class="block text-xs text-gray-400 mb-1">LATIN HONOR</label>' +
             '<select id="modal-latin-honor" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm">' + optionsHtml + '</select></div>' +
             '<div><label class="block text-xs text-gray-400 mb-1">DATE OF GRADUATION</label>' +
@@ -51,6 +53,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             csrf_token: config.csrfToken,
                             upload_id: config.uploadId,
                             graduate_name: document.getElementById('modal-graduate-name').value,
+                            course: document.getElementById('modal-course').value,
                             latin_honor: document.getElementById('modal-latin-honor').value,
                             graduation_date: document.getElementById('modal-graduation-date').value,
                             graduation_year: document.getElementById('modal-graduation-year').value,
@@ -81,6 +84,7 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.addEventListener('click', function () {
             openEditModal(parseInt(btn.dataset.rowIndex, 10), {
                 name: btn.dataset.name,
+                course: btn.dataset.course,
                 honor: btn.dataset.honor,
                 date: btn.dataset.date,
                 year: btn.dataset.year,
