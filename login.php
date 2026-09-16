@@ -33,7 +33,7 @@ $csrfToken = csrf_token();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HGE Database — Login</title>
-    <link rel="stylesheet" href="<?= e(APP_BASE_URL) ?>/assets/css/app.css">
+    <link rel="stylesheet" href="<?= e(asset_url('assets/css/app.css')) ?>">
 </head>
 <body class="bg-surface-950 text-gray-100 min-h-screen flex items-center justify-center px-4">
     <div class="w-full max-w-sm bg-surface-900 border border-white/10 rounded-xl p-8">

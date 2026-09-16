@@ -51,9 +51,13 @@ include __DIR__ . '/../includes/sidebar.php';
                 <p id="file-info" class="text-xs text-gray-400 mt-2"></p>
             </div>
 
-            <button type="submit" class="w-full rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium py-2 transition-colors">UPLOAD</button>
+            <button type="submit" id="upload-submit-btn" class="w-full rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">UPLOAD</button>
         </form>
+
+        <div id="upload-status" class="hidden mt-4 rounded-lg border border-accent-500/30 bg-accent-500/10 px-4 py-3 text-sm text-accent-300">
+            <span id="upload-status-text"></span>
+        </div>
     </div>
 </main>
 <?php include __DIR__ . '/../includes/footer.php'; ?>
-<script src="<?= e(APP_BASE_URL) ?>/assets/js/upload.js"></script>
+<script src="<?= e(asset_url('assets/js/upload.js')) ?>"></script>

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HGE DATABASE</title>
-    <link rel="stylesheet" href="<?= e(APP_BASE_URL) ?>/assets/css/app.css">
+    <link rel="stylesheet" href="<?= e(asset_url('assets/css/app.css')) ?>">
 </head>
 <body class="bg-surface-950 text-gray-100">
 <header class="lg:ml-64 flex items-center justify-between gap-4 border-b border-white/10 bg-surface-900/60 px-4 py-3 sticky top-0 z-20 backdrop-blur">

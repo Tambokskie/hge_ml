@@ -70,4 +70,4 @@ window.HGE_USERS = {
     currentUserId: <?= (int) $currentUser['id'] ?>
 };
 </script>
-<script src="<?= e(APP_BASE_URL) ?>/assets/js/users.js"></script>
+<script src="<?= e(asset_url('assets/js/users.js')) ?>"></script>

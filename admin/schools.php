@@ -77,4 +77,4 @@ window.HGE_SCHOOLS = {
     apiBase: <?= json_encode(APP_BASE_URL) ?>
 };
 </script>
-<script src="<?= e(APP_BASE_URL) ?>/assets/js/schools.js"></script>
+<script src="<?= e(asset_url('assets/js/schools.js')) ?>"></script>

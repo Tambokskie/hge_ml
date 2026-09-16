@@ -145,4 +145,4 @@ window.HGE_LOOKUP = {
     apiBase: <?= json_encode(APP_BASE_URL) ?>
 };
 </script>
-<script src="<?= e(APP_BASE_URL) ?>/assets/js/lookup.js"></script>
+<script src="<?= e(asset_url('assets/js/lookup.js')) ?>"></script>

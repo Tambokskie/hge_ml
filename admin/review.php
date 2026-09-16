@@ -126,4 +126,4 @@ window.HGE_REVIEW = {
     viewUploadUrl: <?= json_encode(APP_BASE_URL . '/admin/view_upload.php?id=' . $uploadId) ?>
 };
 </script>
-<script src="<?= e(APP_BASE_URL) ?>/assets/js/review.js"></script>
+<script src="<?= e(asset_url('assets/js/review.js')) ?>"></script>

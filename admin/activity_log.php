@@ -131,4 +131,4 @@ window.HGE_ACTIVITY_LOG = {
     apiBase: <?= json_encode(APP_BASE_URL) ?>
 };
 </script>
-<script src="<?= e(APP_BASE_URL) ?>/assets/js/activity_log.js"></script>
+<script src="<?= e(asset_url('assets/js/activity_log.js')) ?>"></script>

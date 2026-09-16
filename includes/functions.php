@@ -10,6 +10,15 @@ function e_upper(?string $value): string
     return e(mb_strtoupper((string) $value));
 }
 
+function asset_url(string $path): string
+{
+    $relative = ltrim($path, '/');
+    $fullPath = __DIR__ . '/../' . $relative;
+    $version = is_file($fullPath) ? filemtime($fullPath) : time();
+
+    return APP_BASE_URL . '/' . $relative . '?v=' . $version;
+}
+
 function format_date_display(?string $date): string
 {
     if (empty($date)) {
