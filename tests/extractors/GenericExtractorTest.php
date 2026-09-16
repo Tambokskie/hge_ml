@@ -78,4 +78,14 @@ class GenericExtractorTest extends TestCase
         $this->assertSame('failed', $result['status']);
         $this->assertSame([], $result['rows']);
     }
+
+    public function testEveryRowCarriesTextSourceTag(): void
+    {
+        $result = (new \GenericExtractor())->extract($this->sample);
+
+        $this->assertNotEmpty($result['rows']);
+        foreach ($result['rows'] as $row) {
+            $this->assertSame('text', $row['source']);
+        }
+    }
 }
