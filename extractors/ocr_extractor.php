@@ -24,7 +24,7 @@ class OcrExtractor implements ExtractorInterface
             $outputPattern = $tmpDir . '/page_%03d.png';
             $cmd = escapeshellarg($ghostscriptPath)
                 . ' -dNOPAUSE -dBATCH -dSAFER -sDEVICE=png16m -r300'
-                . ' -sOutputFile=' . escapeshellarg($outputPattern)
+                . ' -sOutputFile="' . $outputPattern . '"'
                 . ' ' . escapeshellarg($filePath);
 
             exec($cmd . ' 2>&1', $output, $returnCode);
