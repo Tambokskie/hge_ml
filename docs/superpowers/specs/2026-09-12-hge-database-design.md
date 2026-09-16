@@ -850,6 +850,33 @@ only in how they obtain `$text`.
 `GenericExtractor::extract()` is otherwise unchanged, except every row it
 returns now carries an added `'source' => 'text'` key.
 
+**Key finding that changed the shared trait's regexes:** validated end to
+end before writing the implementation plan — built a real "scanned-style"
+fixture (`tests/fixtures/scanned-sample.pdf`, rasterized from the existing
+`extraction-sample.pdf`'s known 9-row ground truth via Ghostscript, then
+wrapped as a one-page image-only PDF with a `/DCTDecode` JPEG XObject and
+zero `/Font` objects, confirmed 0 characters via `smalot/pdfparser`, same
+structure as the real problem PDF), then ran it through the actual planned
+pipeline (Ghostscript rasterize → Tesseract OCR) and fed the real OCR
+output through `GenericExtractor`'s existing honor-detection regexes
+verbatim. Two of the nine rows broke: real Tesseract output occasionally
+drops the space between honor words when the source line's spacing is
+tight — `"summa cum laude"` came back as `"summacum laude"` (matched the
+plain `CUM LAUDE` pattern instead of `SUMMA CUM LAUDE` — silently
+*wrong*, not just missed) and `"Magna Cum Laude"` came back as `"Magna
+CumLaude"` (matched none of the three patterns — the row was silently
+*dropped*). Loosening the three patterns' `\s+` (one-or-more) to `\s*`
+(zero-or-more) — `/SUMMA\s*CUM\s*LAUDE/i`, `/MAGNA\s*CUM\s*LAUDE/i`,
+`/CUM\s*LAUDE/i` — fixes both, verified against the real OCR output above,
+against several clean text-based lines (no regression), and against a
+deliberate false-positive trap line containing "accumulate" as a substring
+(`\s*` only bridges whitespace, not arbitrary characters, so it does not
+match). This change lands in the shared trait, so both extractors get it —
+strictly safer for `GenericExtractor` too, since a real digitally-authored
+PDF would never coincidentally trigger the loosened match, and it closes a
+real silent-data-loss/silent-misclassification bug specifically on the
+OCR path this addendum adds.
+
 **`OcrExtractor::extract(string $filePath): array`:**
 1. Build a temp directory (`sys_get_temp_dir() . '/hge_ocr_' . uniqid()`),
    created just before use.
@@ -918,8 +945,10 @@ process invocation safely; the Tesseract *binary* itself is still a
 separate OS-level install, this package doesn't bundle or replace it).
 
 **Testing.** `OcrExtractorTest` (new) exercises the real pipeline against
-real fixture images/PDFs where Tesseract + Ghostscript are present, true
-here, on this dev machine, where both are installed and verified. The
+`tests/fixtures/scanned-sample.pdf` (built and validated above) where
+Tesseract + Ghostscript are present — true here, on this dev machine,
+where both are installed and verified, and the exact fixture this
+addendum's own design work already ran the full pipeline against. The
 test guards with `markTestSkipped()` when either binary can't be found,
 so the suite stays green on a machine without them (this project has no
 CI; "green on whichever machine runs `phpunit`" is the only bar that
