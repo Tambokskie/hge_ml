@@ -81,6 +81,7 @@ function set_staged_row(int $uploadId, ?int $rowIndex, array $data): array
         'latin_honor' => (string) ($data['latin_honor'] ?? ''),
         'graduation_date' => (($data['graduation_date'] ?? '') !== '') ? $data['graduation_date'] : null,
         'graduation_year' => (int) ($data['graduation_year'] ?? 0),
+        'source' => 'manual',
     ];
 
     $rows = $review['rows'];

@@ -6,11 +6,14 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/uploads.php';
 require_once __DIR__ . '/../includes/extraction_review.php';
 require_once __DIR__ . '/../extractors/ExtractorInterface.php';
+require_once __DIR__ . '/../extractors/ParsesHonorRows.php';
 require_once __DIR__ . '/../extractors/generic_extractor.php';
+require_once __DIR__ . '/../extractors/ocr_extractor.php';
 
 require_role('administrator');
 
 header('Content-Type: application/json');
+ini_set('max_execution_time', 120);
 
 if (!csrf_verify($_POST['csrf_token'] ?? null)) {
     http_response_code(400);
@@ -35,8 +38,10 @@ try {
     }
 
     try {
-        $extractor = new GenericExtractor();
-        $result = $extractor->extract($upload['file_path']);
+        $result = (new GenericExtractor())->extract($upload['file_path']);
+        if ($result['status'] === 'failed') {
+            $result = (new OcrExtractor())->extract($upload['file_path']);
+        }
     } catch (\Throwable $e) {
         error_log('Extraction failed: ' . $e->getMessage());
         echo json_encode(['status' => 'error', 'message' => 'THE FILE COULD NOT BE PROCESSED.']);

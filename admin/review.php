@@ -73,7 +73,12 @@ include __DIR__ . '/../includes/sidebar.php';
                             <tr class="border-b border-white/5 hover:bg-white/5">
                                 <td class="px-4 py-3"><?= $index + 1 ?></td>
                                 <td class="px-4 py-3"><?= e_upper($row['graduate_name']) ?></td>
-                                <td class="px-4 py-3"><?= e($row['latin_honor']) ?></td>
+                                <td class="px-4 py-3">
+                                    <?= e($row['latin_honor']) ?>
+                                    <?php if (($row['source'] ?? null) === 'ocr'): ?>
+                                        <span class="ml-2 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium bg-yellow-500/20 text-yellow-400">OCR — VERIFY</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="px-4 py-3"><?= e(format_date_display($row['graduation_date'])) ?></td>
                                 <td class="px-4 py-3"><?= e((string) $row['graduation_year']) ?></td>
                                 <td class="px-4 py-3">
