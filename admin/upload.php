@@ -20,7 +20,7 @@ include __DIR__ . '/../includes/sidebar.php';
     <div class="p-6 lg:p-8 max-w-2xl">
         <h1 class="text-xl font-semibold text-white mb-6">UPLOAD LATIN HONOR LIST</h1>
 
-        <form id="upload-form" action="<?= e(APP_BASE_URL) ?>/api/upload_pdf.php" data-view-upload-url="<?= e(APP_BASE_URL) ?>/admin/view_upload.php" method="post" enctype="multipart/form-data" class="space-y-5">
+        <form id="upload-form" action="<?= e(APP_BASE_URL) ?>/api/upload_pdf.php" data-view-upload-url="<?= e(APP_BASE_URL) ?>/admin/view_upload.php" data-extract-url="<?= e(APP_BASE_URL) ?>/api/extract_pdf.php" method="post" enctype="multipart/form-data" class="space-y-5">
             <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
 
             <div>

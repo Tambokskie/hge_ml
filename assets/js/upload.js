@@ -43,6 +43,36 @@ document.addEventListener('DOMContentLoaded', function () {
         showFileInfo(fileInput.files[0]);
     });
 
+    function extractAndRedirect(uploadId) {
+        var extractUrl = form.dataset.extractUrl;
+        var csrfToken = form.querySelector('[name="csrf_token"]').value;
+        var viewUploadUrl = form.dataset.viewUploadUrl + '?id=' + uploadId;
+
+        var formData = new FormData();
+        formData.set('csrf_token', csrfToken);
+        formData.set('upload_id', uploadId);
+
+        fetch(extractUrl, {
+            method: 'POST',
+            body: formData,
+        })
+            .then(function (response) {
+                return response.json();
+            })
+            .then(function (data) {
+                if (data.status === 'success') {
+                    window.location.href = data.redirect_url;
+                } else {
+                    showToast('error', data.message);
+                    window.location.href = viewUploadUrl;
+                }
+            })
+            .catch(function () {
+                showToast('error', 'THE FILE WAS UPLOADED BUT COULD NOT BE PROCESSED AUTOMATICALLY. PLEASE EXTRACT IT MANUALLY.');
+                window.location.href = viewUploadUrl;
+            });
+    }
+
     function submitForm(extraFields) {
         var formData = new FormData(form);
         if (extraFields) {
@@ -60,9 +90,8 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .then(function (data) {
                 if (data.status === 'success') {
-                    showToast('success', data.message);
-                    form.reset();
-                    showFileInfo(null);
+                    showToast('success', 'UPLOADED. EXTRACTING RECORDS...');
+                    extractAndRedirect(data.upload.id);
                 } else if (data.status === 'duplicate') {
                     showModal({
                         title: 'POSSIBLE DUPLICATE UPLOAD',
