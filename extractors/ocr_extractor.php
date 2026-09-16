@@ -20,6 +20,14 @@ class OcrExtractor implements ExtractorInterface
             return ['status' => 'failed', 'rows' => []];
         }
 
+        $cleanup = function () use ($tmpDir): void {
+            foreach (glob($tmpDir . '/*') ?: [] as $file) {
+                @unlink($file);
+            }
+            @rmdir($tmpDir);
+        };
+        register_shutdown_function($cleanup);
+
         try {
             $outputPattern = $tmpDir . '/page_%03d.png';
             $cmd = escapeshellarg($ghostscriptPath)
@@ -42,7 +50,7 @@ class OcrExtractor implements ExtractorInterface
                 try {
                     $pageText = (new \thiagoalessio\TesseractOCR\TesseractOCR($imagePath))
                         ->executable($tesseractPath)
-                        ->run();
+                        ->run(60);
                     $textParts[] = $pageText;
                 } catch (\Throwable $e) {
                     error_log('OcrExtractor: Tesseract failed on ' . $imagePath . ': ' . $e->getMessage());
@@ -60,10 +68,7 @@ class OcrExtractor implements ExtractorInterface
                 'rows' => $rows,
             ];
         } finally {
-            foreach (glob($tmpDir . '/*') ?: [] as $file) {
-                @unlink($file);
-            }
-            @rmdir($tmpDir);
+            $cleanup();
         }
     }
 }
