@@ -126,6 +126,46 @@ class GenericExtractorTest extends TestCase
         $this->assertSame('', $rows[0]['course']);
     }
 
+    public function testBachelorAnchorTrimsLeadingGarbageFromCourseInNameFirstLayout(): void
+    {
+        // Course is spelled out in full starting with "Bachelor" rather than
+        // abbreviated — the GWA number sits directly before it with no gap,
+        // which the old GWA-end anchor would have folded into the course text.
+        $text = "DEGREE/COURSE   GWA   HONORS\n"
+            . "Dela Cruz, Juan M.   1.5000Bachelor of Science in Computer Science   cum laude   02 July 2026\n";
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('Dela Cruz, Juan M.', $rows[0]['graduate_name']);
+        $this->assertSame('Bachelor of Science in Computer Science', $rows[0]['course']);
+    }
+
+    public function testCourseFirstLayoutSplitsCourseNameDateAndHonorCorrectly(): void
+    {
+        // Column order here is Course, Name, Date, Honor (honor last) —
+        // the opposite order from every other fixture, exercised via the
+        // real PDF's real text layer so column spacing is preserved exactly
+        // as smalot/pdfparser reproduces it.
+        $result = (new \GenericExtractor())->extract(__DIR__ . '/../fixtures/course-first-sample.pdf');
+
+        $this->assertSame('ok', $result['status']);
+        $this->assertCount(3, $result['rows']);
+
+        $this->assertSame('BACHELOR OF SCIENCE IN COMPUTER SCIENCE', $result['rows'][0]['course']);
+        $this->assertSame('DELA CRUZ, JUAN M.', $result['rows'][0]['graduate_name']);
+        $this->assertSame('2026-07-02', $result['rows'][0]['graduation_date']);
+        $this->assertSame('CUM LAUDE', $result['rows'][0]['latin_honor']);
+
+        $this->assertSame('BACHELOR OF ARTS IN PSYCHOLOGY', $result['rows'][1]['course']);
+        $this->assertSame('SANTOS, MARIA L.', $result['rows'][1]['graduate_name']);
+        $this->assertSame('MAGNA CUM LAUDE', $result['rows'][1]['latin_honor']);
+
+        $this->assertSame('BACHELOR OF SCIENCE IN NURSING', $result['rows'][2]['course']);
+        $this->assertSame('REYES, PEDRO A.', $result['rows'][2]['graduate_name']);
+        $this->assertSame('SUMMA CUM LAUDE', $result['rows'][2]['latin_honor']);
+    }
+
     private function callParseRows(\GenericExtractor $extractor, string $text): array
     {
         $reflection = new \ReflectionMethod($extractor, 'parseRows');

@@ -109,4 +109,26 @@ class OcrExtractorTest extends TestCase
             $this->assertSame($expectedCourse, $row['course'], "Course mismatch for \"{$nameFragment}\"");
         }
     }
+
+    public function testCourseFirstLayoutIsNotReliablyExtractableFromRealOcrOutput(): void
+    {
+        // Real finding: unlike the name-first layout above, a course-first
+        // document (course, name, date, honor) has no numeric/keyword anchor
+        // between course and name — only a whitespace column gap tells them
+        // apart. Tesseract collapses every multi-space gap in this fixture
+        // down to a single space, so that signal is gone from the OCR text
+        // and the parser correctly refuses to guess where course ends and
+        // name begins, rather than risk silently saving a wrong split.
+        // Confirmed via manual probe: Tesseract reads every word correctly
+        // (including the honor phrases and the comma in "Dela Cruz, Juan
+        // M.") — it is the collapsed spacing, not misread text, that defeats
+        // extraction here. The same layout parses correctly when the source
+        // PDF has a real text layer (see
+        // GenericExtractorTest::testCourseFirstLayoutSplitsCourseNameDateAndHonorCorrectly),
+        // where the original column spacing is preserved exactly.
+        $result = (new \OcrExtractor())->extract(__DIR__ . '/../fixtures/course-first-scanned.pdf');
+
+        $this->assertSame('failed', $result['status']);
+        $this->assertSame([], $result['rows']);
+    }
 }
