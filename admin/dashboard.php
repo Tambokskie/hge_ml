@@ -10,7 +10,7 @@ require_login();
 
 $pdo = get_pdo();
 $stats = get_dashboard_stats($pdo);
-$recentUploads = get_recent_uploads($pdo, 5);
+$recentUploads = get_recent_uploads($pdo, 10);
 $honorBreakdown = get_honor_type_breakdown($pdo);
 $uploadActivity = get_upload_activity_by_month($pdo, 6);
 $currentUser = current_user();
