@@ -69,9 +69,20 @@ CREATE TABLE latin_honor_graduates (
 CREATE TABLE activity_log (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NULL,
-  action ENUM('login','logout','pdf_upload','pdf_delete','record_created','record_updated','record_removed','search','user_created','user_updated','school_created','school_updated','school_removed') NOT NULL,
+  action ENUM('login','logout','pdf_upload','pdf_delete','record_created','record_updated','record_removed','search','user_created','user_updated','user_removed','school_created','school_updated','school_removed','application_filed','db_backup') NOT NULL,
   details TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id),
   KEY idx_created_at (created_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE graduate_applications (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  graduate_id INT UNSIGNED NOT NULL,
+  applied_by INT UNSIGNED NOT NULL,
+  application_date DATE NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (graduate_id) REFERENCES latin_honor_graduates(id),
+  FOREIGN KEY (applied_by) REFERENCES users(id),
+  UNIQUE KEY uq_graduate_id (graduate_id)
 ) ENGINE=InnoDB;

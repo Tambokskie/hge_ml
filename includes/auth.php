@@ -75,6 +75,7 @@ function login_user(array $user): void
         'username' => $user['username'],
         'role' => $user['role'],
     ];
+    $_SESSION['last_activity'] = time();
 }
 
 function logout_user(): void
@@ -96,6 +97,12 @@ function require_login(): void
     if ($user === null) {
         redirect(APP_BASE_URL . '/login.php');
     }
+
+    if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > SESSION_IDLE_TIMEOUT) {
+        logout_user();
+        redirect(APP_BASE_URL . '/login.php?timeout=1');
+    }
+    $_SESSION['last_activity'] = time();
 
     $fresh = fetch_current_role_and_status(get_pdo(), (int) $user['id']);
 

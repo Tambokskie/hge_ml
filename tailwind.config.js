@@ -1,4 +1,5 @@
 module.exports = {
+  darkMode: 'class',
   content: ['./**/*.php', './assets/js/**/*.js'],
   theme: {
     extend: {
@@ -9,10 +10,52 @@ module.exports = {
           800: '#1a1a22',
         },
         accent: {
-          300: '#c4b5fd',
-          500: '#8b5cf6',
-          600: '#7c3aed',
+          300: 'rgb(var(--color-accent-300) / <alpha-value>)',
+          400: 'rgb(var(--color-accent-400) / <alpha-value>)',
+          500: 'rgb(var(--color-accent-500) / <alpha-value>)',
+          600: 'rgb(var(--color-accent-600) / <alpha-value>)',
+          700: 'rgb(var(--color-accent-700) / <alpha-value>)',
+          800: 'rgb(var(--color-accent-800) / <alpha-value>)',
         },
+      },
+      keyframes: {
+        floatA: {
+          '0%, 100%': { transform: 'translate(0, 0) scale(1)' },
+          '50%': { transform: 'translate(30px, -40px) scale(1.06)' },
+        },
+        floatB: {
+          '0%, 100%': { transform: 'translate(0, 0) scale(1)' },
+          '50%': { transform: 'translate(-30px, 30px) scale(0.94)' },
+        },
+        floatC: {
+          '0%, 100%': { transform: 'translate(0, 0)' },
+          '50%': { transform: 'translate(22px, 26px)' },
+        },
+        driftParticle: {
+          '0%, 100%': { transform: 'translateY(0)', opacity: '0.35' },
+          '50%': { transform: 'translateY(-18px)', opacity: '0.9' },
+        },
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(16px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        glowPulse: {
+          '0%, 100%': { opacity: '0.45' },
+          '50%': { opacity: '0.8' },
+        },
+      },
+      animation: {
+        'float-a': 'floatA 22s ease-in-out infinite',
+        'float-b': 'floatB 28s ease-in-out infinite',
+        'float-c': 'floatC 18s ease-in-out infinite',
+        drift: 'driftParticle 9s ease-in-out infinite',
+        'fade-in-up': 'fadeInUp 0.7s ease-out 0.15s both',
+        'fade-in': 'fadeIn 0.9s ease-out both',
+        'glow-pulse': 'glowPulse 7s ease-in-out infinite',
       },
     },
   },

@@ -6,9 +6,27 @@ document.addEventListener('DOMContentLoaded', function () {
     var submitBtn = document.getElementById('upload-submit-btn');
     var statusBox = document.getElementById('upload-status');
     var statusText = document.getElementById('upload-status-text');
+    var schoolYearInput = document.getElementById('school_year');
 
     if (!dropzone || !fileInput || !form) {
         return;
+    }
+
+    if (schoolYearInput) {
+        schoolYearInput.addEventListener('input', function () {
+            schoolYearInput.value = schoolYearInput.value.replace(/\D/g, '');
+        });
+        schoolYearInput.addEventListener('keydown', function (event) {
+            if (event.key.length === 1 && !/[0-9]/.test(event.key) && !event.ctrlKey && !event.metaKey) {
+                event.preventDefault();
+            }
+        });
+        schoolYearInput.addEventListener('paste', function (event) {
+            var pasted = (event.clipboardData || window.clipboardData).getData('text');
+            if (/\D/.test(pasted)) {
+                event.preventDefault();
+            }
+        });
     }
 
     function showStatus(text) {
@@ -69,6 +87,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function extractAndRedirect(uploadId) {
         var extractUrl = form.dataset.extractUrl;
+        var installUrl = extractUrl.replace('extract_pdf.php', 'install_ocr_tools.php');
         var csrfToken = form.querySelector('[name="csrf_token"]').value;
         var viewUploadUrl = form.dataset.viewUploadUrl + '?id=' + uploadId;
 
@@ -88,6 +107,26 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(function (data) {
                 if (data.status === 'success') {
                     window.location.href = data.redirect_url;
+                } else if (data.status === 'ocr_tools_missing') {
+                    hideStatus();
+                    promptOcrToolsInstall({
+                        missing: data.missing,
+                        csrfToken: csrfToken,
+                        installUrl: installUrl,
+                        onInstalling: function () {
+                            showStatus('INSTALLING OCR TOOLS... THIS MAY TAKE SEVERAL MINUTES. PLEASE DO NOT CLOSE THIS PAGE.');
+                        },
+                        onInstalled: function () {
+                            extractAndRedirect(uploadId);
+                        },
+                        onFailed: function () {
+                            hideStatus();
+                            window.location.href = viewUploadUrl;
+                        },
+                        onCancelled: function () {
+                            window.location.href = viewUploadUrl;
+                        },
+                    });
                 } else {
                     hideStatus();
                     showToast('error', data.message);
@@ -129,11 +168,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         buttons: [
                             {
                                 label: 'CANCEL',
-                                className: 'rounded-lg px-4 py-2 text-sm text-gray-300 hover:bg-white/5',
+                                className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5',
                             },
                             {
                                 label: 'VIEW EXISTING',
-                                className: 'rounded-lg px-4 py-2 text-sm text-gray-300 hover:bg-white/5',
+                                className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5',
                                 onClick: function (close) {
                                     close();
                                     window.location.href = form.dataset.viewUploadUrl + '?id=' + data.existing_upload.id;

@@ -2,14 +2,38 @@
 
 trait ParsesHonorRows
 {
+    /**
+     * Matches the token that starts a degree/course column, however that
+     * school's list phrases it — full names ("BACHELOR OF SCIENCE IN..."),
+     * common Philippine abbreviations ("BS", "BSA", "BSIT", ...), and
+     * period-punctuated forms ("B.S.", "M.A.", "PH.D."). The course text
+     * itself always runs from wherever this matches to the Latin Honor
+     * match, so extending this list only changes which token a line
+     * anchors on, never how the anchor is used. Not exhaustive — add more
+     * abbreviations here as new school formats turn up.
+     *
+     * Lookaround (not \b) is deliberate: \b fails to terminate a match
+     * that ends on a period (e.g. "B.S. ACCOUNTANCY" — "." and the space
+     * after it are both non-word characters, so no \b exists between
+     * them), silently rejecting the exact abbreviated forms this list
+     * exists to support.
+     */
+    private const COURSE_KEYWORD_PATTERN = '/(?<![A-Za-z0-9])('
+        . 'BACHELOR|MASTER|DOCTOR(?:ATE)?|DIPLOMA|ASSOCIATE|CERTIFICATE|TECHNICAL|VOCATIONAL'
+        . '|B\.\s*S\.?|B\.\s*A\.?|M\.\s*A\.?|M\.\s*S\.?|PH\.\s*D\.?'
+        . '|BSA|BSIT|BSCS|BSBA|BSED|BEED|BSN|BSCE|BSME|BSEE|BSIE|BSHM|BSTM|BSE'
+        . '|BFA|BTVTE|BTECH|BT|ABM|AB|BS|BA'
+        . '|MBA|MPA|MAED|MED|MA|MS'
+        . '|PHD'
+        . ')(?![A-Za-z0-9])/i';
+
     protected function parseRows(string $text): array
     {
         $hasGwaColumn = (bool) preg_match('/\bGWA\b|\bGPA\b/i', $text);
-        $hasCourseColumn = (bool) preg_match('/\bDEGREE\b|\bCOURSE\b|\bPROGRAM\b/i', $text);
 
         $rows = [];
         foreach (preg_split('/\r\n|\r|\n/', $text) as $line) {
-            $row = $this->parseLine($line, $hasGwaColumn, $hasCourseColumn);
+            $row = $this->parseLine($line, $hasGwaColumn);
             if ($row !== null) {
                 $rows[] = $row;
             }
@@ -18,7 +42,7 @@ trait ParsesHonorRows
         return $rows;
     }
 
-    private function parseLine(string $line, bool $hasGwaColumn, bool $hasCourseColumn): ?array
+    private function parseLine(string $line, bool $hasGwaColumn): ?array
     {
         $trimmed = trim($line);
 
@@ -29,11 +53,18 @@ trait ParsesHonorRows
         $honor = $honorMatch['honor'];
         $honorPosition = $honorMatch['position'];
 
+        // A degree abbreviation is short enough to coincidentally collide
+        // with something inside the name (e.g. "MA." as in "JUAN MA. DELA
+        // CRUZ", a common Filipino name element, not "Master of Arts").
+        // The real course token is always the one immediately preceding
+        // the Latin Honor, so take the rightmost match before it rather
+        // than the first one in the line.
         $bachelorPosition = null;
-        if ($hasCourseColumn && preg_match('/BACHELOR\b/i', $trimmed, $bachelorMatch, PREG_OFFSET_CAPTURE)) {
-            $pos = $bachelorMatch[0][1];
-            if ($pos < $honorPosition) {
-                $bachelorPosition = $pos;
+        if (preg_match_all(self::COURSE_KEYWORD_PATTERN, $trimmed, $courseMatches, PREG_OFFSET_CAPTURE)) {
+            foreach ($courseMatches[0] as $match) {
+                if ($match[1] < $honorPosition) {
+                    $bachelorPosition = $match[1];
+                }
             }
         }
 
@@ -52,6 +83,21 @@ trait ParsesHonorRows
             }
         }
 
+        // Fallback boundary for when the degree keyword itself is too
+        // OCR-garbled to recognize (e.g. "BACHELOR" misread as "PASTEL"):
+        // a standalone "|" is almost always a mis-OCR'd table border, never
+        // part of a real name, so it still marks the name/course split even
+        // when the course text after it is unreadable garbage.
+        $pipeStart = null;
+        $pipeMatchLength = 0;
+        if (preg_match('/\s\|\s/', $trimmed, $pipeMatch, PREG_OFFSET_CAPTURE)) {
+            $candidate = $pipeMatch[0][1];
+            if ($candidate < $honorPosition) {
+                $pipeStart = $candidate;
+                $pipeMatchLength = strlen($pipeMatch[0][0]);
+            }
+        }
+
         if ($bachelorPosition !== null) {
             $nameEnd = ($gwaStart !== null && $gwaStart < $bachelorPosition) ? $gwaStart : $bachelorPosition;
             $name = trim(substr($trimmed, 0, $nameEnd));
@@ -59,6 +105,9 @@ trait ParsesHonorRows
         } elseif ($gwaStart !== null) {
             $name = trim(substr($trimmed, 0, $gwaStart));
             $courseStart = $gwaStart + strlen($gwaMatch[0][0]);
+        } elseif ($pipeStart !== null) {
+            $name = trim(substr($trimmed, 0, $pipeStart));
+            $courseStart = $pipeStart + $pipeMatchLength;
         }
 
         if ($name === null || $name === '') {
@@ -67,12 +116,14 @@ trait ParsesHonorRows
             $courseStart = strlen($name);
         }
 
+        $name = $this->cleanGraduateName($name);
+
         if ($name === '') {
             return null;
         }
 
         $course = '';
-        if ($hasCourseColumn && $courseStart !== null && $courseStart < $honorPosition) {
+        if ($courseStart !== null && $courseStart < $honorPosition) {
             $course = trim(substr($trimmed, $courseStart, $honorPosition - $courseStart));
         }
 
@@ -100,7 +151,7 @@ trait ParsesHonorRows
             $nameEnd = $gapStart + $dateMatch[0][1];
         }
 
-        $name = trim(substr($trimmed, $gapStart, $nameEnd - $gapStart));
+        $name = $this->cleanGraduateName(substr($trimmed, $gapStart, $nameEnd - $gapStart));
         if ($name === '') {
             return null;
         }
@@ -111,6 +162,24 @@ trait ParsesHonorRows
             'latin_honor' => $honor,
             'graduation_date' => $this->extractDate($rawLine),
         ];
+    }
+
+    /**
+     * Strips OCR/table artifacts that land in the name column but aren't
+     * part of the name: a leading row/sequence number plus whatever
+     * non-letter junk OCR glued to it (straight or curly quotes, brackets,
+     * pipes, stray symbols — a name always starts with a letter, so
+     * anything before the first letter is discarded), and a trailing
+     * standalone number (e.g. a roll/ID number merged onto the end of the
+     * column by a missing space). Never touches interior punctuation, so
+     * "O'Brien-Smith" is untouched.
+     */
+    private function cleanGraduateName(string $name): string
+    {
+        $name = preg_replace('/^[^\p{L}]+/u', '', $name) ?? $name;
+        $name = preg_replace('/\s+\d+\s*$/u', '', $name) ?? $name;
+
+        return trim($name);
     }
 
     private function matchHonor(string $text): ?array

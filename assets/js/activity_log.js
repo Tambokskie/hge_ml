@@ -47,15 +47,15 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderResults(data) {
         if (data.rows.length === 0) {
             resultsContainer.innerHTML =
-                '<div class="rounded-xl border border-white/10 bg-surface-900 p-10 text-center text-gray-400">' +
-                '<p class="text-sm font-medium text-gray-300">NO ACTIVITY LOG ENTRIES FOUND.</p></div>';
+                '<div class="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-10 text-center text-gray-500 dark:text-gray-400">' +
+                '<p class="text-sm font-medium text-gray-700 dark:text-gray-300">NO ACTIVITY LOG ENTRIES FOUND.</p></div>';
             return;
         }
 
         var rowsHtml = data.rows.map(function (row) {
             var userLabel = row.user_name ? row.user_name.toUpperCase() : 'SYSTEM';
             var details = row.details ? row.details : '—';
-            return '<tr class="border-b border-white/5 hover:bg-white/5">' +
+            return '<tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">' +
                 '<td class="px-4 py-3">' + escapeHtml(formatTimestamp(row.created_at)) + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(userLabel) + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(String(row.action).toUpperCase()) + '</td>' +
@@ -65,16 +65,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var pagination = data.pagination;
         var paginationHtml =
-            '<div id="activity-pagination" class="flex items-center justify-between mt-4 text-sm text-gray-400">' +
+            '<div id="activity-pagination" class="flex items-center justify-between mt-4 text-sm text-gray-500 dark:text-gray-400">' +
             '<span>PAGE ' + pagination.page + ' OF ' + pagination.total_pages + ' (' + pagination.total_rows + ' ENTRIES)</span>' +
             '<div class="flex gap-2">' +
-            (pagination.page > 1 ? '<button type="button" class="activity-page-btn rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5" data-page="' + (pagination.page - 1) + '">PREV</button>' : '') +
-            (pagination.page < pagination.total_pages ? '<button type="button" class="activity-page-btn rounded-lg border border-white/10 px-3 py-1.5 hover:bg-white/5" data-page="' + (pagination.page + 1) + '">NEXT</button>' : '') +
+            (pagination.page > 1 ? '<button type="button" class="activity-page-btn rounded-lg border border-gray-200 dark:border-white/10 px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="' + (pagination.page - 1) + '">PREV</button>' : '') +
+            (pagination.page < pagination.total_pages ? '<button type="button" class="activity-page-btn rounded-lg border border-gray-200 dark:border-white/10 px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="' + (pagination.page + 1) + '">NEXT</button>' : '') +
             '</div></div>';
 
         resultsContainer.innerHTML =
-            '<div class="bg-surface-900 border border-white/10 rounded-xl overflow-x-auto"><table class="w-full text-sm text-left">' +
-            '<thead><tr class="text-xs text-gray-500 border-b border-white/10">' +
+            '<div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto"><table class="w-full text-sm text-left">' +
+            '<thead><tr class="text-xs text-gray-600 dark:text-gray-500 border-b border-gray-200 dark:border-white/10">' +
             '<th class="px-4 py-3">TIMESTAMP</th><th class="px-4 py-3">USER</th><th class="px-4 py-3">ACTION</th><th class="px-4 py-3">DETAILS</th></tr></thead>' +
             '<tbody id="activity-results-tbody">' + rowsHtml + '</tbody></table></div>' + paginationHtml;
     }

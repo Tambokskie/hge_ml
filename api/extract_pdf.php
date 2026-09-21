@@ -5,6 +5,7 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/uploads.php';
 require_once __DIR__ . '/../includes/extraction_review.php';
+require_once __DIR__ . '/../includes/ocr_tools.php';
 require_once __DIR__ . '/../extractors/ExtractorInterface.php';
 require_once __DIR__ . '/../extractors/ParsesHonorRows.php';
 require_once __DIR__ . '/../extractors/generic_extractor.php';
@@ -40,6 +41,19 @@ try {
     try {
         $result = (new GenericExtractor())->extract($upload['file_path']);
         if ($result['status'] === 'failed') {
+            $toolStatus = check_ocr_tools_installed();
+            $missingTools = array_keys(array_filter($toolStatus, fn (bool $installed) => !$installed));
+
+            if (!empty($missingTools)) {
+                echo json_encode([
+                    'status' => 'ocr_tools_missing',
+                    'missing' => array_map('mb_strtoupper', $missingTools),
+                    'message' => 'THIS PDF HAS NO EXTRACTABLE TEXT AND REQUIRES OCR TO READ IT. THE FOLLOWING REQUIRED TOOL(S) ARE NOT INSTALLED: '
+                        . mb_strtoupper(implode(', ', $missingTools)) . '.',
+                ]);
+                exit;
+            }
+
             $result = (new OcrExtractor())->extract($upload['file_path']);
         }
     } catch (\Throwable $e) {

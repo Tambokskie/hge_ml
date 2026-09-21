@@ -4,6 +4,10 @@ if (!defined('APP_BASE_URL')) {
     define('APP_BASE_URL', getenv('APP_BASE_URL') ?: '/hge_masterlist');
 }
 
+if (!defined('SESSION_IDLE_TIMEOUT')) {
+    define('SESSION_IDLE_TIMEOUT', (int) (getenv('SESSION_IDLE_TIMEOUT') ?: 14400));
+}
+
 function get_db_config(): array
 {
     return [
