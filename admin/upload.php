@@ -9,6 +9,7 @@ require_role('administrator');
 
 $pdo = get_pdo();
 $schoolNames = get_active_school_names($pdo);
+$uploadedSchools = get_schools_with_uploads($pdo);
 $currentUser = current_user();
 $currentPage = 'upload';
 $csrfToken = csrf_token();
@@ -18,10 +19,10 @@ include __DIR__ . '/../includes/sidebar.php';
 ?>
 <main class="lg:ml-64 min-h-screen bg-gray-50 dark:bg-surface-950">
     <div class="p-6 lg:p-8">
-        <div class="max-w-2xl mx-auto">
-            <h1 class="text-xl font-semibold text-gray-900 dark:text-white mb-6 text-center">UPLOAD LATIN HONOR LIST</h1>
+        <div class="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <div class="lg:col-span-2 bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-6 sm:p-8 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
+                <h1 class="text-xl font-semibold text-accent-700 dark:text-accent-400 mb-6 text-center">UPLOAD LATIN HONOR LIST</h1>
 
-            <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-6 sm:p-8 hge-shadow motion-safe:animate-fade-in-up">
                 <form id="upload-form" action="<?= e(APP_BASE_URL) ?>/api/upload_pdf.php" data-view-upload-url="<?= e(APP_BASE_URL) ?>/admin/view_upload.php" data-extract-url="<?= e(APP_BASE_URL) ?>/api/extract_pdf.php" method="post" enctype="multipart/form-data" class="space-y-5">
                     <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
 
@@ -64,6 +65,23 @@ include __DIR__ . '/../includes/sidebar.php';
                 <div id="upload-status" class="hidden mt-4 rounded-lg border border-accent-500/30 bg-accent-500/10 px-4 py-3 text-sm text-accent-600 dark:text-accent-300">
                     <span id="upload-status-text"></span>
                 </div>
+            </div>
+
+            <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-6 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
+                <h2 class="text-sm font-semibold text-accent-700 dark:text-accent-400 mb-4 text-center">SCHOOLS UPLOADED</h2>
+                <?php if (empty($uploadedSchools)): ?>
+                    <p class="text-sm text-gray-600 dark:text-gray-500 text-center py-6">NO SCHOOLS UPLOADED YET.</p>
+                <?php else: ?>
+                    <ul class="divide-y divide-gray-100 dark:divide-white/5 max-h-[809px] overflow-y-auto">
+                        <?php foreach ($uploadedSchools as $school): ?>
+                            <li class="py-3 first:pt-0 last:pb-0">
+                                <p class="text-sm font-medium text-gray-900 dark:text-white"><?= e_upper($school['school_name']) ?></p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5"><?= $school['campus'] !== '' ? e_upper($school['campus']) : '—' ?></p>
+                                <p class="text-xs text-gray-400 dark:text-gray-600 mt-0.5"><?= $school['address'] !== '' ? e_upper($school['address']) : '—' ?></p>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
             </div>
         </div>
     </div>

@@ -58,6 +58,16 @@ function get_active_schools_list(PDO $pdo): array
     return $stmt->fetchAll();
 }
 
+function get_schools_with_uploads(PDO $pdo): array
+{
+    $sql = "SELECT s.school_name, s.campus, s.address
+            FROM schools s
+            WHERE EXISTS (SELECT 1 FROM latin_honor_uploads u WHERE u.school_id = s.id)
+            ORDER BY s.school_name ASC";
+    $stmt = $pdo->query($sql);
+    return $stmt->fetchAll();
+}
+
 function get_all_schools_with_counts(PDO $pdo): array
 {
     $sql = "SELECT s.id, s.school_name, s.address, s.campus, s.status,
