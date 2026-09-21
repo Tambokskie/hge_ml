@@ -56,7 +56,7 @@ include __DIR__ . '/../includes/sidebar.php';
         <h1 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">HONOR GRADUATE LOOK-UP</h1>
         <p class="text-sm text-gray-600 dark:text-gray-500 mb-6">SEARCH BY SCHOOL, GRADUATION YEAR, OR GRADUATE NAME TO VERIFY A HONOR GRADUATE RECORD.</p>
 
-        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6">
+        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow">
             <form id="lookup-filter-form" method="get" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
                     <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">SCHOOL</label>
@@ -88,19 +88,19 @@ include __DIR__ . '/../includes/sidebar.php';
 
         <div id="lookup-results">
             <?php if (!$hasFilters): ?>
-                <div class="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-10 text-center text-gray-500 dark:text-gray-400">
+                <div class="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-10 text-center text-gray-500 dark:text-gray-400 hge-shadow">
                     <p class="text-sm">SEARCH BY NAME, SCHOOL, OR YEAR TO FIND HONOR GRADUATE RECORDS.</p>
                 </div>
             <?php elseif ($searchFailed): ?>
-                <div class="rounded-xl border border-red-500/30 bg-red-500/10 p-10 text-center text-red-400">
+                <div class="rounded-xl border border-red-500/30 bg-red-500/10 p-10 text-center text-red-400 hge-shadow">
                     <p class="text-sm font-medium">THE SEARCH COULD NOT BE COMPLETED. PLEASE TRY AGAIN.</p>
                 </div>
             <?php elseif (empty($searchResult['rows'])): ?>
-                <div class="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-10 text-center text-gray-500 dark:text-gray-400">
+                <div class="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-10 text-center text-gray-500 dark:text-gray-400 hge-shadow">
                     <p class="text-sm font-medium text-gray-700 dark:text-gray-300">NO HONOR GRADUATE RECORD FOUND.</p>
                 </div>
             <?php else: ?>
-                <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto">
+                <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto hge-shadow">
                     <table class="w-full text-sm text-left">
                         <thead>
                             <tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">

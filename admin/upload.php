@@ -21,7 +21,7 @@ include __DIR__ . '/../includes/sidebar.php';
         <div class="max-w-2xl mx-auto">
             <h1 class="text-xl font-semibold text-gray-900 dark:text-white mb-6 text-center">UPLOAD LATIN HONOR LIST</h1>
 
-            <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-6 sm:p-8 shadow-lg shadow-gray-200/60 dark:shadow-black/30 motion-safe:animate-fade-in-up">
+            <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-6 sm:p-8 hge-shadow motion-safe:animate-fade-in-up">
                 <form id="upload-form" action="<?= e(APP_BASE_URL) ?>/api/upload_pdf.php" data-view-upload-url="<?= e(APP_BASE_URL) ?>/admin/view_upload.php" data-extract-url="<?= e(APP_BASE_URL) ?>/api/extract_pdf.php" method="post" enctype="multipart/form-data" class="space-y-5">
                     <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
 

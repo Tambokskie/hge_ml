@@ -24,7 +24,7 @@ include __DIR__ . '/../includes/sidebar.php';
             <button type="button" id="remove-school-btn" disabled class="rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-600 text-white text-sm font-medium px-4 py-2">REMOVE</button>
         </div>
 
-        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto">
+        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto hge-shadow">
             <table class="w-full text-sm text-left">
                 <thead>
                     <tr class="text-xs text-gray-600 dark:text-gray-500 border-b border-gray-200 dark:border-white/10">

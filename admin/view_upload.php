@@ -28,11 +28,11 @@ include __DIR__ . '/../includes/sidebar.php';
         <h1 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">UPLOAD DETAILS</h1>
 
         <?php if ($upload === null): ?>
-            <div class="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-6 text-center text-gray-500 dark:text-gray-400">
+            <div class="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-6 text-center text-gray-500 dark:text-gray-400 hge-shadow">
                 <p class="text-sm">NO UPLOAD RECORD FOUND.</p>
             </div>
         <?php else: ?>
-            <div class="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-6 space-y-4">
+            <div class="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-6 space-y-4 hge-shadow">
                 <div>
                     <p class="text-xs text-gray-600 dark:text-gray-500">SCHOOL</p>
                     <p class="text-sm text-gray-900 dark:text-white"><?= e_upper($upload['school_name']) ?></p>

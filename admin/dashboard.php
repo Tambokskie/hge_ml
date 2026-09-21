@@ -77,7 +77,7 @@ include __DIR__ . '/../includes/sidebar.php';
         <?php endif; ?>
 
         <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 shadow-sm">
+            <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 hge-shadow">
                 <h2 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">LATIN HONORS BY TYPE</h2>
                 <?php if (array_sum($honorBreakdown) === 0): ?>
                     <p class="text-sm text-gray-600 dark:text-gray-500 text-center py-8">NO RECORDS YET.</p>
@@ -103,7 +103,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     </div>
                 <?php endif; ?>
             </div>
-            <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 shadow-sm">
+            <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 hge-shadow">
                 <?php
                 $uploadCounts = array_column($uploadActivity, 'count');
                 $uploadTotal = array_sum($uploadCounts);
@@ -149,7 +149,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
         <div class="mt-8">
             <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-3 tracking-wide">LATEST UPLOAD</h2>
-            <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl overflow-x-auto overflow-y-hidden">
+            <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl overflow-x-auto overflow-y-hidden hge-shadow">
                 <?php if (empty($recentUploads)): ?>
                     <p class="text-sm text-gray-600 dark:text-gray-500 p-6 text-center">NO UPLOADS YET.</p>
                 <?php else: ?>
@@ -191,7 +191,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
         <?php if ($isAdmin): ?>
         <div class="mt-8">
-            <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 shadow-sm">
+            <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 hge-shadow">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-sm font-semibold text-gray-900 dark:text-white">RECENT ACTIVITY</h2>
                     <a href="<?= e(APP_BASE_URL) ?>/admin/activity_log.php" class="text-xs font-semibold text-accent-700 dark:text-accent-400 hover:underline">VIEW ALL &rarr;</a>
