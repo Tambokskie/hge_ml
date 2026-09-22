@@ -81,9 +81,9 @@ function get_all_schools_with_counts(PDO $pdo): array
 
 function create_school(PDO $pdo, string $name, string $address, string $campus = ''): array
 {
-    $name = trim($name);
-    $address = trim($address);
-    $campus = trim($campus);
+    $name = mb_strtoupper(trim($name));
+    $address = mb_strtoupper(trim($address));
+    $campus = mb_strtoupper(trim($campus));
 
     if ($name === '') {
         return ['status' => 'error', 'message' => 'SCHOOL NAME IS REQUIRED.'];
@@ -120,9 +120,9 @@ function create_school(PDO $pdo, string $name, string $address, string $campus =
 
 function rename_school(PDO $pdo, int $id, string $newName, string $address, string $campus = ''): array
 {
-    $newName = trim($newName);
-    $address = trim($address);
-    $campus = trim($campus);
+    $newName = mb_strtoupper(trim($newName));
+    $address = mb_strtoupper(trim($address));
+    $campus = mb_strtoupper(trim($campus));
 
     if ($newName === '') {
         return ['status' => 'error', 'message' => 'SCHOOL NAME IS REQUIRED.'];

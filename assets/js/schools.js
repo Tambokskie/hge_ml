@@ -18,6 +18,18 @@ document.addEventListener('DOMContentLoaded', function () {
         window.location.reload();
     }
 
+    function enforceUppercase(input) {
+        if (!input) {
+            return;
+        }
+        input.value = input.value.toUpperCase();
+        input.addEventListener('input', function () {
+            var pos = input.selectionStart;
+            input.value = input.value.toUpperCase();
+            input.setSelectionRange(pos, pos);
+        });
+    }
+
     function openConfirmModal(title, rows, onConfirm, onGoBack) {
         var bodyHtml = '<div class="space-y-2">' +
             rows.map(function (row) {
@@ -117,6 +129,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
             ],
         });
+
+        enforceUppercase(document.getElementById('modal-name'));
+        enforceUppercase(document.getElementById('modal-address'));
+        enforceUppercase(document.getElementById('modal-campus'));
     }
 
     function openEditModal(defaults) {
@@ -196,6 +212,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
             ],
         });
+
+        enforceUppercase(document.getElementById('modal-name'));
+        enforceUppercase(document.getElementById('modal-address'));
+        enforceUppercase(document.getElementById('modal-campus'));
     }
 
     function openRemoveConfirmModal(target) {

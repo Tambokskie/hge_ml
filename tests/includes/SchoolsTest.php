@@ -153,6 +153,18 @@ class SchoolsTest extends TestCase
         $this->assertSame('success', $result['status']);
     }
 
+    public function testCreateSchoolUppercasesAllFields(): void
+    {
+        $pdo = TestDb::pdo();
+
+        $created = create_school($pdo, 'Eastern Visayas State University', '123 rizal st., tacloban city', 'main campus');
+
+        $row = $pdo->query("SELECT school_name, address, campus FROM schools WHERE id = {$created['id']}")->fetch();
+        $this->assertSame('EASTERN VISAYAS STATE UNIVERSITY', $row['school_name']);
+        $this->assertSame('123 RIZAL ST., TACLOBAN CITY', $row['address']);
+        $this->assertSame('MAIN CAMPUS', $row['campus']);
+    }
+
     public function testCreateSchoolRejectsDuplicateNameAndCampus(): void
     {
         $pdo = TestDb::pdo();
@@ -186,7 +198,20 @@ class SchoolsTest extends TestCase
 
         $this->assertSame('success', $result['status']);
         $name = $pdo->query("SELECT school_name FROM schools WHERE id = {$created['id']}")->fetchColumn();
-        $this->assertSame('New Name', $name);
+        $this->assertSame('NEW NAME', $name);
+    }
+
+    public function testRenameSchoolUppercasesAllFields(): void
+    {
+        $pdo = TestDb::pdo();
+        $created = create_school($pdo, 'Old Name', '123 Main St', '');
+
+        rename_school($pdo, $created['id'], 'new name', '456 second st.', 'south campus');
+
+        $row = $pdo->query("SELECT school_name, address, campus FROM schools WHERE id = {$created['id']}")->fetch();
+        $this->assertSame('NEW NAME', $row['school_name']);
+        $this->assertSame('456 SECOND ST.', $row['address']);
+        $this->assertSame('SOUTH CAMPUS', $row['campus']);
     }
 
     public function testRenameSchoolRejectsEmptyAddress(): void
@@ -209,7 +234,7 @@ class SchoolsTest extends TestCase
 
         $this->assertSame('error', $result['status']);
         $name = $pdo->query("SELECT school_name FROM schools WHERE id = {$created['id']}")->fetchColumn();
-        $this->assertSame('XYZ College', $name);
+        $this->assertSame('XYZ COLLEGE', $name);
     }
 
     public function testRenameSchoolAllowsSameNameDifferentCampus(): void
@@ -286,7 +311,7 @@ class SchoolsTest extends TestCase
         $result = remove_school($pdo, $school['id'], 1, 'secret123');
 
         $this->assertSame('success', $result['status']);
-        $this->assertSame('ABC University', $result['school_name']);
+        $this->assertSame('ABC UNIVERSITY', $result['school_name']);
         $count = (int) $pdo->query("SELECT COUNT(*) FROM schools WHERE id = {$school['id']}")->fetchColumn();
         $this->assertSame(0, $count);
     }
