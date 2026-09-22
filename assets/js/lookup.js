@@ -172,23 +172,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function openDetailsModal(data) {
         var bodyHtml =
-            '<div class="space-y-2">' +
-            '<div><span class="text-xs text-accent-600 dark:text-accent-400">GRADUATE NAME</span><p class="pl-3 text-accent-800 dark:text-accent-300">' + escapeHtml(data.name) + '</p></div>' +
-            '<div><span class="text-xs text-accent-600 dark:text-accent-400">DEGREE/COURSE</span><p class="pl-3 text-accent-800 dark:text-accent-300">' + escapeHtml(data.course || '—') + '</p></div>' +
-            '<div><span class="text-xs text-accent-600 dark:text-accent-400">SCHOOL</span><p class="pl-3 text-accent-800 dark:text-accent-300">' + escapeHtml(data.school) + '</p></div>' +
-            '<div><span class="text-xs text-accent-600 dark:text-accent-400">LATIN HONOR</span><p class="pl-3 text-accent-800 dark:text-accent-300">' + escapeHtml(data.honor) + '</p></div>' +
-            '<div><span class="text-xs text-accent-600 dark:text-accent-400">DATE OF GRADUATION</span><p class="pl-3 text-accent-800 dark:text-accent-300">' + escapeHtml(data.date) + '</p></div>' +
-            '<div><span class="text-xs text-accent-600 dark:text-accent-400">SOURCE PDF</span><p class="pl-3 text-accent-800 dark:text-accent-300">' + escapeHtml(data.filename) + ' (UPLOADED ' + escapeHtml(data.uploadedAt) + ')</p></div>' +
+            '<div class="text-left space-y-2">' +
+            '<div><span class="text-xs text-gray-500 dark:text-gray-400">GRADUATE NAME</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(data.name) + '</p></div>' +
+            '<div><span class="text-xs text-gray-500 dark:text-gray-400">DEGREE/COURSE</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(data.course || '—') + '</p></div>' +
+            '<div><span class="text-xs text-gray-500 dark:text-gray-400">SCHOOL</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(data.school) + '</p></div>' +
+            '<div><span class="text-xs text-gray-500 dark:text-gray-400">LATIN HONOR</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(data.honor) + '</p></div>' +
+            '<div><span class="text-xs text-gray-500 dark:text-gray-400">DATE OF GRADUATION</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(data.date) + '</p></div>' +
+            '<div><span class="text-xs text-gray-500 dark:text-gray-400">SOURCE PDF</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(data.filename) + ' (UPLOADED ' + escapeHtml(data.uploadedAt) + ')</p></div>' +
             '</div>';
 
         showModal({
+            icon: '<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>',
             title: 'HONOR GRADUATE RECORD',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CLOSE', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                { label: 'CLOSE', className: 'flex-1 rounded-full border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors' },
                 {
                     label: 'VIEW SOURCE PDF',
-                    className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                    className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-accent-600 hover:bg-accent-500 text-white transition-colors',
                     onClick: function () {
                         openPdfDrawer(config.apiBase + '/api/serve_pdf.php?id=' + encodeURIComponent(data.uploadId), data.filename);
                     },
@@ -205,27 +206,28 @@ document.addEventListener('DOMContentLoaded', function () {
         }).join('');
 
         var bodyHtml =
-            '<div class="space-y-3">' +
-            '<div><label class="block text-xs text-accent-600 dark:text-accent-400 mb-1">GRADUATE NAME</label>' +
+            '<div class="text-left space-y-3">' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">GRADUATE NAME</label>' +
             '<input id="modal-graduate-name" type="text" value="' + escapeHtml(defaults.name || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-accent-600 dark:text-accent-400 mb-1">DEGREE/COURSE</label>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">DEGREE/COURSE</label>' +
             '<input id="modal-course" type="text" value="' + escapeHtml(defaults.course || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-accent-600 dark:text-accent-400 mb-1">LATIN HONOR</label>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">LATIN HONOR</label>' +
             '<select id="modal-latin-honor" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">' + optionsHtml + '</select></div>' +
-            '<div><label class="block text-xs text-accent-600 dark:text-accent-400 mb-1">DATE OF GRADUATION</label>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">DATE OF GRADUATION</label>' +
             '<input id="modal-graduation-date" type="date" value="' + escapeHtml(defaults.date || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-accent-600 dark:text-accent-400 mb-1">YEAR GRADUATED</label>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">YEAR GRADUATED</label>' +
             '<input id="modal-graduation-year" type="text" value="' + escapeHtml(defaults.year || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
             '</div>';
 
         showModal({
+            icon: '<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>',
             title: 'EDIT HONOR GRADUATE RECORD',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                { label: 'CANCEL', className: 'flex-1 rounded-full border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors' },
                 {
                     label: 'SAVE',
-                    className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                    className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-accent-600 hover:bg-accent-500 text-white transition-colors',
                     onClick: function (modalClose) {
                         postJson(config.apiBase + '/api/update_saved_graduate.php', {
                             csrf_token: config.csrfToken,
@@ -256,20 +258,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function openApplyModal(defaults) {
         var bodyHtml =
-            '<div class="space-y-3">' +
-            '<div><span class="text-xs text-accent-600 dark:text-accent-400">NAME</span><p class="pl-3 text-accent-800 dark:text-accent-300">' + escapeHtml(defaults.name) + '</p></div>' +
-            '<div><label class="block text-xs text-accent-600 dark:text-accent-400 mb-1" for="modal-application-date">DATE OF APPLICATION</label>' +
-            '<input id="modal-application-date" type="date" value="' + escapeHtml(todayIsoDate()) + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<p class="text-xs text-gray-500 dark:text-gray-400 mb-1">NAME</p>' +
+            '<p class="font-medium text-gray-900 dark:text-white mb-4">' + escapeHtml(defaults.name) + '</p>' +
+            '<div class="text-left">' +
+            '<label class="block text-xs text-gray-500 dark:text-gray-400 mb-1" for="modal-application-date">DATE OF APPLICATION</label>' +
+            '<input id="modal-application-date" type="date" value="' + escapeHtml(todayIsoDate()) + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">' +
             '</div>';
 
         showModal({
+            icon: '<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>',
+            iconClassName: 'bg-green-500/10 text-green-600 dark:text-green-400',
             title: 'HONOR GRADUATE ELIGIBLE',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                { label: 'CANCEL', className: 'flex-1 rounded-full border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors' },
                 {
                     label: 'CONFIRM',
-                    className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                    className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-green-600 hover:bg-green-500 text-white transition-colors',
                     onClick: function (modalClose) {
                         var applicationDate = document.getElementById('modal-application-date').value;
                         if (!applicationDate) {
@@ -344,7 +349,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function openConfirmBulkUpdateModal(values) {
         var submitting = false;
         var bodyHtml =
-            '<div class="space-y-2">' +
+            '<div class="text-left space-y-2 mb-4">' +
             '<div class="flex justify-between gap-4 border-b border-gray-100 dark:border-white/5 pb-1">' +
             '<span class="text-gray-500 dark:text-gray-400">SCHOOL</span>' +
             '<span class="text-gray-900 dark:text-white text-right">' + escapeHtml(values.schoolName) + '</span></div>' +
@@ -354,16 +359,18 @@ document.addEventListener('DOMContentLoaded', function () {
             '<div class="flex justify-between gap-4 border-b border-gray-100 dark:border-white/5 pb-1">' +
             '<span class="text-gray-500 dark:text-gray-400">NEW DATE OF GRADUATION</span>' +
             '<span class="text-gray-900 dark:text-white text-right">' + escapeHtml(formatDisplayDate(values.date)) + '</span></div>' +
-            '<p class="text-sm text-yellow-600 dark:text-yellow-400 pt-2">THIS WILL OVERWRITE THE DATE OF GRADUATION FOR EVERY HONOR GRADUATE RECORD FROM THIS SCHOOL AND YEAR. THIS CANNOT BE UNDONE.</p>' +
-            '</div>';
+            '</div>' +
+            '<p class="text-sm text-yellow-600 dark:text-yellow-400">THIS WILL OVERWRITE THE DATE OF GRADUATION FOR EVERY HONOR GRADUATE RECORD FROM THIS SCHOOL AND YEAR. THIS CANNOT BE UNDONE.</p>';
 
         showModal({
+            icon: '<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>',
+            iconClassName: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
             title: 'CONFIRM GRADUATION DATE UPDATE',
             bodyHtml: bodyHtml,
             buttons: [
                 {
                     label: 'GO BACK',
-                    className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5',
+                    className: 'flex-1 rounded-full border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors',
                     onClick: function (close) {
                         close();
                         openBulkUpdateDateModal(values);
@@ -371,7 +378,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 {
                     label: 'CONFIRM',
-                    className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                    className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-accent-600 hover:bg-accent-500 text-white transition-colors',
                     onClick: function (modalClose) {
                         if (submitting) {
                             return;
@@ -406,7 +413,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function openBulkUpdateDateModal(prefill) {
         prefill = prefill || {};
         var bodyHtml =
-            '<div class="space-y-3">' +
+            '<p class="mb-4">THIS SETS THE DATE OF GRADUATION FOR EVERY HONOR GRADUATE RECORD FROM THE SELECTED SCHOOL AND YEAR.</p>' +
+            '<div class="text-left space-y-3">' +
             '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">SCHOOL NAME</label>' +
             '<select id="modal-bulk-school" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">' +
             buildSchoolOptionsHtml(prefill.schoolId) +
@@ -417,17 +425,17 @@ document.addEventListener('DOMContentLoaded', function () {
             '</select></div>' +
             '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">DATE OF GRADUATION</label>' +
             '<input id="modal-bulk-date" type="date" value="' + escapeHtml(prefill.date || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
-            '<p class="text-xs text-gray-500 dark:text-gray-400">THIS SETS THE DATE OF GRADUATION FOR EVERY HONOR GRADUATE RECORD FROM THE SELECTED SCHOOL AND YEAR.</p>' +
             '</div>';
 
         showModal({
+            icon: '<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>',
             title: 'UPDATE GRADUATION DATE',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                { label: 'CANCEL', className: 'flex-1 rounded-full border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors' },
                 {
                     label: 'CONTINUE',
-                    className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                    className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-accent-600 hover:bg-accent-500 text-white transition-colors',
                     onClick: function (modalClose) {
                         var schoolSelect = document.getElementById('modal-bulk-school');
                         var yearSelect = document.getElementById('modal-bulk-year');

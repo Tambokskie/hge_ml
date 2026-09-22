@@ -64,20 +64,21 @@ document.addEventListener('DOMContentLoaded', function () {
     if (massUpdateDateBtn) {
         massUpdateDateBtn.addEventListener('click', function () {
             var bodyHtml =
-                '<div class="space-y-3">' +
-                '<p class="text-sm text-gray-700 dark:text-gray-300">THIS SETS THE DATE OF GRADUATION FOR <strong>EVERY RECORD IN THIS TABLE</strong> — NOT JUST THE ONES CURRENTLY FILTERED/VISIBLE.</p>' +
-                '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">DATE OF GRADUATION</label>' +
-                '<input id="modal-mass-date" type="date" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+                '<p class="mb-4">THIS SETS THE DATE OF GRADUATION FOR <strong>EVERY RECORD IN THIS TABLE</strong> — NOT JUST THE ONES CURRENTLY FILTERED/VISIBLE.</p>' +
+                '<div class="text-left">' +
+                '<label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">DATE OF GRADUATION</label>' +
+                '<input id="modal-mass-date" type="date" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">' +
                 '</div>';
 
             showModal({
+                icon: '<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>',
                 title: 'MASS UPDATE DATE OF GRADUATION',
                 bodyHtml: bodyHtml,
                 buttons: [
-                    { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                    { label: 'CANCEL', className: 'flex-1 rounded-full border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors' },
                     {
                         label: 'CONFIRM',
-                        className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                        className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-accent-600 hover:bg-accent-500 text-white transition-colors',
                         onClick: function (modalClose) {
                             var date = document.getElementById('modal-mass-date').value;
                             if (!date) {
@@ -193,13 +194,15 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.addEventListener('click', function () {
             var rowIndex = parseInt(btn.dataset.rowIndex, 10);
             showModal({
+                icon: '<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>',
+                iconClassName: 'bg-red-500/10 text-red-600 dark:text-red-400',
                 title: 'REMOVE THIS GRADUATE RECORD?',
-                bodyHtml: escapeHtml(btn.dataset.name),
+                bodyHtml: '<p class="font-medium text-gray-900 dark:text-white">' + escapeHtml(btn.dataset.name) + '</p>',
                 buttons: [
-                    { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                    { label: 'CANCEL', className: 'flex-1 rounded-full border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors' },
                     {
                         label: 'REMOVE RECORD',
-                        className: 'rounded-lg px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white',
+                        className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors',
                         onClick: function (close) {
                             close();
                             postJson(config.apiBase + '/api/delete_graduate.php', {
