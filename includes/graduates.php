@@ -108,6 +108,41 @@ function file_application(PDO $pdo, int $graduateId, int $appliedBy, string $app
     return ['ok' => true];
 }
 
+function get_graduation_years_for_school(PDO $pdo, int $schoolId): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT DISTINCT graduation_year FROM latin_honor_graduates WHERE school_id = :school_id ORDER BY graduation_year DESC'
+    );
+    $stmt->execute(['school_id' => $schoolId]);
+
+    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
+/**
+ * Bulk-fills a missing date of graduation across every honor graduate from
+ * one school/year at once — the workaround for lists whose PDF never
+ * carried a date column, so extraction had nothing to parse it from.
+ */
+function bulk_update_graduation_date(PDO $pdo, int $schoolId, int $year, string $date): array
+{
+    $dt = DateTime::createFromFormat('Y-m-d', $date);
+    if (!$dt || $dt->format('Y-m-d') !== $date) {
+        return ['status' => 'error', 'message' => 'DATE OF GRADUATION MUST BE A VALID DATE.'];
+    }
+
+    $stmt = $pdo->prepare(
+        'UPDATE latin_honor_graduates SET graduation_date = :date WHERE school_id = :school_id AND graduation_year = :year'
+    );
+    $stmt->execute(['date' => $date, 'school_id' => $schoolId, 'year' => $year]);
+
+    $updated = $stmt->rowCount();
+    if ($updated === 0) {
+        return ['status' => 'error', 'message' => 'NO HONOR GRADUATE RECORDS WERE FOUND FOR THIS SCHOOL AND YEAR.'];
+    }
+
+    return ['status' => 'success', 'message' => $updated . ' RECORD(S) UPDATED.', 'updated' => $updated];
+}
+
 function build_search_log_details(array $filters): string
 {
     $parts = [];

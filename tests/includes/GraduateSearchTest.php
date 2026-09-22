@@ -246,4 +246,69 @@ class GraduateSearchTest extends TestCase
         $this->assertSame(1, $byName['Juan Dela Cruz']);
         $this->assertSame(0, $byName['Maria Santos']);
     }
+
+    public function testGetGraduationYearsForSchoolReturnsDistinctYearsDescending(): void
+    {
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025);
+        $this->insertGraduate(3, 1, 'Ana Reyes', 'CUM LAUDE', null, 2025);
+        $this->insertGraduate(1, 1, 'Maria Santos', 'CUM LAUDE', null, 2023);
+        $this->insertGraduate(2, 2, 'Ben Cruz', 'CUM LAUDE', null, 2024);
+
+        $years = get_graduation_years_for_school(TestDb::pdo(), 1);
+
+        $this->assertSame([2025, 2023], $years);
+    }
+
+    public function testGetGraduationYearsForSchoolReturnsEmptyArrayWhenNoGraduates(): void
+    {
+        $this->assertSame([], get_graduation_years_for_school(TestDb::pdo(), 1));
+    }
+
+    public function testBulkUpdateGraduationDateUpdatesOnlyMatchingSchoolAndYear(): void
+    {
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', null, 2025);
+        $this->insertGraduate(3, 1, 'Ana Reyes', 'CUM LAUDE', null, 2025);
+        $this->insertGraduate(1, 1, 'Old Year', 'CUM LAUDE', '2020-01-01', 2023);
+        $this->insertGraduate(2, 2, 'Other School', 'CUM LAUDE', null, 2025);
+
+        $result = bulk_update_graduation_date(TestDb::pdo(), 1, 2025, '2026-06-15');
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame(2, $result['updated']);
+
+        $updatedDates = TestDb::pdo()->query(
+            "SELECT graduation_date FROM latin_honor_graduates WHERE school_id = 1 AND graduation_year = 2025"
+        )->fetchAll(\PDO::FETCH_COLUMN);
+        $this->assertSame(['2026-06-15', '2026-06-15'], $updatedDates);
+
+        $untouchedDate = TestDb::pdo()->query(
+            "SELECT graduation_date FROM latin_honor_graduates WHERE school_id = 1 AND graduation_year = 2023"
+        )->fetchColumn();
+        $this->assertSame('2020-01-01', $untouchedDate);
+
+        $otherSchoolDate = TestDb::pdo()->query(
+            "SELECT graduation_date FROM latin_honor_graduates WHERE school_id = 2"
+        )->fetchColumn();
+        $this->assertNull($otherSchoolDate);
+    }
+
+    public function testBulkUpdateGraduationDateRejectsInvalidDate(): void
+    {
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', null, 2025);
+
+        $result = bulk_update_graduation_date(TestDb::pdo(), 1, 2025, '2026-13-40');
+
+        $this->assertSame('error', $result['status']);
+        $date = TestDb::pdo()->query('SELECT graduation_date FROM latin_honor_graduates')->fetchColumn();
+        $this->assertNull($date);
+    }
+
+    public function testBulkUpdateGraduationDateReportsErrorWhenNothingMatches(): void
+    {
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', null, 2025);
+
+        $result = bulk_update_graduation_date(TestDb::pdo(), 1, 1999, '2026-06-15');
+
+        $this->assertSame('error', $result['status']);
+    }
 }

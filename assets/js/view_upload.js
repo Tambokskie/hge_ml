@@ -1,81 +1,9 @@
 document.addEventListener('DOMContentLoaded', function () {
     var viewPdfBtn = document.getElementById('view-pdf-btn');
-    var drawer = document.getElementById('pdf-drawer');
-    var drawerOverlay = document.getElementById('pdf-drawer-overlay');
-    var drawerFrame = document.getElementById('pdf-drawer-frame');
-    var drawerFilename = document.getElementById('pdf-drawer-filename');
-    var drawerNewTab = document.getElementById('pdf-drawer-new-tab');
-    var drawerClose = document.getElementById('pdf-drawer-close');
-    var drawerLoading = document.getElementById('pdf-drawer-loading');
-
-    if (viewPdfBtn && drawer && drawerOverlay && drawerFrame) {
-        function showLoading() {
-            if (drawerLoading) {
-                drawerLoading.classList.remove('hidden');
-            }
-        }
-
-        function hideLoading() {
-            if (drawerLoading) {
-                drawerLoading.classList.add('hidden');
-            }
-        }
-
-        function openPdfDrawer() {
-            var pdfUrl = viewPdfBtn.dataset.pdfUrl;
-            var filename = viewPdfBtn.dataset.filename || 'PDF PREVIEW';
-
-            if (drawerNewTab) {
-                drawerNewTab.href = pdfUrl;
-            }
-            if (drawerFilename) {
-                drawerFilename.textContent = filename;
-            }
-
-            showLoading();
-            drawerFrame.src = pdfUrl;
-
-            drawerOverlay.classList.remove('hidden');
-            drawer.classList.remove('translate-x-full');
-            requestAnimationFrame(function () {
-                requestAnimationFrame(function () {
-                    drawerOverlay.classList.remove('opacity-0');
-                });
-            });
-
-            document.addEventListener('keydown', onKeydown);
-        }
-
-        function closePdfDrawer() {
-            drawer.classList.add('translate-x-full');
-            drawerOverlay.classList.add('opacity-0');
-            drawerOverlay.addEventListener('transitionend', function hide(event) {
-                if (event.target === drawerOverlay) {
-                    drawerOverlay.classList.add('hidden');
-                }
-            }, { once: true });
-            drawerFrame.src = '';
-            hideLoading();
-            document.removeEventListener('keydown', onKeydown);
-        }
-
-        function onKeydown(event) {
-            if (event.key === 'Escape') {
-                closePdfDrawer();
-            }
-        }
-
-        drawerFrame.addEventListener('load', function () {
-            if (!drawer.classList.contains('translate-x-full')) {
-                hideLoading();
-            }
+    if (viewPdfBtn) {
+        viewPdfBtn.addEventListener('click', function () {
+            openPdfDrawer(viewPdfBtn.dataset.pdfUrl, viewPdfBtn.dataset.filename);
         });
-
-        viewPdfBtn.addEventListener('click', openPdfDrawer);
-        drawerOverlay.addEventListener('click', closePdfDrawer);
-        if (drawerClose) {
-            drawerClose.addEventListener('click', closePdfDrawer);
-        }
     }
 
     var config = window.HGE_VIEW_UPLOAD;

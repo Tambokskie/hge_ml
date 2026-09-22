@@ -124,7 +124,7 @@ trait ParsesHonorRows
 
         $course = '';
         if ($courseStart !== null && $courseStart < $honorPosition) {
-            $course = trim(substr($trimmed, $courseStart, $honorPosition - $courseStart));
+            $course = $this->sanitizeExtractedText(substr($trimmed, $courseStart, $honorPosition - $courseStart));
         }
 
         return [
@@ -144,7 +144,7 @@ trait ParsesHonorRows
         }
 
         $gapStart = $bachelorPosition + $gapMatch[0][1];
-        $course = trim(substr($trimmed, $bachelorPosition, $gapStart - $bachelorPosition));
+        $course = $this->sanitizeExtractedText(substr($trimmed, $bachelorPosition, $gapStart - $bachelorPosition));
 
         $nameEnd = $honorPosition;
         if (preg_match('/\b(\d{1,2}\s+[A-Za-z]{3,9}\.?\s+\d{4}|[A-Za-z]{3,9}\.?\s+\d{1,2},?\s+\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4})\b/', substr($trimmed, $gapStart, $honorPosition - $gapStart), $dateMatch, PREG_OFFSET_CAPTURE)) {
@@ -169,17 +169,34 @@ trait ParsesHonorRows
      * part of the name: a leading row/sequence number plus whatever
      * non-letter junk OCR glued to it (straight or curly quotes, brackets,
      * pipes, stray symbols — a name always starts with a letter, so
-     * anything before the first letter is discarded), and a trailing
-     * standalone number (e.g. a roll/ID number merged onto the end of the
-     * column by a missing space). Never touches interior punctuation, so
-     * "O'Brien-Smith" is untouched.
+     * anything before the first letter is discarded), and any standalone
+     * row/roll/GWA number elsewhere in the column (via sanitizeExtractedText).
+     * Never touches interior punctuation, so "O'Brien-Smith" is untouched.
      */
     private function cleanGraduateName(string $name): string
     {
         $name = preg_replace('/^[^\p{L}]+/u', '', $name) ?? $name;
-        $name = preg_replace('/\s+\d+\s*$/u', '', $name) ?? $name;
 
-        return trim($name);
+        return $this->sanitizeExtractedText($name);
+    }
+
+    /**
+     * Shared cleanup for the name and course columns: drops table-formatting
+     * symbols that occasionally survive OCR ('{', '}', '[', ']', '|', '~')
+     * and any standalone number — a row/roll number or a GWA figure like
+     * "1.75" — since none of that is ever part of a graduate's name or
+     * course. Only whole, whitespace-delimited numeric tokens are removed,
+     * so genuinely alphanumeric OCR garbage (e.g. "1G5") is left alone
+     * rather than guessed at.
+     */
+    private function sanitizeExtractedText(string $text): string
+    {
+        $text = preg_replace('/[{}\[\]|~]/u', '', $text) ?? $text;
+        $text = preg_replace('/(?<!\S)\d+\.\d+(?!\S)/u', '', $text) ?? $text;
+        $text = preg_replace('/(?<!\S)\d+(?!\S)/u', '', $text) ?? $text;
+        $text = preg_replace('/\s{2,}/', ' ', $text) ?? $text;
+
+        return trim($text);
     }
 
     private function matchHonor(string $text): ?array

@@ -168,12 +168,12 @@ document.addEventListener('DOMContentLoaded', function () {
     function openDetailsModal(data) {
         var bodyHtml =
             '<div class="space-y-2">' +
-            '<div><span class="text-xs text-gray-600 dark:text-gray-500">GRADUATE NAME</span><p class="text-gray-900 dark:text-white">' + escapeHtml(data.name) + '</p></div>' +
-            '<div><span class="text-xs text-gray-600 dark:text-gray-500">DEGREE/COURSE</span><p class="text-gray-900 dark:text-white">' + escapeHtml(data.course || '—') + '</p></div>' +
-            '<div><span class="text-xs text-gray-600 dark:text-gray-500">SCHOOL</span><p class="text-gray-900 dark:text-white">' + escapeHtml(data.school) + '</p></div>' +
-            '<div><span class="text-xs text-gray-600 dark:text-gray-500">LATIN HONOR</span><p class="text-gray-900 dark:text-white">' + escapeHtml(data.honor) + '</p></div>' +
-            '<div><span class="text-xs text-gray-600 dark:text-gray-500">DATE OF GRADUATION</span><p class="text-gray-900 dark:text-white">' + escapeHtml(data.date) + '</p></div>' +
-            '<div><span class="text-xs text-gray-600 dark:text-gray-500">SOURCE PDF</span><p class="text-gray-900 dark:text-white">' + escapeHtml(data.filename) + ' (UPLOADED ' + escapeHtml(data.uploadedAt) + ')</p></div>' +
+            '<div><span class="text-xs text-accent-600 dark:text-accent-400">GRADUATE NAME</span><p class="pl-3 text-accent-800 dark:text-accent-300">' + escapeHtml(data.name) + '</p></div>' +
+            '<div><span class="text-xs text-accent-600 dark:text-accent-400">DEGREE/COURSE</span><p class="pl-3 text-accent-800 dark:text-accent-300">' + escapeHtml(data.course || '—') + '</p></div>' +
+            '<div><span class="text-xs text-accent-600 dark:text-accent-400">SCHOOL</span><p class="pl-3 text-accent-800 dark:text-accent-300">' + escapeHtml(data.school) + '</p></div>' +
+            '<div><span class="text-xs text-accent-600 dark:text-accent-400">LATIN HONOR</span><p class="pl-3 text-accent-800 dark:text-accent-300">' + escapeHtml(data.honor) + '</p></div>' +
+            '<div><span class="text-xs text-accent-600 dark:text-accent-400">DATE OF GRADUATION</span><p class="pl-3 text-accent-800 dark:text-accent-300">' + escapeHtml(data.date) + '</p></div>' +
+            '<div><span class="text-xs text-accent-600 dark:text-accent-400">SOURCE PDF</span><p class="pl-3 text-accent-800 dark:text-accent-300">' + escapeHtml(data.filename) + ' (UPLOADED ' + escapeHtml(data.uploadedAt) + ')</p></div>' +
             '</div>';
 
         showModal({
@@ -184,9 +184,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 {
                     label: 'VIEW SOURCE PDF',
                     className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
-                    onClick: function (close) {
-                        window.open(config.apiBase + '/api/serve_pdf.php?id=' + encodeURIComponent(data.uploadId), '_blank');
-                        close();
+                    onClick: function () {
+                        openPdfDrawer(config.apiBase + '/api/serve_pdf.php?id=' + encodeURIComponent(data.uploadId), data.filename);
                     },
                 },
             ],
@@ -202,15 +201,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var bodyHtml =
             '<div class="space-y-3">' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">GRADUATE NAME</label>' +
+            '<div><label class="block text-xs text-accent-600 dark:text-accent-400 mb-1">GRADUATE NAME</label>' +
             '<input id="modal-graduate-name" type="text" value="' + escapeHtml(defaults.name || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">DEGREE/COURSE</label>' +
+            '<div><label class="block text-xs text-accent-600 dark:text-accent-400 mb-1">DEGREE/COURSE</label>' +
             '<input id="modal-course" type="text" value="' + escapeHtml(defaults.course || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">LATIN HONOR</label>' +
+            '<div><label class="block text-xs text-accent-600 dark:text-accent-400 mb-1">LATIN HONOR</label>' +
             '<select id="modal-latin-honor" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">' + optionsHtml + '</select></div>' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">DATE OF GRADUATION</label>' +
+            '<div><label class="block text-xs text-accent-600 dark:text-accent-400 mb-1">DATE OF GRADUATION</label>' +
             '<input id="modal-graduation-date" type="date" value="' + escapeHtml(defaults.date || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">YEAR GRADUATED</label>' +
+            '<div><label class="block text-xs text-accent-600 dark:text-accent-400 mb-1">YEAR GRADUATED</label>' +
             '<input id="modal-graduation-year" type="text" value="' + escapeHtml(defaults.year || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
             '</div>';
 
@@ -253,8 +252,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function openApplyModal(defaults) {
         var bodyHtml =
             '<div class="space-y-3">' +
-            '<div><span class="text-xs text-gray-600 dark:text-gray-500">NAME</span><p class="text-gray-900 dark:text-white">' + escapeHtml(defaults.name) + '</p></div>' +
-            '<div><label class="block text-xs text-gray-600 dark:text-gray-500 mb-1" for="modal-application-date">DATE OF APPLICATION</label>' +
+            '<div><span class="text-xs text-accent-600 dark:text-accent-400">NAME</span><p class="pl-3 text-accent-800 dark:text-accent-300">' + escapeHtml(defaults.name) + '</p></div>' +
+            '<div><label class="block text-xs text-accent-600 dark:text-accent-400 mb-1" for="modal-application-date">DATE OF APPLICATION</label>' +
             '<input id="modal-application-date" type="date" value="' + escapeHtml(todayIsoDate()) + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
             '</div>';
 
@@ -295,10 +294,190 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function buildSchoolOptionsHtml(selectedId) {
+        var sourceSelect = document.getElementById('filter-school');
+        var options = Array.prototype.slice.call(sourceSelect.options).filter(function (opt) {
+            return opt.value !== '';
+        });
+        var hasSelection = selectedId !== undefined && selectedId !== null && String(selectedId) !== '';
+
+        return '<option value="" disabled' + (hasSelection ? '' : ' selected') + '>SELECT A SCHOOL</option>' +
+            options.map(function (opt) {
+                var selected = hasSelection && String(opt.value) === String(selectedId) ? ' selected' : '';
+                return '<option value="' + opt.value + '"' + selected + '>' + escapeHtml(opt.textContent) + '</option>';
+            }).join('');
+    }
+
+    function loadYearsForSchool(schoolId, yearSelect, preselectYear) {
+        yearSelect.disabled = true;
+        yearSelect.innerHTML = '<option value="" disabled selected>LOADING YEARS...</option>';
+
+        fetch(config.apiBase + '/api/get_school_graduation_years.php?school_id=' + encodeURIComponent(schoolId))
+            .then(function (response) {
+                return response.json();
+            })
+            .then(function (data) {
+                if (data.status === 'success' && data.years.length > 0) {
+                    var hasPreselect = preselectYear !== undefined && preselectYear !== null && String(preselectYear) !== '';
+                    yearSelect.innerHTML = '<option value="" disabled' + (hasPreselect ? '' : ' selected') + '>SELECT A YEAR</option>' +
+                        data.years.map(function (y) {
+                            var selected = hasPreselect && String(y) === String(preselectYear) ? ' selected' : '';
+                            return '<option value="' + y + '"' + selected + '>' + y + '</option>';
+                        }).join('');
+                    yearSelect.disabled = false;
+                } else {
+                    yearSelect.innerHTML = '<option value="" disabled selected>NO RECORDS FOR THIS SCHOOL</option>';
+                    yearSelect.disabled = true;
+                }
+            })
+            .catch(function () {
+                yearSelect.innerHTML = '<option value="" disabled selected>COULD NOT LOAD YEARS</option>';
+                yearSelect.disabled = true;
+            });
+    }
+
+    function openConfirmBulkUpdateModal(values) {
+        var submitting = false;
+        var bodyHtml =
+            '<div class="space-y-2">' +
+            '<div class="flex justify-between gap-4 border-b border-gray-100 dark:border-white/5 pb-1">' +
+            '<span class="text-gray-500 dark:text-gray-400">SCHOOL</span>' +
+            '<span class="text-gray-900 dark:text-white text-right">' + escapeHtml(values.schoolName) + '</span></div>' +
+            '<div class="flex justify-between gap-4 border-b border-gray-100 dark:border-white/5 pb-1">' +
+            '<span class="text-gray-500 dark:text-gray-400">YEAR</span>' +
+            '<span class="text-gray-900 dark:text-white text-right">' + escapeHtml(values.year) + '</span></div>' +
+            '<div class="flex justify-between gap-4 border-b border-gray-100 dark:border-white/5 pb-1">' +
+            '<span class="text-gray-500 dark:text-gray-400">NEW DATE OF GRADUATION</span>' +
+            '<span class="text-gray-900 dark:text-white text-right">' + escapeHtml(formatDisplayDate(values.date)) + '</span></div>' +
+            '<p class="text-sm text-yellow-600 dark:text-yellow-400 pt-2">THIS WILL OVERWRITE THE DATE OF GRADUATION FOR EVERY HONOR GRADUATE RECORD FROM THIS SCHOOL AND YEAR. THIS CANNOT BE UNDONE.</p>' +
+            '</div>';
+
+        showModal({
+            title: 'CONFIRM GRADUATION DATE UPDATE',
+            bodyHtml: bodyHtml,
+            buttons: [
+                {
+                    label: 'GO BACK',
+                    className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5',
+                    onClick: function (close) {
+                        close();
+                        openBulkUpdateDateModal(values);
+                    },
+                },
+                {
+                    label: 'CONFIRM',
+                    className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                    onClick: function (modalClose) {
+                        if (submitting) {
+                            return;
+                        }
+                        submitting = true;
+                        postJson(config.apiBase + '/api/bulk_update_graduation_date.php', {
+                            csrf_token: config.csrfToken,
+                            school_id: values.schoolId,
+                            year: values.year,
+                            graduation_date: values.date,
+                        })
+                            .then(function (data) {
+                                if (data.status === 'success') {
+                                    showToast('success', data.message);
+                                    modalClose();
+                                    performSearch(currentParams(currentPageFromUrl()), false);
+                                } else {
+                                    submitting = false;
+                                    showToast('error', data.message);
+                                }
+                            })
+                            .catch(function () {
+                                submitting = false;
+                                showToast('error', 'THE RECORDS COULD NOT BE UPDATED. PLEASE TRY AGAIN.');
+                            });
+                    },
+                },
+            ],
+        });
+    }
+
+    function openBulkUpdateDateModal(prefill) {
+        prefill = prefill || {};
+        var bodyHtml =
+            '<div class="space-y-3">' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">SCHOOL NAME</label>' +
+            '<select id="modal-bulk-school" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">' +
+            buildSchoolOptionsHtml(prefill.schoolId) +
+            '</select></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">YEAR</label>' +
+            '<select id="modal-bulk-year" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm" disabled>' +
+            '<option value="" disabled selected>SELECT A SCHOOL FIRST</option>' +
+            '</select></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">DATE OF GRADUATION</label>' +
+            '<input id="modal-bulk-date" type="date" value="' + escapeHtml(prefill.date || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<p class="text-xs text-gray-500 dark:text-gray-400">THIS SETS THE DATE OF GRADUATION FOR EVERY HONOR GRADUATE RECORD FROM THE SELECTED SCHOOL AND YEAR.</p>' +
+            '</div>';
+
+        showModal({
+            title: 'UPDATE GRADUATION DATE',
+            bodyHtml: bodyHtml,
+            buttons: [
+                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                {
+                    label: 'CONTINUE',
+                    className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                    onClick: function (modalClose) {
+                        var schoolSelect = document.getElementById('modal-bulk-school');
+                        var yearSelect = document.getElementById('modal-bulk-year');
+                        var dateInput = document.getElementById('modal-bulk-date');
+
+                        var schoolId = schoolSelect.value;
+                        var schoolName = schoolSelect.selectedIndex >= 0 ? schoolSelect.options[schoolSelect.selectedIndex].textContent : '';
+                        var year = yearSelect.value;
+                        var date = dateInput.value;
+
+                        if (!schoolId) {
+                            showToast('error', 'PLEASE SELECT A SCHOOL.');
+                            return;
+                        }
+                        if (!year) {
+                            showToast('error', 'PLEASE SELECT A YEAR.');
+                            return;
+                        }
+                        if (!date) {
+                            showToast('error', 'PLEASE SELECT A DATE OF GRADUATION.');
+                            return;
+                        }
+
+                        modalClose();
+                        openConfirmBulkUpdateModal({ schoolId: schoolId, schoolName: schoolName, year: year, date: date });
+                    },
+                },
+            ],
+        });
+
+        var schoolSelect = document.getElementById('modal-bulk-school');
+        var yearSelect = document.getElementById('modal-bulk-year');
+
+        schoolSelect.addEventListener('change', function () {
+            if (schoolSelect.value) {
+                loadYearsForSchool(schoolSelect.value, yearSelect);
+            }
+        });
+
+        if (prefill.schoolId) {
+            loadYearsForSchool(prefill.schoolId, yearSelect, prefill.year);
+        }
+    }
+
     form.addEventListener('submit', function (event) {
         event.preventDefault();
         performSearch(currentParams(1), true);
     });
+
+    var bulkUpdateDateBtn = document.getElementById('bulk-update-date-btn');
+    if (bulkUpdateDateBtn) {
+        bulkUpdateDateBtn.addEventListener('click', function () {
+            openBulkUpdateDateModal();
+        });
+    }
 
     resultsContainer.addEventListener('click', function (event) {
         var viewBtn = event.target.closest('.view-graduate-btn');

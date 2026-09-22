@@ -80,8 +80,11 @@ include __DIR__ . '/../includes/sidebar.php';
                     <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">GRADUATE NAME</label>
                     <input type="text" name="name" id="filter-name" value="<?= e($name) ?>" placeholder="SEARCH BY NAME..." class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm uppercase placeholder:text-gray-400 dark:placeholder:text-gray-600">
                 </div>
-                <div class="sm:col-span-4">
+                <div class="sm:col-span-4 flex flex-wrap items-center justify-between gap-3">
                     <button type="submit" class="rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium px-4 py-2">SEARCH</button>
+                    <?php if ($isAdmin): ?>
+                    <button type="button" id="bulk-update-date-btn" class="rounded-lg border border-accent-500/40 text-accent-600 dark:text-accent-300 hover:bg-accent-500/10 text-sm font-medium px-4 py-2">UPDATE GRADUATION DATE</button>
+                    <?php endif; ?>
                 </div>
             </form>
         </div>
@@ -169,6 +172,7 @@ include __DIR__ . '/../includes/sidebar.php';
             <?php endif; ?>
         </div>
     </div>
+    <?php include __DIR__ . '/../includes/pdf_drawer.php'; ?>
 </main>
 <?php include __DIR__ . '/../includes/footer.php'; ?>
 <script>

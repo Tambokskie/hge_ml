@@ -211,7 +211,9 @@ class GenericExtractorTest extends TestCase
         $rows = $this->callParseRows($extractor, $text);
 
         $this->assertCount(1, $rows);
-        $this->assertSame('CI 2 RMA, ANCES ROSE JOMILLO 1G5', $rows[0]['graduate_name']);
+        // The standalone row number "2" is stripped as noise; "1G5" is left
+        // alone since it isn't a pure number (see sanitizeExtractedText).
+        $this->assertSame('CI RMA, ANCES ROSE JOMILLO 1G5', $rows[0]['graduate_name']);
         $this->assertSame('PASTEL OF TECHNOLOGY AND IVELTOAD EDUCTION HOME', $rows[0]['course']);
         $this->assertSame('MAGNA CUM LAUDE', $rows[0]['latin_honor']);
     }
@@ -220,13 +222,40 @@ class GenericExtractorTest extends TestCase
     {
         // A pipe with no surrounding whitespace is far more likely to be a
         // misread "I"/"l" inside the name itself than a real column break,
-        // so it must not truncate the name.
+        // so it must not truncate the name — though it is still stripped
+        // out of the final name as an unwanted symbol.
         $text = "DEGREE/COURSE\nGARC|A, JUAN BACHELOR OF SCIENCE IN ARCHITECTURE CUM LAUDE JUNE 26, 2026\n";
         $extractor = new \GenericExtractor();
         $rows = $this->callParseRows($extractor, $text);
 
         $this->assertCount(1, $rows);
-        $this->assertSame('GARC|A, JUAN', $rows[0]['graduate_name']);
+        $this->assertSame('GARCA, JUAN', $rows[0]['graduate_name']);
+    }
+
+    public function testStraySymbolsAreStrippedFromNameAndCourse(): void
+    {
+        $text = "DEGREE/COURSE\n2 {AVELINO}, [JOHN] ARVIN~ BS| ACCOUNTANCY} CUM LAUDE JUNE 26, 2026\n";
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('AVELINO, JOHN ARVIN', $rows[0]['graduate_name']);
+        $this->assertSame('BS ACCOUNTANCY', $rows[0]['course']);
+    }
+
+    public function testGwaFigureBetweenCourseAndHonorIsNotExtractedIntoCourse(): void
+    {
+        // The GWA column doesn't always sit before the course keyword — some
+        // layouts place it between the course and the honor phrase instead,
+        // where it must still never bleed into the course text.
+        $text = "DEGREE/COURSE   GWA   HONORS\n"
+            . "2 AVELINO, JOHN ARVIN BALDESCO BS ACCOUNTANCY  1.75  CUM LAUDE JUNE 26, 2026\n";
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('AVELINO, JOHN ARVIN BALDESCO', $rows[0]['graduate_name']);
+        $this->assertSame('BS ACCOUNTANCY', $rows[0]['course']);
     }
 
     public function testLeadingRowNumberAndOcrPunctuationArtifactsAreStrippedFromName(): void

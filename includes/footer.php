@@ -2,6 +2,7 @@
 <script src="<?= e(asset_url('assets/js/sidebar.js')) ?>"></script>
 <script src="<?= e(asset_url('assets/js/toast.js')) ?>"></script>
 <script src="<?= e(asset_url('assets/js/modal.js')) ?>"></script>
+<script src="<?= e(asset_url('assets/js/pdf_drawer.js')) ?>"></script>
 <script src="<?= e(asset_url('assets/js/ocr_tools.js')) ?>"></script>
 <script src="<?= e(asset_url('assets/js/theme.js')) ?>"></script>
 <script>
