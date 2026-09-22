@@ -51,6 +51,14 @@ module.exports = {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(400%)' },
         },
+        pendingCriticalPulse: {
+          '0%, 100%': { backgroundColor: 'rgb(254 226 226 / 1)' },
+          '50%': { backgroundColor: 'rgb(252 165 165 / 0.85)' },
+        },
+        pendingCriticalPulseDark: {
+          '0%, 100%': { backgroundColor: 'rgb(239 68 68 / 0.08)' },
+          '50%': { backgroundColor: 'rgb(239 68 68 / 0.24)' },
+        },
       },
       animation: {
         'float-a': 'floatA 22s ease-in-out infinite',
@@ -61,6 +69,8 @@ module.exports = {
         'fade-in': 'fadeIn 0.9s ease-out both',
         'glow-pulse': 'glowPulse 7s ease-in-out infinite',
         'progress-indeterminate': 'progressIndeterminate 1.1s ease-in-out infinite',
+        'pending-critical-pulse': 'pendingCriticalPulse 2s ease-in-out infinite',
+        'pending-critical-pulse-dark': 'pendingCriticalPulseDark 2s ease-in-out infinite',
       },
     },
   },

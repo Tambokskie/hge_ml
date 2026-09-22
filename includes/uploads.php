@@ -69,7 +69,9 @@ function get_recent_uploads(PDO $pdo, int $limit = 5): array
         'SELECT u.id, u.school_year, u.original_filename, u.stored_filename, u.uploaded_at, u.records_extracted, s.school_name, s.campus
          FROM latin_honor_uploads u
          JOIN schools s ON s.id = u.school_id
-         ORDER BY (u.records_extracted = 0) DESC, u.uploaded_at DESC, u.id DESC
+         ORDER BY (u.records_extracted = 0) DESC,
+                  CASE WHEN u.records_extracted = 0 THEN u.uploaded_at END ASC,
+                  u.uploaded_at DESC, u.id DESC
          LIMIT :limit'
     );
     $stmt->bindValue('limit', $limit, PDO::PARAM_INT);

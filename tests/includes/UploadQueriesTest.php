@@ -20,13 +20,15 @@ class UploadQueriesTest extends TestCase
     public function testGetRecentUploadsReturnsMostRecentFirstWithSchoolName(): void
     {
         $pdo = TestDb::pdo();
+        // Already extracted, so the pending-first/oldest-first tiering
+        // below doesn't apply — plain most-recent-first ordering.
         $pdo->exec(
-            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number, uploaded_at)
-             VALUES (1, '2024', 'a.pdf', 'ABC_UNIVERSITY_2024_1.pdf', '/x/a.pdf', 10, SHA2('a',256), 1, 1, '2024-01-01 00:00:00')"
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number, uploaded_at, records_extracted)
+             VALUES (1, '2024', 'a.pdf', 'ABC_UNIVERSITY_2024_1.pdf', '/x/a.pdf', 10, SHA2('a',256), 1, 1, '2024-01-01 00:00:00', 10)"
         );
         $pdo->exec(
-            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number, uploaded_at)
-             VALUES (2, '2025', 'b.pdf', 'XYZ_COLLEGE_2025_1.pdf', '/x/b.pdf', 10, SHA2('b',256), 1, 1, '2025-01-01 00:00:00')"
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number, uploaded_at, records_extracted)
+             VALUES (2, '2025', 'b.pdf', 'XYZ_COLLEGE_2025_1.pdf', '/x/b.pdf', 10, SHA2('b',256), 1, 1, '2025-01-01 00:00:00', 12)"
         );
 
         $recent = get_recent_uploads($pdo, 5);
@@ -58,9 +60,11 @@ class UploadQueriesTest extends TestCase
         $this->assertSame('ABC University', $recent[1]['school_name']);
     }
 
-    public function testGetRecentUploadsOrdersMultipleZeroExtractedByDate(): void
+    public function testGetRecentUploadsOrdersMultipleZeroExtractedOldestFirst(): void
     {
         $pdo = TestDb::pdo();
+        // Oldest pending upload — this is the one to prioritize, so it must
+        // lead the list even though it's the least recently uploaded.
         $pdo->exec(
             "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number, uploaded_at, records_extracted)
              VALUES (1, '2025', 'a.pdf', 'ABC_UNIVERSITY_2025_1.pdf', '/x/a.pdf', 10, SHA2('a',256), 1, 1, '2025-01-01 00:00:00', 0)"
@@ -70,7 +74,7 @@ class UploadQueriesTest extends TestCase
              VALUES (2, '2026', 'b.pdf', 'XYZ_COLLEGE_2026_1.pdf', '/x/b.pdf', 10, SHA2('b',256), 1, 1, '2026-01-01 00:00:00', 0)"
         );
         // A non-zero upload sitting between them by date must still sort
-        // after both zero-extracted rows.
+        // after both zero-extracted rows, most-recent first as before.
         $pdo->exec(
             "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number, uploaded_at, records_extracted)
              VALUES (1, '2025', 'c.pdf', 'ABC_UNIVERSITY_2025_2.pdf', '/x/c.pdf', 10, SHA2('c',256), 1, 2, '2025-06-01 00:00:00', 5)"
@@ -78,8 +82,9 @@ class UploadQueriesTest extends TestCase
 
         $recent = get_recent_uploads($pdo, 5);
 
-        $this->assertSame('XYZ College', $recent[0]['school_name']);
-        $this->assertSame('ABC University', $recent[1]['school_name']);
+        $this->assertSame('ABC University', $recent[0]['school_name']);
+        $this->assertSame(0, (int) $recent[0]['records_extracted']);
+        $this->assertSame('XYZ College', $recent[1]['school_name']);
         $this->assertSame(0, (int) $recent[1]['records_extracted']);
         $this->assertSame(5, (int) $recent[2]['records_extracted']);
     }

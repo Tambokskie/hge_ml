@@ -165,8 +165,8 @@ include __DIR__ . '/../includes/sidebar.php';
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($recentUploads as $upload): ?>
-                                <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">
+                            <?php foreach ($recentUploads as $upload): $agingClass = pending_upload_age_class($upload); ?>
+                                <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5<?= $agingClass !== '' ? ' ' . $agingClass : '' ?><?= (int) $upload['records_extracted'] === 0 ? ' text-green-700 dark:text-green-400' : '' ?>">
                                     <td class="px-4 py-3"><?= e_upper(format_school_display_name($upload['school_name'], $upload['campus'])) ?></td>
                                     <td class="px-4 py-3"><?= e($upload['school_year']) ?></td>
                                     <td class="px-4 py-3"><?= (int) $upload['records_extracted'] ?> RECORDS</td>

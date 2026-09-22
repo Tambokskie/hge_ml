@@ -42,6 +42,42 @@ class FunctionsTest extends TestCase
         $this->assertSame('ABC UNIVERSITY', format_school_display_name('ABC UNIVERSITY', '   '));
     }
 
+    public function testPendingUploadAgeClassIsEmptyWhenRecordsAlreadyExtracted(): void
+    {
+        $upload = ['records_extracted' => 5, 'uploaded_at' => date('Y-m-d H:i:s', strtotime('-10 days'))];
+        $this->assertSame('', pending_upload_age_class($upload));
+    }
+
+    public function testPendingUploadAgeClassIsEmptyUnderThreeDays(): void
+    {
+        $upload = ['records_extracted' => 0, 'uploaded_at' => date('Y-m-d H:i:s', strtotime('-2 days'))];
+        $this->assertSame('', pending_upload_age_class($upload));
+    }
+
+    public function testPendingUploadAgeClassIsWarningBetweenThreeAndSixDays(): void
+    {
+        $threeDays = ['records_extracted' => 0, 'uploaded_at' => date('Y-m-d H:i:s', strtotime('-3 days'))];
+        $sixDays = ['records_extracted' => 0, 'uploaded_at' => date('Y-m-d H:i:s', strtotime('-6 days'))];
+
+        $this->assertStringContainsString('border-orange-400', pending_upload_age_class($threeDays));
+        $this->assertStringContainsString('border-orange-400', pending_upload_age_class($sixDays));
+        $this->assertStringNotContainsString('border-red-400', pending_upload_age_class($threeDays));
+    }
+
+    public function testPendingUploadAgeClassIsCriticalPastSixDays(): void
+    {
+        $upload = ['records_extracted' => 0, 'uploaded_at' => date('Y-m-d H:i:s', strtotime('-7 days'))];
+
+        $class = pending_upload_age_class($upload);
+        $this->assertStringContainsString('border-red-400', $class);
+        $this->assertStringContainsString('motion-safe:animate-pending-critical-pulse', $class);
+    }
+
+    public function testPendingUploadAgeClassHandlesMissingUploadedAt(): void
+    {
+        $this->assertSame('', pending_upload_age_class(['records_extracted' => 0, 'uploaded_at' => '']));
+    }
+
     public function testPaginateClampsPageWithinRange(): void
     {
         $result = paginate(totalRows: 5, page: 99, perPage: 25);

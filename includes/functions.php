@@ -30,6 +30,40 @@ function format_school_display_name(string $schoolName, ?string $campus = null):
     return $campus === '' ? $schoolName : $schoolName . '-' . $campus;
 }
 
+/**
+ * Visual urgency tier for a still-pending (0 extracted records) upload,
+ * based on how many whole days it's been sitting unprocessed: nothing for
+ * under 3 days, a light-orange highlight for 3-6 days, and a pulsing
+ * light-red highlight past 6. Returned as literal Tailwind utility
+ * classes (not a custom @apply'd component class) — the animate-pending-*
+ * utilities are otherwise never referenced from a Tailwind-scanned file
+ * (see tailwind.config.js's content globs), and Tailwind only emits a
+ * custom animation's @keyframes for utilities it can actually discover.
+ */
+function pending_upload_age_class(array $upload): string
+{
+    if ((int) ($upload['records_extracted'] ?? 0) !== 0) {
+        return '';
+    }
+
+    $uploadedAt = strtotime((string) ($upload['uploaded_at'] ?? ''));
+    if ($uploadedAt === false) {
+        return '';
+    }
+
+    $ageDays = (int) floor((time() - $uploadedAt) / 86400);
+
+    if ($ageDays > 6) {
+        return 'border-l-4 border-red-400 bg-red-100 dark:border-red-400/60 dark:bg-red-500/10 motion-safe:animate-pending-critical-pulse dark:motion-safe:animate-pending-critical-pulse-dark';
+    }
+
+    if ($ageDays >= 3) {
+        return 'border-l-4 border-orange-400 bg-orange-50 dark:border-orange-400/60 dark:bg-orange-500/10';
+    }
+
+    return '';
+}
+
 function format_date_display(?string $date): string
 {
     if (empty($date)) {
