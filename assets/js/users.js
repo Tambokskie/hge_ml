@@ -21,16 +21,16 @@ document.addEventListener('DOMContentLoaded', function () {
     function openCreateModal() {
         var bodyHtml =
             '<div class="space-y-3">' +
-            '<div><label class="block text-xs text-gray-400 mb-1">NAME</label>' +
-            '<input id="modal-name" type="text" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">USERNAME</label>' +
-            '<input id="modal-username" type="text" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">EMAIL</label>' +
-            '<input id="modal-email" type="email" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">PASSWORD</label>' +
-            '<input id="modal-password" type="password" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">ROLE</label>' +
-            '<select id="modal-role" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm">' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">NAME</label>' +
+            '<input id="modal-name" type="text" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">USERNAME</label>' +
+            '<input id="modal-username" type="text" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">EMAIL</label>' +
+            '<input id="modal-email" type="email" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">PASSWORD</label>' +
+            '<input id="modal-password" type="password" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">ROLE</label>' +
+            '<select id="modal-role" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">' +
             '<option value="user">USER</option><option value="administrator">ADMINISTRATOR</option></select></div>' +
             '</div>';
 
@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function () {
             title: 'CREATE USER',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-300 hover:bg-white/5' },
+                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
                 {
                     label: 'CREATE',
                     className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
@@ -79,27 +79,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var bodyHtml =
             '<div class="space-y-3">' +
-            '<div><label class="block text-xs text-gray-400 mb-1">NAME</label>' +
-            '<p class="text-sm text-white">' + escapeHtml(defaults.name) + ' (' + escapeHtml(defaults.username) + ')</p></div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">ROLE</label>' +
-            '<select id="modal-role" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"' + (isSelf ? ' disabled' : '') + '>' + roleOptions + '</select>' +
-            (isSelf ? '<p class="text-xs text-gray-500 mt-1">YOU CANNOT CHANGE YOUR OWN ROLE.</p>' : '') +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">NAME</label>' +
+            '<p class="text-sm text-gray-900 dark:text-white">' + escapeHtml(defaults.name) + ' (' + escapeHtml(defaults.username) + ')</p></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">ROLE</label>' +
+            '<select id="modal-role" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"' + (isSelf ? ' disabled' : '') + '>' + roleOptions + '</select>' +
+            (isSelf ? '<p class="text-xs text-gray-600 dark:text-gray-500 mt-1">YOU CANNOT CHANGE YOUR OWN ROLE.</p>' : '') +
             '</div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">STATUS</label>' +
-            '<select id="modal-status" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"' + (isSelf ? ' disabled' : '') + '>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">STATUS</label>' +
+            '<select id="modal-status" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"' + (isSelf ? ' disabled' : '') + '>' +
             '<option value="active"' + (defaults.status === 'active' ? ' selected' : '') + '>ACTIVE</option>' +
             '<option value="disabled"' + (defaults.status === 'disabled' ? ' selected' : '') + '>DISABLED</option></select>' +
-            (isSelf ? '<p class="text-xs text-gray-500 mt-1">YOU CANNOT DISABLE YOUR OWN ACCOUNT.</p>' : '') +
+            (isSelf ? '<p class="text-xs text-gray-600 dark:text-gray-500 mt-1">YOU CANNOT DISABLE YOUR OWN ACCOUNT.</p>' : '') +
             '</div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">RESET PASSWORD (LEAVE BLANK TO KEEP CURRENT)</label>' +
-            '<input id="modal-new-password" type="password" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">RESET PASSWORD (LEAVE BLANK TO KEEP CURRENT)</label>' +
+            '<input id="modal-new-password" type="password" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
             '</div>';
 
         showModal({
             title: 'EDIT USER',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-300 hover:bg-white/5' },
+                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
                 {
                     label: 'SAVE',
                     className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
@@ -136,9 +136,135 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function openBackupModal() {
+        var submitting = false;
+        var bodyHtml =
+            '<div class="space-y-3">' +
+            '<p class="text-sm text-gray-700 dark:text-gray-300">FOR SECURITY, CONFIRM YOUR ADMINISTRATOR CREDENTIALS TO DOWNLOAD A FULL DATABASE BACKUP.</p>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">USERNAME</label>' +
+            '<input id="modal-backup-username" type="text" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">PASSWORD</label>' +
+            '<input id="modal-backup-password" type="password" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '</div>';
+
+        showModal({
+            title: 'CONFIRM ADMINISTRATOR IDENTITY',
+            bodyHtml: bodyHtml,
+            buttons: [
+                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                {
+                    label: 'CREATE DB BACKUP',
+                    className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                    onClick: function (modalClose) {
+                        if (submitting) {
+                            return;
+                        }
+                        submitting = true;
+
+                        var formData = new FormData();
+                        formData.set('csrf_token', config.csrfToken);
+                        formData.set('username', document.getElementById('modal-backup-username').value);
+                        formData.set('password', document.getElementById('modal-backup-password').value);
+
+                        fetch(config.apiBase + '/api/backup_database.php', { method: 'POST', body: formData })
+                            .then(function (response) {
+                                var contentType = response.headers.get('Content-Type') || '';
+                                if (contentType.indexOf('application/json') !== -1) {
+                                    return response.json().then(function (data) {
+                                        throw new Error(data.message || 'THE BACKUP COULD NOT BE CREATED.');
+                                    });
+                                }
+
+                                var filename = 'hge_masterlist_backup.sql';
+                                var disposition = response.headers.get('Content-Disposition') || '';
+                                var match = disposition.match(/filename="?([^"]+)"?/);
+                                if (match) {
+                                    filename = match[1];
+                                }
+
+                                return response.blob().then(function (blob) {
+                                    return { blob: blob, filename: filename };
+                                });
+                            })
+                            .then(function (result) {
+                                var url = URL.createObjectURL(result.blob);
+                                var link = document.createElement('a');
+                                link.href = url;
+                                link.download = result.filename;
+                                document.body.appendChild(link);
+                                link.click();
+                                link.remove();
+                                URL.revokeObjectURL(url);
+
+                                showToast('success', 'DATABASE BACKUP DOWNLOADED.');
+                                modalClose();
+                            })
+                            .catch(function (err) {
+                                submitting = false;
+                                showToast('error', err.message || 'THE BACKUP COULD NOT BE CREATED. PLEASE TRY AGAIN.');
+                            });
+                    },
+                },
+            ],
+        });
+    }
+
+    function openRemoveConfirmModal(target) {
+        var submitting = false;
+        var bodyHtml =
+            '<div class="space-y-3">' +
+            '<p class="text-sm text-gray-700 dark:text-gray-300">PERMANENTLY REMOVE <span class="text-gray-900 dark:text-white font-medium">' + escapeHtml(target.name) + '</span>? THIS CANNOT BE UNDONE.</p>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">ENTER YOUR PASSWORD TO CONFIRM</label>' +
+            '<input id="modal-remove-password" type="password" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '</div>';
+
+        showModal({
+            title: 'REMOVE USER',
+            bodyHtml: bodyHtml,
+            buttons: [
+                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                {
+                    label: 'CONFIRM',
+                    className: 'rounded-lg px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white',
+                    onClick: function (modalClose) {
+                        if (submitting) {
+                            return;
+                        }
+                        submitting = true;
+                        var password = document.getElementById('modal-remove-password').value;
+                        postJson(config.apiBase + '/api/remove_user.php', {
+                            csrf_token: config.csrfToken,
+                            user_id: target.userId,
+                            password: password,
+                        })
+                            .then(function (data) {
+                                if (data.status === 'success') {
+                                    showToast('success', data.message);
+                                    modalClose();
+                                    reload();
+                                } else {
+                                    submitting = false;
+                                    showToast('error', data.message);
+                                }
+                            })
+                            .catch(function () {
+                                submitting = false;
+                                showToast('error', 'THE USER COULD NOT BE REMOVED. PLEASE TRY AGAIN.');
+                            });
+                    },
+                },
+            ],
+        });
+    }
+
     var createBtn = document.getElementById('create-user-btn');
     if (createBtn) {
         createBtn.addEventListener('click', openCreateModal);
+    }
+
+    var backupBtn = document.getElementById('create-db-backup-btn');
+    if (backupBtn) {
+        backupBtn.addEventListener('click', openBackupModal);
     }
 
     document.querySelectorAll('.edit-user-btn').forEach(function (btn) {
@@ -150,6 +276,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 role: btn.dataset.role,
                 status: btn.dataset.status,
                 isSelf: btn.dataset.isSelf === '1',
+            });
+        });
+    });
+
+    document.querySelectorAll('.remove-user-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            openRemoveConfirmModal({
+                userId: btn.dataset.userId,
+                name: btn.dataset.name,
             });
         });
     });

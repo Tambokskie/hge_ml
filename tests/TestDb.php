@@ -26,7 +26,7 @@ class TestDb
     {
         $pdo = self::pdo();
         $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
-        foreach (['activity_log', 'latin_honor_graduates', 'latin_honor_uploads', 'schools', 'users'] as $table) {
+        foreach (['graduate_applications', 'activity_log', 'latin_honor_graduates', 'extraction_review_drafts', 'latin_honor_uploads', 'schools', 'users'] as $table) {
             $pdo->exec("DROP TABLE IF EXISTS `{$table}`");
         }
         $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
@@ -45,7 +45,7 @@ class TestDb
     {
         $pdo = self::pdo();
         $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
-        foreach (['activity_log', 'latin_honor_graduates', 'latin_honor_uploads', 'schools', 'users'] as $table) {
+        foreach (['graduate_applications', 'activity_log', 'latin_honor_graduates', 'extraction_review_drafts', 'latin_honor_uploads', 'schools', 'users'] as $table) {
             $pdo->exec("TRUNCATE TABLE `{$table}`");
         }
         $pdo->exec('SET FOREIGN_KEY_CHECKS=1');

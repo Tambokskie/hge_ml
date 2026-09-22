@@ -3,7 +3,7 @@ function showToast(type, message) {
     if (!container) {
         container = document.createElement('div');
         container.id = 'toast-container';
-        container.className = 'fixed top-4 right-4 z-50 flex flex-col gap-2 w-full max-w-sm';
+        container.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-full max-w-sm px-4';
         document.body.appendChild(container);
     }
 

@@ -28,23 +28,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var bodyHtml =
             '<div class="space-y-3">' +
-            '<div><label class="block text-xs text-gray-400 mb-1">GRADUATE NAME</label>' +
-            '<input id="modal-graduate-name" type="text" value="' + escapeHtml(defaults.name || '') + '" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">DEGREE/COURSE</label>' +
-            '<input id="modal-course" type="text" value="' + escapeHtml(defaults.course || '') + '" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">LATIN HONOR</label>' +
-            '<select id="modal-latin-honor" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm">' + optionsHtml + '</select></div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">DATE OF GRADUATION</label>' +
-            '<input id="modal-graduation-date" type="date" value="' + escapeHtml(defaults.date || '') + '" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">YEAR GRADUATED</label>' +
-            '<input id="modal-graduation-year" type="text" value="' + escapeHtml(defaults.year || '') + '" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">GRADUATE NAME</label>' +
+            '<input id="modal-graduate-name" type="text" value="' + escapeHtml(defaults.name || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">DEGREE/COURSE</label>' +
+            '<input id="modal-course" type="text" value="' + escapeHtml(defaults.course || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">LATIN HONOR</label>' +
+            '<select id="modal-latin-honor" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">' + optionsHtml + '</select></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">DATE OF GRADUATION</label>' +
+            '<input id="modal-graduation-date" type="date" value="' + escapeHtml(defaults.date || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">YEAR GRADUATED</label>' +
+            '<input id="modal-graduation-year" type="text" value="' + escapeHtml(defaults.year || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
             '</div>';
 
         showModal({
             title: isNew ? 'ADD RECORD' : 'EDIT RECORD',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-300 hover:bg-white/5' },
+                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
                 {
                     label: 'SAVE',
                     className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 title: 'REMOVE THIS GRADUATE RECORD?',
                 bodyHtml: escapeHtml(btn.dataset.name),
                 buttons: [
-                    { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-300 hover:bg-white/5' },
+                    { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
                     {
                         label: 'REMOVE RECORD',
                         className: 'rounded-lg px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white',
@@ -152,6 +152,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 })
                 .catch(function () {
                     showToast('error', 'RECORDS COULD NOT BE SAVED. PLEASE TRY AGAIN.');
+                });
+        });
+    }
+
+    var saveDraftBtn = document.getElementById('save-draft-btn');
+    if (saveDraftBtn) {
+        saveDraftBtn.addEventListener('click', function () {
+            saveDraftBtn.disabled = true;
+            postJson(config.apiBase + '/api/save_draft.php', {
+                csrf_token: config.csrfToken,
+                upload_id: config.uploadId,
+            })
+                .then(function (data) {
+                    if (data.status === 'success') {
+                        showToast('success', data.message);
+                        window.location.href = data.redirect_url || config.viewUploadUrl;
+                    } else {
+                        saveDraftBtn.disabled = false;
+                        showToast('error', data.message);
+                    }
+                })
+                .catch(function () {
+                    saveDraftBtn.disabled = false;
+                    showToast('error', 'THE DRAFT COULD NOT BE SAVED. PLEASE TRY AGAIN.');
                 });
         });
     }

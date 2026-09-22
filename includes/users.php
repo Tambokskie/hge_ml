@@ -75,6 +75,61 @@ function set_user_status(PDO $pdo, int $id, string $status): array
     return ['status' => 'success', 'message' => 'STATUS UPDATED.'];
 }
 
+function remove_user(PDO $pdo, int $id, int $requestingUserId, string $password): array
+{
+    if ($id === $requestingUserId) {
+        return ['status' => 'error', 'message' => 'YOU CANNOT REMOVE YOUR OWN ACCOUNT.'];
+    }
+
+    $stmt = $pdo->prepare('SELECT password FROM users WHERE id = :id');
+    $stmt->execute(['id' => $requestingUserId]);
+    $hash = $stmt->fetchColumn();
+
+    if ($hash === false || !password_verify($password, $hash)) {
+        return ['status' => 'error', 'message' => 'INCORRECT PASSWORD.'];
+    }
+
+    $targetStmt = $pdo->prepare('SELECT name, role FROM users WHERE id = :id');
+    $targetStmt->execute(['id' => $id]);
+    $target = $targetStmt->fetch();
+    if ($target === false) {
+        return ['status' => 'error', 'message' => 'USER NOT FOUND.'];
+    }
+
+    if ($target['role'] === 'administrator') {
+        return ['status' => 'error', 'message' => 'ADMINISTRATOR ACCOUNTS CANNOT BE REMOVED.'];
+    }
+
+    $uploadCountStmt = $pdo->prepare('SELECT COUNT(*) FROM latin_honor_uploads WHERE uploaded_by = :id');
+    $uploadCountStmt->execute(['id' => $id]);
+    $uploadCount = (int) $uploadCountStmt->fetchColumn();
+
+    if ($uploadCount > 0) {
+        return ['status' => 'error', 'message' => 'CANNOT REMOVE — THIS USER HAS UPLOADED ' . $uploadCount . ' FILE(S).'];
+    }
+
+    try {
+        $pdo->beginTransaction();
+        // activity_log.user_id is nullable specifically to allow this: the
+        // audit trail survives the account being removed, just with its
+        // actor anonymized, rather than blocking removal on login history
+        // that virtually every account will have.
+        $pdo->prepare('UPDATE activity_log SET user_id = NULL WHERE user_id = :id')->execute(['id' => $id]);
+        $pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $id]);
+        $pdo->commit();
+    } catch (\Throwable $e) {
+        try {
+            $pdo->rollBack();
+        } catch (\Throwable $rollbackError) {
+            error_log('remove_user rollback failed: ' . $rollbackError->getMessage());
+        }
+        error_log('remove_user failed: ' . $e->getMessage());
+        return ['status' => 'error', 'message' => 'THE USER COULD NOT BE REMOVED. PLEASE TRY AGAIN.'];
+    }
+
+    return ['status' => 'success', 'message' => 'USER REMOVED.', 'name' => $target['name']];
+}
+
 function reset_user_password(PDO $pdo, int $id, string $newPassword): array
 {
     if (mb_strlen($newPassword) < 8) {

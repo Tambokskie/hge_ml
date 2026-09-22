@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../includes/ocr_tools.php';
 require_once __DIR__ . '/ExtractorInterface.php';
 require_once __DIR__ . '/ParsesHonorRows.php';
 
@@ -10,8 +11,8 @@ class OcrExtractor implements ExtractorInterface
 
     public function extract(string $filePath): array
     {
-        $ghostscriptPath = getenv('GHOSTSCRIPT_PATH') ?: 'C:\Program Files\gs\gs10.08.0\bin\gswin64c.exe';
-        $tesseractPath = getenv('TESSERACT_PATH') ?: 'C:\Program Files\Tesseract-OCR\tesseract.exe';
+        $ghostscriptPath = resolve_ghostscript_path();
+        $tesseractPath = resolve_tesseract_path();
 
         $tmpDir = sys_get_temp_dir() . '/hge_ocr_' . uniqid();
 

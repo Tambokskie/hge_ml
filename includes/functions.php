@@ -61,6 +61,7 @@ function ensure_session(): void
         session_set_cookie_params([
             'httponly' => true,
             'samesite' => 'Lax',
+            'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
         ]);
         session_start();
     }
@@ -107,6 +108,48 @@ function get_dashboard_stats(PDO $pdo): array
     ];
 }
 
+function get_honor_type_breakdown(PDO $pdo): array
+{
+    $counts = [
+        'CUM LAUDE' => 0,
+        'MAGNA CUM LAUDE' => 0,
+        'SUMMA CUM LAUDE' => 0,
+    ];
+
+    $stmt = $pdo->query('SELECT latin_honor, COUNT(*) AS total FROM latin_honor_graduates GROUP BY latin_honor');
+    foreach ($stmt->fetchAll() as $row) {
+        $counts[$row['latin_honor']] = (int) $row['total'];
+    }
+
+    return $counts;
+}
+
+function get_upload_activity_by_month(PDO $pdo, int $months = 6): array
+{
+    $months = max(1, $months);
+    $start = date('Y-m-01', strtotime('-' . ($months - 1) . ' months'));
+
+    $stmt = $pdo->prepare(
+        "SELECT DATE_FORMAT(uploaded_at, '%Y-%m') AS ym, COUNT(*) AS total
+         FROM latin_honor_uploads
+         WHERE uploaded_at >= :start
+         GROUP BY ym"
+    );
+    $stmt->execute(['start' => $start]);
+    $byMonth = array_column($stmt->fetchAll(), 'total', 'ym');
+
+    $series = [];
+    for ($i = $months - 1; $i >= 0; $i--) {
+        $ym = date('Y-m', strtotime('-' . $i . ' months'));
+        $series[] = [
+            'label' => strtoupper(date('M', strtotime($ym . '-01'))),
+            'count' => (int) ($byMonth[$ym] ?? 0),
+        ];
+    }
+
+    return $series;
+}
+
 function create_or_update_admin(PDO $pdo, string $username, string $email, string $password): void
 {
     $stmt = $pdo->prepare(
@@ -128,10 +171,10 @@ function create_or_update_admin(PDO $pdo, string $username, string $email, strin
 function sidebar_nav_class(string $currentPage, string $navPage): string
 {
     if ($currentPage === $navPage) {
-        return 'bg-accent-600/20 text-accent-300 border-l-2 border-accent-500';
+        return 'bg-accent-600/20 text-accent-600 dark:text-accent-300 border-l-2 border-accent-500 transition-all duration-200 ease-out active:scale-[0.98]';
     }
 
-    return 'text-gray-400 hover:bg-white/5 hover:text-white border-l-2 border-transparent';
+    return 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white hover:translate-x-0.5 border-l-2 border-transparent transition-all duration-200 ease-out active:scale-[0.98]';
 }
 
 function get_distinct_graduation_years(PDO $pdo): array

@@ -35,7 +35,7 @@ CREATE TABLE latin_honor_uploads (
   file_hash CHAR(64) NOT NULL,
   uploaded_by INT UNSIGNED NOT NULL,
   upload_number INT UNSIGNED NOT NULL DEFAULT 1,
-  extraction_status ENUM('pending','extracted','reviewed','failed') NOT NULL DEFAULT 'pending',
+  extraction_status ENUM('pending','extracted','reviewed','failed','draft') NOT NULL DEFAULT 'pending',
   records_extracted INT UNSIGNED NOT NULL DEFAULT 0,
   uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -44,6 +44,18 @@ CREATE TABLE latin_honor_uploads (
   KEY idx_school_id (school_id),
   KEY idx_file_hash (file_hash),
   UNIQUE KEY uq_school_year_uploadnum (school_id, school_year, upload_number)
+) ENGINE=InnoDB;
+
+CREATE TABLE extraction_review_drafts (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  upload_id INT UNSIGNED NOT NULL,
+  rows_json LONGTEXT NOT NULL,
+  saved_by INT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (upload_id) REFERENCES latin_honor_uploads(id),
+  FOREIGN KEY (saved_by) REFERENCES users(id),
+  UNIQUE KEY uq_upload_id (upload_id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE latin_honor_graduates (
@@ -69,9 +81,20 @@ CREATE TABLE latin_honor_graduates (
 CREATE TABLE activity_log (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NULL,
-  action ENUM('login','logout','pdf_upload','pdf_delete','record_created','record_updated','record_removed','search','user_created','user_updated','school_created','school_updated','school_removed') NOT NULL,
+  action ENUM('login','logout','pdf_upload','pdf_delete','record_created','record_updated','record_removed','record_draft_saved','search','user_created','user_updated','user_removed','school_created','school_updated','school_removed','application_filed','db_backup') NOT NULL,
   details TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id),
   KEY idx_created_at (created_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE graduate_applications (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  graduate_id INT UNSIGNED NOT NULL,
+  applied_by INT UNSIGNED NOT NULL,
+  application_date DATE NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (graduate_id) REFERENCES latin_honor_graduates(id),
+  FOREIGN KEY (applied_by) REFERENCES users(id),
+  UNIQUE KEY uq_graduate_id (graduate_id)
 ) ENGINE=InnoDB;

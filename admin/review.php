@@ -26,6 +26,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['cancel'])) {
 }
 
 $review = get_extraction_review($uploadId);
+$resumedDraftAt = null;
+
+if ($review === null) {
+    $draft = get_extraction_draft($pdo, $uploadId);
+    if ($draft !== null) {
+        start_extraction_review($uploadId, $draft['rows']);
+        $review = get_extraction_review($uploadId);
+        $resumedDraftAt = $draft['updated_at'];
+    }
+}
 
 if ($review === null) {
     flash_set('error', 'NO ACTIVE REVIEW FOR THIS UPLOAD. PLEASE EXTRACT RECORDS AGAIN.');
@@ -40,10 +50,10 @@ $csrfToken = csrf_token();
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
 ?>
-<main class="lg:ml-64 min-h-screen bg-surface-950">
+<main class="lg:ml-64 min-h-screen bg-gray-50 dark:bg-surface-950">
     <div class="p-6 lg:p-8">
-        <h1 class="text-xl font-semibold text-white mb-2">REVIEW EXTRACTED RECORDS</h1>
-        <p class="text-sm text-gray-500 mb-6"><?= e_upper($upload['school_name']) ?> — <?= e($upload['school_year']) ?></p>
+        <h1 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">REVIEW EXTRACTED RECORDS</h1>
+        <p class="text-sm text-gray-600 dark:text-gray-500 mb-6"><?= e_upper($upload['school_name']) ?> — <?= e($upload['school_year']) ?></p>
 
         <?php if ($upload['extraction_status'] === 'failed'): ?>
             <div class="mb-6 rounded-lg border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 text-sm px-4 py-3">
@@ -51,10 +61,16 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         <?php endif; ?>
 
-        <div class="bg-surface-900 border border-white/10 rounded-xl overflow-x-auto">
+        <?php if ($resumedDraftAt !== null): ?>
+            <div class="mb-6 rounded-lg border border-accent-500/30 bg-accent-500/10 text-accent-600 dark:text-accent-300 text-sm px-4 py-3">
+                RESUMED FROM YOUR SAVED DRAFT (LAST SAVED <?= e_upper(date('F j, Y g:i A', strtotime($resumedDraftAt))) ?>). THIS DRAFT IS NOT PART OF THE OFFICIAL RECORDS UNTIL YOU CLICK SAVE RECORDS.
+            </div>
+        <?php endif; ?>
+
+        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto hge-shadow">
             <table class="w-full text-sm text-left">
                 <thead>
-                    <tr class="text-xs text-gray-500 border-b border-white/10">
+                    <tr class="text-xs text-gray-600 dark:text-gray-500 border-b border-gray-200 dark:border-white/10">
                         <th class="px-4 py-3">NO.</th>
                         <th class="px-4 py-3">GRADUATE NAME</th>
                         <th class="px-4 py-3">DEGREE/COURSE</th>
@@ -67,11 +83,11 @@ include __DIR__ . '/../includes/sidebar.php';
                 </thead>
                 <tbody>
                     <?php if (empty($rows)): ?>
-                        <tr><td colspan="8" class="px-4 py-6 text-center text-gray-500">NO RECORDS YET. CLICK ADD RECORD BELOW.</td></tr>
+                        <tr><td colspan="8" class="px-4 py-6 text-center text-gray-600 dark:text-gray-500">NO RECORDS YET. CLICK ADD RECORD BELOW.</td></tr>
                     <?php else: ?>
                         <?php foreach ($rows as $index => $row): ?>
                             <?php $status = staged_row_status($row); ?>
-                            <tr class="border-b border-white/5 hover:bg-white/5">
+                            <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">
                                 <td class="px-4 py-3"><?= $index + 1 ?></td>
                                 <td class="px-4 py-3"><?= e_upper($row['graduate_name']) ?></td>
                                 <td class="px-4 py-3"><?= ($row['course'] ?? '') !== '' ? e_upper($row['course']) : '—' ?></td>
@@ -106,16 +122,17 @@ include __DIR__ . '/../includes/sidebar.php';
         </div>
 
         <div class="flex items-center justify-between mt-4">
-            <p class="text-sm text-gray-400">TOTAL RECORDS: <?= count($rows) ?></p>
-            <button type="button" id="add-record-btn" class="rounded-lg border border-white/10 text-gray-300 hover:bg-white/5 text-sm px-4 py-2">ADD RECORD</button>
+            <p class="text-sm text-gray-500 dark:text-gray-400">TOTAL RECORDS: <?= count($rows) ?></p>
+            <button type="button" id="add-record-btn" class="rounded-lg border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 text-sm px-4 py-2">ADD RECORD</button>
         </div>
 
         <div class="flex items-center gap-3 mt-6">
             <form method="post">
                 <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
                 <input type="hidden" name="cancel" value="1">
-                <button type="submit" class="rounded-lg border border-white/10 text-gray-300 hover:bg-white/5 text-sm px-4 py-2">CANCEL</button>
+                <button type="submit" class="rounded-lg border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 text-sm px-4 py-2">CANCEL</button>
             </form>
+            <button type="button" id="save-draft-btn" class="rounded-lg border border-accent-500/40 text-accent-600 dark:text-accent-300 hover:bg-accent-500/10 text-sm font-medium px-4 py-2">SAVE AS DRAFT</button>
             <button type="button" id="save-records-btn" class="rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium px-4 py-2">SAVE RECORDS</button>
         </div>
     </div>

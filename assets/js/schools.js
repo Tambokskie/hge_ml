@@ -21,9 +21,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function openConfirmModal(title, rows, onConfirm, onGoBack) {
         var bodyHtml = '<div class="space-y-2">' +
             rows.map(function (row) {
-                return '<div class="flex justify-between gap-4 border-b border-white/5 pb-1">' +
-                    '<span class="text-gray-400">' + escapeHtml(row.label) + '</span>' +
-                    '<span class="text-white text-right">' + escapeHtml(row.value) + '</span></div>';
+                return '<div class="flex justify-between gap-4 border-b border-gray-100 dark:border-white/5 pb-1">' +
+                    '<span class="text-gray-500 dark:text-gray-400">' + escapeHtml(row.label) + '</span>' +
+                    '<span class="text-gray-900 dark:text-white text-right">' + escapeHtml(row.value) + '</span></div>';
             }).join('') +
             '</div>';
 
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function () {
             buttons: [
                 {
                     label: 'GO BACK',
-                    className: 'rounded-lg px-4 py-2 text-sm text-gray-300 hover:bg-white/5',
+                    className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5',
                     onClick: function (modalClose) {
                         modalClose();
                         onGoBack();
@@ -53,19 +53,19 @@ document.addEventListener('DOMContentLoaded', function () {
         prefill = prefill || { name: '', address: '', campus: '' };
         var bodyHtml =
             '<div class="space-y-3">' +
-            '<div><label class="block text-xs text-gray-400 mb-1">SCHOOL NAME</label>' +
-            '<input id="modal-name" type="text" value="' + escapeHtml(prefill.name) + '" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">ADDRESS</label>' +
-            '<input id="modal-address" type="text" value="' + escapeHtml(prefill.address) + '" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">CAMPUS (OPTIONAL)</label>' +
-            '<input id="modal-campus" type="text" value="' + escapeHtml(prefill.campus) + '" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">SCHOOL NAME</label>' +
+            '<input id="modal-name" type="text" value="' + escapeHtml(prefill.name) + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">ADDRESS</label>' +
+            '<input id="modal-address" type="text" value="' + escapeHtml(prefill.address) + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">CAMPUS (OPTIONAL)</label>' +
+            '<input id="modal-campus" type="text" value="' + escapeHtml(prefill.campus) + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
             '</div>';
 
         showModal({
             title: 'CREATE SCHOOL',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-300 hover:bg-white/5' },
+                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
                 {
                     label: 'CREATE',
                     className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
@@ -123,14 +123,14 @@ document.addEventListener('DOMContentLoaded', function () {
         var submitting = false;
         var bodyHtml =
             '<div class="space-y-3">' +
-            '<div><label class="block text-xs text-gray-400 mb-1">SCHOOL NAME</label>' +
-            '<input id="modal-name" type="text" value="' + escapeHtml(defaults.name) + '" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">ADDRESS</label>' +
-            '<input id="modal-address" type="text" value="' + escapeHtml(defaults.address) + '" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">CAMPUS (OPTIONAL)</label>' +
-            '<input id="modal-campus" type="text" value="' + escapeHtml(defaults.campus) + '" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">STATUS</label>' +
-            '<select id="modal-status" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm">' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">SCHOOL NAME</label>' +
+            '<input id="modal-name" type="text" value="' + escapeHtml(defaults.name) + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">ADDRESS</label>' +
+            '<input id="modal-address" type="text" value="' + escapeHtml(defaults.address) + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">CAMPUS (OPTIONAL)</label>' +
+            '<input id="modal-campus" type="text" value="' + escapeHtml(defaults.campus) + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">STATUS</label>' +
+            '<select id="modal-status" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">' +
             '<option value="active"' + (defaults.status === 'active' ? ' selected' : '') + '>ACTIVE</option>' +
             '<option value="disabled"' + (defaults.status === 'disabled' ? ' selected' : '') + '>DISABLED</option></select></div>' +
             '</div>';
@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', function () {
             title: 'EDIT SCHOOL',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-300 hover:bg-white/5' },
+                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
                 {
                     label: 'SAVE',
                     className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
@@ -203,16 +203,16 @@ document.addEventListener('DOMContentLoaded', function () {
         var displayName = target.campus !== '' ? target.name + ' (' + target.campus + ')' : target.name;
         var bodyHtml =
             '<div class="space-y-3">' +
-            '<p class="text-sm text-gray-300">PERMANENTLY REMOVE <span class="text-white font-medium">' + escapeHtml(displayName) + '</span>? THIS CANNOT BE UNDONE.</p>' +
-            '<div><label class="block text-xs text-gray-400 mb-1">ENTER YOUR PASSWORD TO CONFIRM</label>' +
-            '<input id="modal-remove-password" type="password" class="w-full rounded-lg bg-surface-800 border border-white/10 px-3 py-2 text-sm"></div>' +
+            '<p class="text-sm text-gray-700 dark:text-gray-300">PERMANENTLY REMOVE <span class="text-gray-900 dark:text-white font-medium">' + escapeHtml(displayName) + '</span>? THIS CANNOT BE UNDONE.</p>' +
+            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">ENTER YOUR PASSWORD TO CONFIRM</label>' +
+            '<input id="modal-remove-password" type="password" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
             '</div>';
 
         showModal({
             title: 'REMOVE SCHOOL',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-300 hover:bg-white/5' },
+                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
                 {
                     label: 'CONFIRM',
                     className: 'rounded-lg px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white',

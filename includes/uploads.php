@@ -112,6 +112,10 @@ function handle_upload_request(PDO $pdo, array $post, array $files, int $uploade
         return ['status' => 'error', 'message' => 'SCHOOL YEAR IS TOO LONG.'];
     }
 
+    if (!ctype_digit($schoolYear)) {
+        return ['status' => 'error', 'message' => 'SCHOOL YEAR MUST CONTAIN NUMBERS ONLY.'];
+    }
+
     $file = $files['pdf_file'] ?? null;
     if (!is_array($file) || ($file['tmp_name'] ?? '') === '') {
         return ['status' => 'error', 'message' => 'PLEASE SELECT A PDF FILE TO UPLOAD.'];
@@ -177,6 +181,43 @@ function handle_upload_request(PDO $pdo, array $post, array $files, int $uploade
         'message' => 'LATIN HONOR LIST UPLOADED SUCCESSFULLY.',
         'upload' => $upload,
     ];
+}
+
+/**
+ * @return array{ok: bool, error?: string}
+ */
+function delete_upload(PDO $pdo, int $uploadId): array
+{
+    $upload = get_upload_by_id($pdo, $uploadId);
+    if ($upload === null) {
+        return ['ok' => false, 'error' => 'UPLOAD RECORD NOT FOUND.'];
+    }
+
+    if ((int) $upload['records_extracted'] > 0) {
+        return ['ok' => false, 'error' => 'THIS UPLOAD HAS EXTRACTED RECORDS AND CANNOT BE DELETED.'];
+    }
+
+    try {
+        $pdo->beginTransaction();
+        $pdo->prepare('DELETE FROM latin_honor_graduates WHERE upload_id = :id')->execute(['id' => $uploadId]);
+        $pdo->prepare('DELETE FROM extraction_review_drafts WHERE upload_id = :id')->execute(['id' => $uploadId]);
+        $pdo->prepare('DELETE FROM latin_honor_uploads WHERE id = :id')->execute(['id' => $uploadId]);
+        $pdo->commit();
+    } catch (\Throwable $e) {
+        try {
+            $pdo->rollBack();
+        } catch (\Throwable $rollbackError) {
+            error_log('delete_upload rollback failed: ' . $rollbackError->getMessage());
+        }
+        error_log('delete_upload failed: ' . $e->getMessage());
+        return ['ok' => false, 'error' => 'THE UPLOAD COULD NOT BE DELETED. PLEASE TRY AGAIN.'];
+    }
+
+    if (!empty($upload['file_path']) && is_file($upload['file_path'])) {
+        @unlink($upload['file_path']);
+    }
+
+    return ['ok' => true];
 }
 
 function update_upload_extraction_status(PDO $pdo, int $uploadId, string $status, int $recordsExtracted): void

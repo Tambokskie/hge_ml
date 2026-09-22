@@ -7,6 +7,7 @@ use Tests\TestDb;
 
 require_once __DIR__ . '/../../includes/users.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/functions.php';
 
 class UsersTest extends TestCase
 {
@@ -155,5 +156,102 @@ class UsersTest extends TestCase
     {
         $result = reset_user_password(TestDb::pdo(), 1, 'short');
         $this->assertSame('error', $result['status']);
+    }
+
+    private function createAdmin(string $username, string $password): int
+    {
+        $pdo = TestDb::pdo();
+        $stmt = $pdo->prepare(
+            'INSERT INTO users (name, username, email, password, role) VALUES (:name, :username, :email, :password, "administrator")'
+        );
+        $stmt->execute([
+            'name' => 'Admin',
+            'username' => $username,
+            'email' => $username . '@a.com',
+            'password' => password_hash($password, PASSWORD_DEFAULT),
+        ]);
+
+        return (int) $pdo->lastInsertId();
+    }
+
+    public function testRemoveUserDeletesTheAccount(): void
+    {
+        $pdo = TestDb::pdo();
+        $adminId = $this->createAdmin('admin', 'admin-pass-123');
+        $created = create_user($pdo, ['name' => 'Ana', 'username' => 'ana', 'email' => 'ana@a.com', 'password' => 'secret123']);
+
+        $result = remove_user($pdo, $created['id'], $adminId, 'admin-pass-123');
+
+        $this->assertSame('success', $result['status']);
+        $count = (int) $pdo->query("SELECT COUNT(*) FROM users WHERE username = 'ana'")->fetchColumn();
+        $this->assertSame(0, $count);
+    }
+
+    public function testRemoveUserRejectsIncorrectPassword(): void
+    {
+        $pdo = TestDb::pdo();
+        $adminId = $this->createAdmin('admin', 'admin-pass-123');
+        $created = create_user($pdo, ['name' => 'Ana', 'username' => 'ana', 'email' => 'ana@a.com', 'password' => 'secret123']);
+
+        $result = remove_user($pdo, $created['id'], $adminId, 'wrong-password');
+
+        $this->assertSame('error', $result['status']);
+        $count = (int) $pdo->query("SELECT COUNT(*) FROM users WHERE username = 'ana'")->fetchColumn();
+        $this->assertSame(1, $count);
+    }
+
+    public function testRemoveUserRejectsRemovingYourself(): void
+    {
+        $pdo = TestDb::pdo();
+        $adminId = $this->createAdmin('admin', 'admin-pass-123');
+
+        $result = remove_user($pdo, $adminId, $adminId, 'admin-pass-123');
+
+        $this->assertSame('error', $result['status']);
+    }
+
+    public function testRemoveUserRejectsAdministratorTargets(): void
+    {
+        $pdo = TestDb::pdo();
+        $adminId = $this->createAdmin('admin', 'admin-pass-123');
+        $otherAdminId = $this->createAdmin('other-admin', 'other-pass-123');
+
+        $result = remove_user($pdo, $otherAdminId, $adminId, 'admin-pass-123');
+
+        $this->assertSame('error', $result['status']);
+        $count = (int) $pdo->query('SELECT COUNT(*) FROM users WHERE role = "administrator"')->fetchColumn();
+        $this->assertSame(2, $count);
+    }
+
+    public function testRemoveUserBlockedWhenTheUserHasUploadedFiles(): void
+    {
+        $pdo = TestDb::pdo();
+        $adminId = $this->createAdmin('admin', 'admin-pass-123');
+        $created = create_user($pdo, ['name' => 'Ana', 'username' => 'ana', 'email' => 'ana@a.com', 'password' => 'secret123']);
+        $pdo->exec("INSERT INTO schools (school_name) VALUES ('ABC University')");
+        $pdo->prepare(
+            'INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number)
+             VALUES (1, "2025", "a.pdf", "ABC_UNIVERSITY_2025_1.pdf", "/x/a.pdf", 10, SHA2("a", 256), :uploaded_by, 1)'
+        )->execute(['uploaded_by' => $created['id']]);
+
+        $result = remove_user($pdo, $created['id'], $adminId, 'admin-pass-123');
+
+        $this->assertSame('error', $result['status']);
+        $count = (int) $pdo->query("SELECT COUNT(*) FROM users WHERE username = 'ana'")->fetchColumn();
+        $this->assertSame(1, $count);
+    }
+
+    public function testRemoveUserPreservesActivityLogHistoryWithAnonymizedActor(): void
+    {
+        $pdo = TestDb::pdo();
+        $adminId = $this->createAdmin('admin', 'admin-pass-123');
+        $created = create_user($pdo, ['name' => 'Ana', 'username' => 'ana', 'email' => 'ana@a.com', 'password' => 'secret123']);
+        log_activity($pdo, $created['id'], 'login', null);
+
+        remove_user($pdo, $created['id'], $adminId, 'admin-pass-123');
+
+        $row = $pdo->query('SELECT user_id, action FROM activity_log WHERE action = "login"')->fetch();
+        $this->assertNotFalse($row);
+        $this->assertNull($row['user_id']);
     }
 }

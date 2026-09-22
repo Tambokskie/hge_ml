@@ -4,6 +4,7 @@ namespace Tests\Extractors;
 
 use PHPUnit\Framework\TestCase;
 
+require_once __DIR__ . '/../../includes/ocr_tools.php';
 require_once __DIR__ . '/../../extractors/ExtractorInterface.php';
 require_once __DIR__ . '/../../extractors/ParsesHonorRows.php';
 require_once __DIR__ . '/../../extractors/ocr_extractor.php';
@@ -16,10 +17,8 @@ class OcrExtractorTest extends TestCase
     {
         $this->sample = __DIR__ . '/../fixtures/scanned-sample.pdf';
 
-        $tesseractPath = getenv('TESSERACT_PATH') ?: 'C:\Program Files\Tesseract-OCR\tesseract.exe';
-        $ghostscriptPath = getenv('GHOSTSCRIPT_PATH') ?: 'C:\Program Files\gs\gs10.08.0\bin\gswin64c.exe';
-
-        if (!is_file($tesseractPath) || !is_file($ghostscriptPath)) {
+        $tools = check_ocr_tools_installed();
+        if (!$tools['tesseract'] || !$tools['ghostscript']) {
             $this->markTestSkipped('Tesseract and/or Ghostscript binary not found — skipping OCR tests on this machine.');
         }
     }

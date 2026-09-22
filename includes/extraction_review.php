@@ -156,6 +156,7 @@ function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows
         }
 
         update_upload_extraction_status($pdo, $uploadId, 'reviewed', count($rows));
+        $pdo->prepare('DELETE FROM extraction_review_drafts WHERE upload_id = :upload_id')->execute(['upload_id' => $uploadId]);
 
         $pdo->commit();
     } catch (\Throwable $e) {
@@ -169,4 +170,52 @@ function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows
     }
 
     return ['status' => 'success', 'message' => count($rows) . ' RECORD(S) SAVED SUCCESSFULLY.'];
+}
+
+/**
+ * Persists the in-progress review as a draft, kept entirely out of latin_honor_graduates
+ * (so it is never mixed with official records) until a future SAVE RECORDS finalizes it.
+ */
+function save_extraction_draft(PDO $pdo, int $uploadId, int $savedBy, array $rows): array
+{
+    try {
+        $stmt = $pdo->prepare(
+            'INSERT INTO extraction_review_drafts (upload_id, rows_json, saved_by)
+             VALUES (:upload_id, :rows_json, :saved_by)
+             ON DUPLICATE KEY UPDATE rows_json = VALUES(rows_json), saved_by = VALUES(saved_by)'
+        );
+        $stmt->execute([
+            'upload_id' => $uploadId,
+            'rows_json' => json_encode(array_values($rows)),
+            'saved_by' => $savedBy,
+        ]);
+
+        update_upload_extraction_status($pdo, $uploadId, 'draft', 0);
+    } catch (\Throwable $e) {
+        error_log('save_extraction_draft failed: ' . $e->getMessage());
+        return ['status' => 'error', 'message' => 'THE DRAFT COULD NOT BE SAVED. PLEASE TRY AGAIN.'];
+    }
+
+    return ['status' => 'success', 'message' => count($rows) . ' RECORD(S) SAVED AS DRAFT. YOU CAN RESUME THIS REVIEW LATER.'];
+}
+
+function get_extraction_draft(PDO $pdo, int $uploadId): ?array
+{
+    $stmt = $pdo->prepare('SELECT rows_json, updated_at FROM extraction_review_drafts WHERE upload_id = :upload_id');
+    $stmt->execute(['upload_id' => $uploadId]);
+    $row = $stmt->fetch();
+
+    if ($row === false) {
+        return null;
+    }
+
+    return [
+        'rows' => json_decode($row['rows_json'], true) ?? [],
+        'updated_at' => $row['updated_at'],
+    ];
+}
+
+function delete_extraction_draft(PDO $pdo, int $uploadId): void
+{
+    $pdo->prepare('DELETE FROM extraction_review_drafts WHERE upload_id = :upload_id')->execute(['upload_id' => $uploadId]);
 }

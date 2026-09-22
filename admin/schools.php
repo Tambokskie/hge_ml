@@ -16,18 +16,18 @@ $csrfToken = csrf_token();
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
 ?>
-<main class="lg:ml-64 min-h-screen bg-surface-950">
+<main class="lg:ml-64 min-h-screen bg-gray-50 dark:bg-surface-950">
     <div class="p-6 lg:p-8">
-        <h1 class="text-xl font-semibold text-white mb-4">SCHOOL MANAGEMENT</h1>
+        <h1 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">SCHOOL MANAGEMENT</h1>
         <div class="flex items-center gap-3 mb-6">
             <button type="button" id="create-school-btn" class="rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium px-4 py-2">CREATE SCHOOL</button>
             <button type="button" id="remove-school-btn" disabled class="rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-600 text-white text-sm font-medium px-4 py-2">REMOVE</button>
         </div>
 
-        <div class="bg-surface-900 border border-white/10 rounded-xl overflow-x-auto">
+        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto hge-shadow">
             <table class="w-full text-sm text-left">
                 <thead>
-                    <tr class="text-xs text-gray-500 border-b border-white/10">
+                    <tr class="text-xs text-gray-600 dark:text-gray-500 border-b border-gray-200 dark:border-white/10">
                         <th class="px-4 py-3 w-10"></th>
                         <th class="px-4 py-3">SCHOOL NAME</th>
                         <th class="px-4 py-3">CAMPUS</th>
@@ -40,7 +40,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 </thead>
                 <tbody>
                     <?php foreach ($schools as $school): ?>
-                        <tr class="border-b border-white/5 hover:bg-white/5">
+                        <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">
                             <td class="px-4 py-3">
                                 <input type="checkbox" class="school-checkbox"
                                     data-school-id="<?= (int) $school['id'] ?>"
