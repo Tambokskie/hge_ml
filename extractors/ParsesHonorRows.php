@@ -21,11 +21,20 @@ trait ParsesHonorRows
     private const COURSE_KEYWORD_PATTERN = '/(?<![A-Za-z0-9])('
         . 'BACHELOR|MASTER|DOCTOR(?:ATE)?|DIPLOMA|ASSOCIATE|CERTIFICATE|TECHNICAL|VOCATIONAL'
         . '|B\.\s*S\.?|B\.\s*A\.?|M\.\s*A\.?|M\.\s*S\.?|PH\.\s*D\.?'
-        . '|BSA|BSIT|BSCS|BSBA|BSED|BEED|BSN|BSCE|BSME|BSEE|BSIE|BSHM|BSTM|BSE'
+        . '|BSA|BSIT|BSCS|BSBA|BSED|BEED|BSN|BSCE|BSME|BSEE|BSIE|BSHM|BSTM|BSE|BSREM'
         . '|BFA|BTVTE|BTECH|BT|ABM|AB|BS|BA'
         . '|MBA|MPA|MAED|MED|MA|MS'
         . '|PHD'
         . ')(?![A-Za-z0-9])/i';
+
+    /**
+     * Sentinel written into a ditto row's latin_honor/graduation_date while
+     * parsing, then swapped for the nearest preceding row's real value by
+     * resolveDittoMarks() once every line has been read. Never leaks past
+     * parseRows() — no PDF text can ever contain a NUL byte, so it can't
+     * collide with anything real.
+     */
+    private const DITTO_MARK = "\x00DITTO\x00";
 
     protected function parseRows(string $text): array
     {
@@ -39,6 +48,53 @@ trait ParsesHonorRows
             }
         }
 
+        return $this->resolveDittoMarks($rows);
+    }
+
+    /**
+     * Many Philippine school lists repeat "- do -" (a ditto mark, short for
+     * "ditto") in the Honor Received / Date of Graduation columns instead of
+     * retyping the same value on every row of a run. Backfills those columns
+     * from the nearest earlier row that had a real value, so a run of ditto
+     * rows still ends up with the correct honor/date instead of an empty one.
+     *
+     * Also covers the case where a row DOES spell out a real honor (a new
+     * tier starting) but OCR mangled that one row's ditto date past
+     * recognition, leaving extractDate() with nothing to find: once any row
+     * in the document is confirmed to use the ditto convention, a plain
+     * missing date is far more likely to be unreadable "-do-" than a
+     * genuinely blank cell, so it inherits too.
+     */
+    private function resolveDittoMarks(array $rows): array
+    {
+        $usesDittoConvention = false;
+        foreach ($rows as $row) {
+            if ($row['latin_honor'] === self::DITTO_MARK) {
+                $usesDittoConvention = true;
+                break;
+            }
+        }
+
+        $lastHonor = '';
+        $lastDate = null;
+
+        foreach ($rows as &$row) {
+            if ($row['latin_honor'] === self::DITTO_MARK) {
+                $row['latin_honor'] = $lastHonor;
+            } else {
+                $lastHonor = $row['latin_honor'];
+            }
+
+            if ($row['graduation_date'] === self::DITTO_MARK) {
+                $row['graduation_date'] = $lastDate;
+            } elseif ($row['graduation_date'] === null && $usesDittoConvention) {
+                $row['graduation_date'] = $lastDate;
+            } else {
+                $lastDate = $row['graduation_date'];
+            }
+        }
+        unset($row);
+
         return $rows;
     }
 
@@ -48,7 +104,7 @@ trait ParsesHonorRows
 
         $honorMatch = $this->matchHonor($trimmed);
         if ($honorMatch === null) {
-            return null;
+            return $this->parseDittoLine($trimmed, $line);
         }
         $honor = $honorMatch['honor'];
         $honorPosition = $honorMatch['position'];
@@ -165,6 +221,56 @@ trait ParsesHonorRows
     }
 
     /**
+     * Handles a row whose Honor Received cell is a ditto mark rather than a
+     * spelled-out honor — matchHonor() already failed, so there's no honor
+     * phrase to anchor name/course extraction on.
+     *
+     * Real-world OCR of a ditto mark is wildly inconsistent ("-do-", "do",
+     * "odo", or outright unrecognizable noise like "cae" or "205" — Tesseract
+     * struggles badly with the small italicized "do" these lists use), so
+     * matching the ditto text itself isn't reliable enough to build on.
+     * Anchoring on the course keyword instead is: it's the last column that
+     * OCRs reliably, and everything after it — however garbled — is either
+     * a ditto mark or nothing at all, never more than a couple of short
+     * tokens. That length check is what keeps this from misfiring on a
+     * stray line that merely mentions a course abbreviation in passing.
+     */
+    private function parseDittoLine(string $trimmed, string $rawLine): ?array
+    {
+        if (!preg_match_all(self::COURSE_KEYWORD_PATTERN, $trimmed, $courseMatches, PREG_OFFSET_CAPTURE)) {
+            return null;
+        }
+
+        [$courseText, $coursePosition] = end($courseMatches[0]);
+
+        $name = $this->cleanGraduateName(substr($trimmed, 0, $coursePosition));
+        if ($name === '') {
+            return null;
+        }
+
+        // Extend past a hyphenated suffix the keyword list doesn't enumerate
+        // (e.g. "BSBA-MM", "BSBA-HRM") so it isn't left dangling in the tail.
+        $courseEnd = $coursePosition + strlen($courseText);
+        if (preg_match('/^-[A-Za-z]{2,6}(?![A-Za-z0-9])/', substr($trimmed, $courseEnd), $suffixMatch)) {
+            $courseEnd += strlen($suffixMatch[0]);
+        }
+
+        $tail = trim(substr($trimmed, $courseEnd));
+        if ($tail !== '' && (mb_strlen($tail) > 40 || preg_match_all('/\S+/', $tail) > 6)) {
+            return null;
+        }
+
+        $course = $this->sanitizeExtractedText(substr($trimmed, $coursePosition, $courseEnd - $coursePosition));
+
+        return [
+            'graduate_name' => $name,
+            'course' => $course,
+            'latin_honor' => self::DITTO_MARK,
+            'graduation_date' => $this->extractDate($tail) ?? self::DITTO_MARK,
+        ];
+    }
+
+    /**
      * Strips OCR/table artifacts that land in the name column but aren't
      * part of the name: a leading row/sequence number plus whatever
      * non-letter junk OCR glued to it (straight or curly quotes, brackets,
@@ -182,16 +288,18 @@ trait ParsesHonorRows
 
     /**
      * Shared cleanup for the name and course columns: drops table-formatting
-     * symbols that occasionally survive OCR ('{', '}', '[', ']', '|', '~')
-     * and any standalone number — a row/roll number or a GWA figure like
-     * "1.75" — since none of that is ever part of a graduate's name or
-     * course. Only whole, whitespace-delimited numeric tokens are removed,
-     * so genuinely alphanumeric OCR garbage (e.g. "1G5") is left alone
-     * rather than guessed at.
+     * symbols that occasionally survive OCR ('{', '}', '[', ']', '|', '~',
+     * curly/smart quotes) and any standalone number — a row/roll number or
+     * a GWA figure like "1.75" — since none of that is ever part of a
+     * graduate's name or course. Only whole, whitespace-delimited numeric
+     * tokens are removed, so genuinely alphanumeric OCR garbage (e.g.
+     * "1G5") is left alone rather than guessed at. Straight quotes/
+     * apostrophes are deliberately left untouched — those can be genuine
+     * name punctuation (e.g. "O'Brien-Smith").
      */
     private function sanitizeExtractedText(string $text): string
     {
-        $text = preg_replace('/[{}\[\]|~]/u', '', $text) ?? $text;
+        $text = preg_replace('/[{}\[\]|~‘’“”]/u', '', $text) ?? $text;
         $text = preg_replace('/(?<!\S)\d+\.\d+(?!\S)/u', '', $text) ?? $text;
         $text = preg_replace('/(?<!\S)\d+(?!\S)/u', '', $text) ?? $text;
         $text = preg_replace('/\s{2,}/', ' ', $text) ?? $text;
@@ -220,7 +328,7 @@ trait ParsesHonorRows
     {
         $patterns = [
             '/\b(\d{1,2})\s+([A-Za-z]{3,9})\.?\s+(\d{4})\b/',
-            '/\b([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})\b/',
+            '/\b([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s*(\d{4})\b/',
             '/\b(\d{4})-(\d{2})-(\d{2})\b/',
             '/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/',
         ];

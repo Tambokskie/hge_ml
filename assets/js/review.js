@@ -18,6 +18,96 @@ document.addEventListener('DOMContentLoaded', function () {
         window.location.reload();
     }
 
+    var viewPdfBtn = document.getElementById('view-pdf-btn');
+    if (viewPdfBtn) {
+        viewPdfBtn.addEventListener('click', function () {
+            openPdfDrawer(viewPdfBtn.dataset.pdfUrl, viewPdfBtn.dataset.filename);
+        });
+    }
+
+    var filterNameInput = document.getElementById('review-filter-name');
+    var filterCourseSelect = document.getElementById('review-filter-course');
+    var filterEmptyMessage = document.getElementById('review-filter-empty');
+    var rowsTbody = document.getElementById('review-rows-tbody');
+
+    function applyRowFilter() {
+        if (!rowsTbody) {
+            return;
+        }
+        var nameQuery = (filterNameInput ? filterNameInput.value : '').trim().toUpperCase();
+        var courseQuery = filterCourseSelect ? filterCourseSelect.value : '';
+        var visibleCount = 0;
+
+        rowsTbody.querySelectorAll('tr[data-filter-name]').forEach(function (row) {
+            var matchesName = nameQuery === '' || row.dataset.filterName.indexOf(nameQuery) !== -1;
+            var matchesCourse = courseQuery === '' || row.dataset.filterCourse === courseQuery;
+            var visible = matchesName && matchesCourse;
+            row.classList.toggle('hidden', !visible);
+            if (visible) {
+                visibleCount++;
+            }
+        });
+
+        if (filterEmptyMessage) {
+            filterEmptyMessage.classList.toggle('hidden', visibleCount !== 0);
+        }
+    }
+
+    if (filterNameInput) {
+        filterNameInput.addEventListener('input', applyRowFilter);
+    }
+    if (filterCourseSelect) {
+        filterCourseSelect.addEventListener('change', applyRowFilter);
+    }
+
+    var massUpdateDateBtn = document.getElementById('mass-update-date-btn');
+    if (massUpdateDateBtn) {
+        massUpdateDateBtn.addEventListener('click', function () {
+            var bodyHtml =
+                '<div class="space-y-3">' +
+                '<p class="text-sm text-gray-700 dark:text-gray-300">THIS SETS THE DATE OF GRADUATION FOR <strong>EVERY RECORD IN THIS TABLE</strong> — NOT JUST THE ONES CURRENTLY FILTERED/VISIBLE.</p>' +
+                '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">DATE OF GRADUATION</label>' +
+                '<input id="modal-mass-date" type="date" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+                '</div>';
+
+            showModal({
+                title: 'MASS UPDATE DATE OF GRADUATION',
+                bodyHtml: bodyHtml,
+                buttons: [
+                    { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                    {
+                        label: 'CONFIRM',
+                        className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                        onClick: function (modalClose) {
+                            var date = document.getElementById('modal-mass-date').value;
+                            if (!date) {
+                                showToast('error', 'PLEASE SELECT A DATE OF GRADUATION.');
+                                return;
+                            }
+                            postJson(config.apiBase + '/api/mass_update_staged_date.php', {
+                                csrf_token: config.csrfToken,
+                                upload_id: config.uploadId,
+                                graduation_date: date,
+                            })
+                                .then(function (data) {
+                                    if (data.status === 'success') {
+                                        showToast('success', data.message);
+                                        modalClose();
+                                        reload();
+                                    } else {
+                                        showToast('error', data.message);
+                                    }
+                                })
+                                .catch(function () {
+                                    showToast('error', 'THE RECORDS COULD NOT BE UPDATED. PLEASE TRY AGAIN.');
+                                });
+                        },
+                    },
+                ],
+            });
+        });
+    }
+
     function openEditModal(rowIndex, defaults) {
         var isNew = rowIndex === null;
         var honors = ['CUM LAUDE', 'MAGNA CUM LAUDE', 'SUMMA CUM LAUDE'];
@@ -138,21 +228,37 @@ document.addEventListener('DOMContentLoaded', function () {
     var saveBtn = document.getElementById('save-records-btn');
     if (saveBtn) {
         saveBtn.addEventListener('click', function () {
-            postJson(config.apiBase + '/api/save_records.php', {
-                csrf_token: config.csrfToken,
-                upload_id: config.uploadId,
-            })
-                .then(function (data) {
-                    if (data.status === 'success') {
-                        showToast('success', data.message);
-                        window.location.href = config.viewUploadUrl;
-                    } else {
-                        showToast('error', data.message);
-                    }
-                })
-                .catch(function () {
-                    showToast('error', 'RECORDS COULD NOT BE SAVED. PLEASE TRY AGAIN.');
-                });
+            var recordCount = rowsTbody ? rowsTbody.querySelectorAll('tr[data-filter-name]').length : 0;
+
+            showModal({
+                title: 'CONFIRM SAVE RECORDS',
+                bodyHtml: '<p class="text-sm text-gray-700 dark:text-gray-300">THIS WILL SAVE ' + recordCount + ' RECORD(S) AS OFFICIAL HONOR GRADUATE RECORDS FOR THIS SCHOOL AND YEAR. THIS CANNOT BE UNDONE FROM THIS PAGE. CONTINUE?</p>',
+                buttons: [
+                    { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                    {
+                        label: 'CONFIRM',
+                        className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                        onClick: function (modalClose) {
+                            modalClose();
+                            postJson(config.apiBase + '/api/save_records.php', {
+                                csrf_token: config.csrfToken,
+                                upload_id: config.uploadId,
+                            })
+                                .then(function (data) {
+                                    if (data.status === 'success') {
+                                        showToast('success', data.message);
+                                        window.location.href = config.viewUploadUrl;
+                                    } else {
+                                        showToast('error', data.message);
+                                    }
+                                })
+                                .catch(function () {
+                                    showToast('error', 'RECORDS COULD NOT BE SAVED. PLEASE TRY AGAIN.');
+                                });
+                        },
+                    },
+                ],
+            });
         });
     }
 

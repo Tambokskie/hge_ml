@@ -115,6 +115,40 @@ function remove_staged_row(int $uploadId, int $rowIndex): array
     return ['ok' => true];
 }
 
+/**
+ * Sets the date of graduation (and the year derived from it) on every
+ * staged row at once — for when a PDF's list never had a date column at
+ * all, so every row would otherwise need the same date typed in by hand.
+ */
+function mass_update_staged_graduation_date(int $uploadId, string $date): array
+{
+    $review = get_extraction_review($uploadId);
+    if ($review === null) {
+        return ['ok' => false, 'error' => 'NO ACTIVE REVIEW SESSION FOR THIS UPLOAD.'];
+    }
+
+    $dt = DateTime::createFromFormat('Y-m-d', $date);
+    if (!$dt || $dt->format('Y-m-d') !== $date) {
+        return ['ok' => false, 'error' => 'DATE OF GRADUATION MUST BE A VALID DATE.'];
+    }
+
+    $rows = $review['rows'];
+    if (empty($rows)) {
+        return ['ok' => false, 'error' => 'THERE ARE NO RECORDS TO UPDATE.'];
+    }
+
+    $year = (int) $dt->format('Y');
+    foreach ($rows as &$row) {
+        $row['graduation_date'] = $date;
+        $row['graduation_year'] = $year;
+    }
+    unset($row);
+
+    $_SESSION['extraction_review']['rows'] = $rows;
+
+    return ['ok' => true, 'updated' => count($rows)];
+}
+
 function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows): array
 {
     if (empty($rows)) {

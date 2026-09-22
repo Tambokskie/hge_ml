@@ -405,6 +405,174 @@ class GenericExtractorTest extends TestCase
         $this->assertSame('BS ACCOUNTANCY', $rows[0]['course']);
     }
 
+    public function testDittoMarksInheritThePrecedingRowsHonorAndDate(): void
+    {
+        // Real-world layout: schools frequently write "- do -" ("ditto") in
+        // the Honor Received / Date of Graduation columns instead of
+        // repeating the same value on every row of a run.
+        $text = "Name of Graduate    Course    Honor Received    Date of Graduation\n"
+            . "ABELLAR, JOMARI JESS S.    BSREM    SUMMA CUM LAUDE    APRIL 24, 2026\n"
+            . "CHING, SERENITY JADE C.    BSA    -do-    -do-\n"
+            . "VILLEGAS, LANCE MARCO M.    BSA    MAGNA CUM LAUDE    APRIL 24, 2026\n"
+            . "DELMONTE, RON CHRISTIAN M.    BSA    - do -    - do -\n";
+
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        $this->assertCount(4, $rows);
+
+        $this->assertSame('ABELLAR, JOMARI JESS S.', $rows[0]['graduate_name']);
+        $this->assertSame('BSREM', $rows[0]['course']);
+        $this->assertSame('SUMMA CUM LAUDE', $rows[0]['latin_honor']);
+        $this->assertSame('2026-04-24', $rows[0]['graduation_date']);
+
+        $this->assertSame('CHING, SERENITY JADE C.', $rows[1]['graduate_name']);
+        $this->assertSame('BSA', $rows[1]['course']);
+        $this->assertSame('SUMMA CUM LAUDE', $rows[1]['latin_honor']);
+        $this->assertSame('2026-04-24', $rows[1]['graduation_date']);
+
+        $this->assertSame('MAGNA CUM LAUDE', $rows[2]['latin_honor']);
+
+        $this->assertSame('DELMONTE, RON CHRISTIAN M.', $rows[3]['graduate_name']);
+        $this->assertSame('BSA', $rows[3]['course']);
+        $this->assertSame('MAGNA CUM LAUDE', $rows[3]['latin_honor']);
+        $this->assertSame('2026-04-24', $rows[3]['graduation_date']);
+    }
+
+    public function testDittoMarkRecognizesCommonOcrRenderings(): void
+    {
+        $text = "1 JUAN DELA CRUZ    BSA    CUM LAUDE    JUNE 26, 2026\n"
+            . "2 MARIA SANTOS    BSA    -do-    -do-\n"
+            . "3 PEDRO REYES    BSA    - do -    - do -\n"
+            . "4 ANA GARCIA    BSA    -dó-    -dó-\n"
+            . "5 LUIS TORRES    BSA    \xe2\x80\x94do\xe2\x80\x94    \xe2\x80\x94do\xe2\x80\x94\n";
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        $this->assertCount(5, $rows);
+        foreach ($rows as $index => $row) {
+            $this->assertSame('CUM LAUDE', $row['latin_honor'], "Row {$index} honor mismatch");
+            $this->assertSame('2026-06-26', $row['graduation_date'], "Row {$index} date mismatch");
+        }
+    }
+
+    public function testHandlesRealTesseractOutputOfAPhilippineHonorListWithDittoMarks(): void
+    {
+        // tests/fixtures/ditto-sample-ocr-output.txt is verbatim Tesseract
+        // output from a real school's honor list image (26 graduates across
+        // three honor tiers, using "- do -" ditto marks). It exercises every
+        // real OCR failure mode the parser has to tolerate: no double-space
+        // column gaps (Tesseract collapses them to one), ditto marks OCR'd
+        // as "do", "odo", "-do-", or unrecognizable noise like "cae"/"205",
+        // and one row (LABADO) so garbled ("RRA" for "BSA") even the course
+        // keyword can't be recovered — that one is expected to be dropped
+        // for a human to add manually, same as any other unparsable line.
+        $text = file_get_contents(__DIR__ . '/../fixtures/ditto-sample-ocr-output.txt');
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        // 26 real graduates in the source image, minus the one whose course
+        // keyword OCR destroyed beyond recognition.
+        $this->assertCount(25, $rows);
+
+        $byName = [];
+        foreach ($rows as $row) {
+            $byName[$row['graduate_name']] = $row;
+        }
+
+        $this->assertArrayHasKey('ABELLAR, JOMARIESS 8,', $byName);
+        $first = $byName['ABELLAR, JOMARIESS 8,'];
+        $this->assertSame('BSREM', $first['course']);
+        $this->assertSame('SUMMA CUM LAUDE', $first['latin_honor']);
+        $this->assertSame('2026-04-24', $first['graduation_date']);
+
+        // Ditto row right after it, in the same SUMMA CUM LAUDE tier.
+        $ching = $byName['CHING, SERENITY JADE C.'];
+        $this->assertSame('BSA', $ching['course']);
+        $this->assertSame('SUMMA CUM LAUDE', $ching['latin_honor']);
+        $this->assertSame('2026-04-24', $ching['graduation_date']);
+
+        // Tier changes to MAGNA CUM LAUDE here, spelled out despite the OCR
+        // noise ("CUMLAUDE" with no space) — and every ditto row after it
+        // must follow the new tier, not the old one.
+        $villegas = $byName['VILLEGAS, LANCE MARCO M,'];
+        $this->assertSame('MAGNA CUM LAUDE', $villegas['latin_honor']);
+        $this->assertSame('2026-04-24', $villegas['graduation_date']);
+
+        $delmonte = $byName['DELMONTE, RON CHRISTIAN M,'];
+        $this->assertSame('MAGNA CUM LAUDE', $delmonte['latin_honor']);
+        $this->assertSame('2026-04-24', $delmonte['graduation_date']);
+
+        // Tier changes again to CUM LAUDE. This specific row's own date cell
+        // OCR'd as unrecognizable noise ("-do-" swallowed by the honor
+        // match), leaving extractDate() with nothing — it must still
+        // inherit the last real date rather than end up blank.
+        $ronquillo = $byName['RONQUILLO, DEANNE LOUISE.'];
+        $this->assertSame('CUM LAUDE', $ronquillo['latin_honor']);
+        $this->assertSame('2026-04-24', $ronquillo['graduation_date']);
+
+        // Ditto row after the CUM LAUDE tier change follows the new tier.
+        $maurillo = $byName['MAURILLO, HANNAH MAEN,'];
+        $this->assertSame('CUM LAUDE', $maurillo['latin_honor']);
+        $this->assertSame('2026-04-24', $maurillo['graduation_date']);
+
+        // Hyphenated course suffixes the keyword list doesn't spell out
+        // in full are still captured whole, not truncated to "BSBA".
+        $this->assertSame('BSBA-MM', $byName['SOMBISE, CARINA ELISE']['course']);
+        $this->assertSame('BSBA-HRM', $byName['MAESTRE, DONNA KAREN.']['course']);
+
+        $this->assertArrayNotHasKey('TAMADO, DON FDWARD T.', $byName);
+    }
+
+    public function testDittoRowWithoutARecognizableCourseIsSkipped(): void
+    {
+        // A ditto row is recognized by anchoring on its course keyword —
+        // without one there's no reliable boundary between name and
+        // honor/date noise, so (consistent with other unparsable lines)
+        // it's left out rather than guessed at.
+        $text = "JUAN DELA CRUZ    BSA    CUM LAUDE    JUNE 26, 2026\n"
+            . "MARIA SANTOS    -do-    -do-\n";
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('JUAN DELA CRUZ', $rows[0]['graduate_name']);
+    }
+
+    public function testFirstRowCannotBeADittoAndProducesNoRowIfItIs(): void
+    {
+        // With nothing preceding it, a would-be ditto row has no honor to
+        // inherit and is dropped rather than silently invented.
+        $text = "JUAN DELA CRUZ    BSA    -do-    -do-\n";
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('', $rows[0]['latin_honor']);
+        $this->assertNull($rows[0]['graduation_date']);
+    }
+
+    public function testUnparsableProseLineWithoutHonorOrDittoIsSkipped(): void
+    {
+        $text = "This is a list of honor graduates for school year 2025-2026.\n"
+            . "JUAN DELA CRUZ    BSA    CUM LAUDE    JUNE 26, 2026\n";
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('JUAN DELA CRUZ', $rows[0]['graduate_name']);
+    }
+
+    public function testBsremCourseAbbreviationIsRecognized(): void
+    {
+        $text = "DEGREE/COURSE\n2 AVELINO, JOHN ARVIN BALDESCO BSREM CUM LAUDE JUNE 26, 2026\n";
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('BSREM', $rows[0]['course']);
+    }
+
     private function callParseRows(\GenericExtractor $extractor, string $text): array
     {
         $reflection = new \ReflectionMethod($extractor, 'parseRows');

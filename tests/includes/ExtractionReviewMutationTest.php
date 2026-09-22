@@ -113,4 +113,54 @@ class ExtractionReviewMutationTest extends TestCase
 
         $this->assertFalse($result['ok']);
     }
+
+    public function testMassUpdateStagedGraduationDateSetsDateAndYearOnEveryRow(): void
+    {
+        $result = mass_update_staged_graduation_date(1, '2026-07-02');
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame(2, $result['updated']);
+
+        $rows = get_extraction_review(1)['rows'];
+        foreach ($rows as $row) {
+            $this->assertSame('2026-07-02', $row['graduation_date']);
+            $this->assertSame(2026, $row['graduation_year']);
+        }
+    }
+
+    public function testMassUpdateStagedGraduationDateLeavesNamesAndHonorsUntouched(): void
+    {
+        mass_update_staged_graduation_date(1, '2026-07-02');
+
+        $rows = get_extraction_review(1)['rows'];
+        $this->assertSame('Juan Dela Cruz', $rows[0]['graduate_name']);
+        $this->assertSame('MAGNA CUM LAUDE', $rows[1]['latin_honor']);
+    }
+
+    public function testMassUpdateStagedGraduationDateRejectsInvalidDate(): void
+    {
+        $result = mass_update_staged_graduation_date(1, '2026-13-40');
+
+        $this->assertFalse($result['ok']);
+        $rows = get_extraction_review(1)['rows'];
+        $this->assertNull($rows[0]['graduation_date']);
+    }
+
+    public function testMassUpdateStagedGraduationDateFailsWithoutActiveReview(): void
+    {
+        clear_extraction_review();
+
+        $result = mass_update_staged_graduation_date(1, '2026-07-02');
+
+        $this->assertFalse($result['ok']);
+    }
+
+    public function testMassUpdateStagedGraduationDateFailsWhenNoRowsStaged(): void
+    {
+        start_extraction_review(2, []);
+
+        $result = mass_update_staged_graduation_date(2, '2026-07-02');
+
+        $this->assertFalse($result['ok']);
+    }
 }

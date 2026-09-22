@@ -43,6 +43,12 @@ if ($review === null) {
 }
 
 $rows = $review['rows'];
+$courseOptions = array_values(array_unique(array_filter(array_map(
+    static fn (array $row): string => trim((string) ($row['course'] ?? '')),
+    $rows
+))));
+sort($courseOptions);
+
 $currentUser = current_user();
 $currentPage = 'upload';
 $csrfToken = csrf_token();
@@ -67,6 +73,56 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         <?php endif; ?>
 
+        <!-- Sticks below the app header (which is sticky top-0, ~58px tall)
+             once the page scrolls, so search/filter/mass-update stay reachable
+             without scrolling back up. The extra 16px in the top offset keeps
+             a visible gap between the header bar and the card while stuck,
+             instead of the card butting right up against it. Only on lg+: on
+             small screens the stacked card is too tall relative to the
+             viewport for sticky to be usable, so it scrolls normally there
+             instead. -->
+        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow lg:sticky lg:top-[74px] lg:z-10">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="sm:col-span-2">
+                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">SEARCH GRADUATE NAME</label>
+                    <input type="text" id="review-filter-name" placeholder="SEARCH BY NAME..."
+                        class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm uppercase placeholder:text-gray-400 dark:placeholder:text-gray-600">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">COURSE</label>
+                    <select id="review-filter-course" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">
+                        <option value="">ALL COURSES</option>
+                        <?php foreach ($courseOptions as $courseOption): ?>
+                            <option value="<?= e($courseOption) ?>"><?= e_upper($courseOption) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+            <p id="review-filter-empty" class="hidden text-sm text-gray-500 dark:text-gray-400 text-center pt-4">NO RECORDS MATCH YOUR SEARCH/FILTER.</p>
+
+            <!-- All page-level actions grouped together, uniformly styled, below the filter inputs. -->
+            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-white/10 flex flex-wrap items-center gap-3">
+                <button type="button" id="add-record-btn"
+                    class="rounded-lg border border-accent-500/40 text-accent-600 dark:text-accent-300 hover:bg-accent-500/10 text-sm font-medium px-4 py-2 transition-colors">ADD RECORD</button>
+                <button type="button" id="mass-update-date-btn"
+                    class="rounded-lg border border-accent-500/40 text-accent-600 dark:text-accent-300 hover:bg-accent-500/10 text-sm font-medium px-4 py-2 transition-colors">MASS UPDATE DATE</button>
+                <button type="button" id="view-pdf-btn"
+                        data-pdf-url="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $uploadId ?>"
+                        data-filename="<?= e($upload['original_filename']) ?>"
+                        class="rounded-lg border border-accent-500/40 text-accent-600 dark:text-accent-300 hover:bg-accent-500/10 text-sm font-medium px-4 py-2 transition-colors">VIEW UPLOADED PDF</button>
+                <button type="button" id="save-draft-btn"
+                    class="rounded-lg border border-accent-500/40 text-accent-600 dark:text-accent-300 hover:bg-accent-500/10 text-sm font-medium px-4 py-2 transition-colors">SAVE AS DRAFT</button>
+                <button type="button" id="save-records-btn"
+                    class="rounded-lg border border-accent-500/40 text-accent-600 dark:text-accent-300 hover:bg-accent-500/10 text-sm font-medium px-4 py-2 transition-colors">SAVE RECORDS</button>
+                <form method="post" class="inline">
+                    <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
+                    <input type="hidden" name="cancel" value="1">
+                    <button type="submit"
+                        class="rounded-lg border border-accent-500/40 text-accent-600 dark:text-accent-300 hover:bg-accent-500/10 text-sm font-medium px-4 py-2 transition-colors">CANCEL</button>
+                </form>
+            </div>
+        </div>
+
         <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto hge-shadow">
             <table class="w-full text-sm text-left">
                 <thead>
@@ -81,13 +137,15 @@ include __DIR__ . '/../includes/sidebar.php';
                         <th class="px-4 py-3">ACTION</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="review-rows-tbody">
                     <?php if (empty($rows)): ?>
-                        <tr><td colspan="8" class="px-4 py-6 text-center text-gray-600 dark:text-gray-500">NO RECORDS YET. CLICK ADD RECORD BELOW.</td></tr>
+                        <tr><td colspan="8" class="px-4 py-6 text-center text-gray-600 dark:text-gray-500">NO RECORDS YET. CLICK ADD RECORD ABOVE.</td></tr>
                     <?php else: ?>
                         <?php foreach ($rows as $index => $row): ?>
                             <?php $status = staged_row_status($row); ?>
-                            <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">
+                            <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5"
+                                data-filter-name="<?= e(mb_strtoupper($row['graduate_name'])) ?>"
+                                data-filter-course="<?= e($row['course'] ?? '') ?>">
                                 <td class="px-4 py-3"><?= $index + 1 ?></td>
                                 <td class="px-4 py-3"><?= e_upper($row['graduate_name']) ?></td>
                                 <td class="px-4 py-3"><?= ($row['course'] ?? '') !== '' ? e_upper($row['course']) : '—' ?></td>
@@ -121,21 +179,9 @@ include __DIR__ . '/../includes/sidebar.php';
             </table>
         </div>
 
-        <div class="flex items-center justify-between mt-4">
-            <p class="text-sm text-gray-500 dark:text-gray-400">TOTAL RECORDS: <?= count($rows) ?></p>
-            <button type="button" id="add-record-btn" class="rounded-lg border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 text-sm px-4 py-2">ADD RECORD</button>
-        </div>
-
-        <div class="flex items-center gap-3 mt-6">
-            <form method="post">
-                <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
-                <input type="hidden" name="cancel" value="1">
-                <button type="submit" class="rounded-lg border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 text-sm px-4 py-2">CANCEL</button>
-            </form>
-            <button type="button" id="save-draft-btn" class="rounded-lg border border-accent-500/40 text-accent-600 dark:text-accent-300 hover:bg-accent-500/10 text-sm font-medium px-4 py-2">SAVE AS DRAFT</button>
-            <button type="button" id="save-records-btn" class="rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium px-4 py-2">SAVE RECORDS</button>
-        </div>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-4">TOTAL RECORDS: <?= count($rows) ?></p>
     </div>
+    <?php include __DIR__ . '/../includes/pdf_drawer.php'; ?>
 </main>
 <?php include __DIR__ . '/../includes/footer.php'; ?>
 <script>
