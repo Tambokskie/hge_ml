@@ -63,7 +63,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     <select name="school_id" id="filter-school" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">
                         <option value="">ALL SCHOOLS</option>
                         <?php foreach ($schools as $school): ?>
-                            <option value="<?= (int) $school['id'] ?>" <?= $schoolId === (int) $school['id'] ? 'selected' : '' ?>><?= e_upper($school['school_name']) ?></option>
+                            <option value="<?= (int) $school['id'] ?>" <?= $schoolId === (int) $school['id'] ? 'selected' : '' ?>><?= e_upper(format_school_display_name($school['school_name'], $school['campus'])) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -121,14 +121,14 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">
                                     <td class="px-4 py-3"><?= e_upper($row['graduate_name']) ?></td>
                                     <td class="px-4 py-3"><?= ($row['course'] ?? '') !== '' ? e_upper($row['course']) : '—' ?></td>
-                                    <td class="px-4 py-3"><?= e_upper($row['school_name']) ?></td>
+                                    <td class="px-4 py-3"><?= e_upper(format_school_display_name($row['school_name'], $row['campus'])) ?></td>
                                     <td class="px-4 py-3"><?= e($row['latin_honor']) ?></td>
                                     <td class="px-4 py-3"><?= e((string) $row['graduation_year']) ?></td>
                                     <td class="px-4 py-3 whitespace-nowrap">
                                         <button type="button" class="view-graduate-btn text-green-600 dark:text-green-400 hover:underline"
                                             data-name="<?= e($row['graduate_name']) ?>"
                                             data-course="<?= e($row['course'] ?? '') ?>"
-                                            data-school="<?= e($row['school_name']) ?>"
+                                            data-school="<?= e(format_school_display_name($row['school_name'], $row['campus'])) ?>"
                                             data-honor="<?= e($row['latin_honor']) ?>"
                                             data-date="<?= e(format_date_display($row['graduation_date'])) ?>"
                                             data-year="<?= e((string) $row['graduation_year']) ?>"

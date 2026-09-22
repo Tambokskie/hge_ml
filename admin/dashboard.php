@@ -167,7 +167,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <tbody>
                             <?php foreach ($recentUploads as $upload): ?>
                                 <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">
-                                    <td class="px-4 py-3"><?= e_upper($upload['school_name']) ?></td>
+                                    <td class="px-4 py-3"><?= e_upper(format_school_display_name($upload['school_name'], $upload['campus'])) ?></td>
                                     <td class="px-4 py-3"><?= e($upload['school_year']) ?></td>
                                     <td class="px-4 py-3"><?= (int) $upload['records_extracted'] ?> RECORDS</td>
                                     <td class="px-4 py-3"><?= e_upper(date('F j, Y', strtotime($upload['uploaded_at']))) ?></td>
@@ -177,7 +177,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                         <?php if ($isAdmin && (int) $upload['records_extracted'] === 0): ?>
                                         <button type="button" class="delete-upload-btn text-red-600 dark:text-red-400 hover:underline ml-3"
                                             data-upload-id="<?= (int) $upload['id'] ?>"
-                                            data-school="<?= e($upload['school_name']) ?>"
+                                            data-school="<?= e(format_school_display_name($upload['school_name'], $upload['campus'])) ?>"
                                             data-year="<?= e($upload['school_year']) ?>">DELETE</button>
                                         <?php endif; ?>
                                     </td>

@@ -30,6 +30,18 @@ class FunctionsTest extends TestCase
         $this->assertSame('—', format_date_display('not-a-date'));
     }
 
+    public function testFormatSchoolDisplayNameAppendsCampusWhenPresent(): void
+    {
+        $this->assertSame('ABC UNIVERSITY-MAIN CAMPUS', format_school_display_name('ABC UNIVERSITY', 'MAIN CAMPUS'));
+    }
+
+    public function testFormatSchoolDisplayNameOmitsDashWhenNoCampus(): void
+    {
+        $this->assertSame('ABC UNIVERSITY', format_school_display_name('ABC UNIVERSITY', ''));
+        $this->assertSame('ABC UNIVERSITY', format_school_display_name('ABC UNIVERSITY', null));
+        $this->assertSame('ABC UNIVERSITY', format_school_display_name('ABC UNIVERSITY', '   '));
+    }
+
     public function testPaginateClampsPageWithinRange(): void
     {
         $result = paginate(totalRows: 5, page: 99, perPage: 25);

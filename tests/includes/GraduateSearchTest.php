@@ -118,6 +118,16 @@ class GraduateSearchTest extends TestCase
         $this->assertArrayHasKey('uploaded_at', $row);
     }
 
+    public function testResultRowsIncludeSchoolCampus(): void
+    {
+        TestDb::pdo()->exec("UPDATE schools SET campus = 'MAIN CAMPUS' WHERE id = 1");
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025);
+
+        $result = search_graduates(TestDb::pdo(), ['name' => 'Juan'], 1);
+
+        $this->assertSame('MAIN CAMPUS', $result['rows'][0]['campus']);
+    }
+
     public function testBuildSearchLogDetailsIncludesOnlyPresentFilters(): void
     {
         $this->assertSame('school_id=3, year=2025, name=cruz', build_search_log_details(['school_id' => 3, 'graduation_year' => 2025, 'name' => 'cruz']));

@@ -19,6 +19,17 @@ function asset_url(string $path): string
     return APP_BASE_URL . '/' . $relative . '?v=' . $version;
 }
 
+/**
+ * The school display name used everywhere in the UI: "SCHOOL NAME-CAMPUS"
+ * when the school has a campus on file, otherwise just the school name.
+ */
+function format_school_display_name(string $schoolName, ?string $campus = null): string
+{
+    $campus = trim((string) $campus);
+
+    return $campus === '' ? $schoolName : $schoolName . '-' . $campus;
+}
+
 function format_date_display(?string $date): string
 {
     if (empty($date)) {

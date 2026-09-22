@@ -30,7 +30,6 @@ include __DIR__ . '/../includes/sidebar.php';
                     <tr class="text-xs text-gray-600 dark:text-gray-500 border-b border-gray-200 dark:border-white/10">
                         <th class="px-4 py-3 w-10"></th>
                         <th class="px-4 py-3">SCHOOL NAME</th>
-                        <th class="px-4 py-3">CAMPUS</th>
                         <th class="px-4 py-3">ADDRESS</th>
                         <th class="px-4 py-3">STATUS</th>
                         <th class="px-4 py-3">UPLOADS</th>
@@ -47,8 +46,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                     data-name="<?= e($school['school_name']) ?>"
                                     data-campus="<?= e($school['campus']) ?>">
                             </td>
-                            <td class="px-4 py-3"><?= e_upper($school['school_name']) ?></td>
-                            <td class="px-4 py-3"><?= $school['campus'] !== '' ? e_upper($school['campus']) : '—' ?></td>
+                            <td class="px-4 py-3"><?= e_upper(format_school_display_name($school['school_name'], $school['campus'])) ?></td>
                             <td class="px-4 py-3"><?= e_upper($school['address']) ?></td>
                             <td class="px-4 py-3">
                                 <span class="<?= $school['status'] === 'active' ? 'text-green-400' : 'text-red-400' ?>"><?= e_upper($school['status']) ?></span>

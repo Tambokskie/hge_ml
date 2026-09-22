@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function openRemoveConfirmModal(target) {
         var submitting = false;
-        var displayName = target.campus !== '' ? target.name + ' (' + target.campus + ')' : target.name;
+        var displayName = target.campus !== '' ? target.name + '-' + target.campus : target.name;
         var bodyHtml =
             '<div class="space-y-3">' +
             '<p class="text-sm text-gray-700 dark:text-gray-300">PERMANENTLY REMOVE <span class="text-gray-900 dark:text-white font-medium">' + escapeHtml(displayName) + '</span>? THIS CANNOT BE UNDONE.</p>' +

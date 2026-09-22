@@ -42,7 +42,7 @@ include __DIR__ . '/../includes/sidebar.php';
             <div class="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-6 space-y-4 hge-shadow">
                 <div>
                     <p class="text-xs text-gray-600 dark:text-gray-500">SCHOOL</p>
-                    <p class="text-sm text-gray-900 dark:text-white"><?= e_upper($upload['school_name']) ?></p>
+                    <p class="text-sm text-gray-900 dark:text-white"><?= e_upper(format_school_display_name($upload['school_name'], $upload['campus'])) ?></p>
                 </div>
                 <div>
                     <p class="text-xs text-gray-600 dark:text-gray-500">SCHOOL YEAR</p>

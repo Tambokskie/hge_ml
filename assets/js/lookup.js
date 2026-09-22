@@ -25,6 +25,11 @@ document.addEventListener('DOMContentLoaded', function () {
         return month + ' ' + day + ', ' + year;
     }
 
+    function formatSchoolDisplayName(schoolName, campus) {
+        campus = (campus || '').trim();
+        return campus === '' ? schoolName : schoolName + '-' + campus;
+    }
+
     function currentParams(page) {
         return {
             school_id: document.getElementById('filter-school').value,
@@ -103,14 +108,14 @@ document.addEventListener('DOMContentLoaded', function () {
             return '<tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">' +
                 '<td class="px-4 py-3">' + escapeHtml(String(row.graduate_name).toUpperCase()) + '</td>' +
                 '<td class="px-4 py-3">' + courseDisplay + '</td>' +
-                '<td class="px-4 py-3">' + escapeHtml(String(row.school_name).toUpperCase()) + '</td>' +
+                '<td class="px-4 py-3">' + escapeHtml(formatSchoolDisplayName(row.school_name, row.campus).toUpperCase()) + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(row.latin_honor) + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(String(row.graduation_year)) + '</td>' +
                 '<td class="px-4 py-3 whitespace-nowrap">' +
                 '<button type="button" class="view-graduate-btn text-green-600 dark:text-green-400 hover:underline" ' +
                 'data-name="' + escapeHtml(row.graduate_name) + '" ' +
                 'data-course="' + escapeHtml(row.course || '') + '" ' +
-                'data-school="' + escapeHtml(row.school_name) + '" ' +
+                'data-school="' + escapeHtml(formatSchoolDisplayName(row.school_name, row.campus)) + '" ' +
                 'data-honor="' + escapeHtml(row.latin_honor) + '" ' +
                 'data-date="' + escapeHtml(displayDate) + '" ' +
                 'data-year="' + escapeHtml(String(row.graduation_year)) + '" ' +
