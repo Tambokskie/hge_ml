@@ -8,7 +8,7 @@ require_once __DIR__ . '/../includes/schools.php';
 require_role('administrator');
 
 $pdo = get_pdo();
-$schoolNames = get_active_school_names($pdo);
+$activeSchools = get_active_schools_list($pdo);
 $uploadedSchools = get_schools_with_uploads($pdo);
 $currentUser = current_user();
 $currentPage = 'upload';
@@ -27,13 +27,13 @@ include __DIR__ . '/../includes/sidebar.php';
                     <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
 
                     <div>
-                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1" for="school_name">SCHOOL NAME</label>
+                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1" for="school_id">SCHOOL NAME</label>
                         <div class="flex items-center gap-2">
-                            <select id="school_name" name="school_name" required
+                            <select id="school_id" name="school_id" required
                                    class="flex-1 min-w-0 rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-accent-500">
                                 <option value="" disabled selected>SELECT A SCHOOL</option>
-                                <?php foreach ($schoolNames as $name): ?>
-                                    <option value="<?= e($name) ?>"><?= e_upper($name) ?></option>
+                                <?php foreach ($activeSchools as $school): ?>
+                                    <option value="<?= (int) $school['id'] ?>"><?= e_upper(format_school_display_name($school['school_name'], $school['campus'])) ?></option>
                                 <?php endforeach; ?>
                             </select>
                             <a href="<?= e(APP_BASE_URL) ?>/admin/schools.php" class="shrink-0 inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">SCHOOL MANAGEMENT</a>
@@ -81,8 +81,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     <ul class="divide-y divide-gray-100 dark:divide-white/5 max-h-[809px] overflow-y-auto">
                         <?php foreach ($uploadedSchools as $school): ?>
                             <li class="py-3 first:pt-0 last:pb-0">
-                                <p class="text-sm font-medium text-gray-900 dark:text-white"><?= e_upper($school['school_name']) ?></p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5"><?= $school['campus'] !== '' ? e_upper($school['campus']) : '—' ?></p>
+                                <p class="text-sm font-medium text-gray-900 dark:text-white"><?= e_upper(format_school_display_name($school['school_name'], $school['campus'])) ?></p>
                                 <p class="text-xs text-gray-400 dark:text-gray-600 mt-0.5"><?= $school['address'] !== '' ? e_upper($school['address']) : '—' ?></p>
                             </li>
                         <?php endforeach; ?>

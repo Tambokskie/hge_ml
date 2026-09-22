@@ -28,4 +28,25 @@ class FilenameHelpersTest extends TestCase
     {
         $this->assertSame('ABC_UNIVERSITY_2025_3.pdf', build_stored_filename('ABC University', '2025', 3));
     }
+
+    public function testBuildStoredFilenameIncludesCampusWhenProvided(): void
+    {
+        $this->assertSame(
+            'VISAYAS_STATE_UNIVERSITY_ISABEL_2026_1.pdf',
+            build_stored_filename('Visayas State University', '2026', 1, 'Isabel')
+        );
+    }
+
+    public function testBuildStoredFilenameDisambiguatesSameNameDifferentCampuses(): void
+    {
+        $villaba = build_stored_filename('Visayas State University', '2026', 1, 'Villaba');
+        $isabel = build_stored_filename('Visayas State University', '2026', 1, 'Isabel');
+
+        $this->assertNotSame($villaba, $isabel);
+    }
+
+    public function testBuildStoredFilenameOmitsCampusSegmentWhenBlank(): void
+    {
+        $this->assertSame('ABC_UNIVERSITY_2025_1.pdf', build_stored_filename('ABC University', '2025', 1, ''));
+    }
 }

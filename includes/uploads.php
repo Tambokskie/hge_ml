@@ -66,10 +66,10 @@ function create_upload_record(PDO $pdo, array $data): array
 function get_recent_uploads(PDO $pdo, int $limit = 5): array
 {
     $stmt = $pdo->prepare(
-        'SELECT u.id, u.school_year, u.original_filename, u.stored_filename, u.uploaded_at, u.records_extracted, s.school_name
+        'SELECT u.id, u.school_year, u.original_filename, u.stored_filename, u.uploaded_at, u.records_extracted, s.school_name, s.campus
          FROM latin_honor_uploads u
          JOIN schools s ON s.id = u.school_id
-         ORDER BY u.uploaded_at DESC, u.id DESC
+         ORDER BY (u.records_extracted = 0) DESC, u.uploaded_at DESC, u.id DESC
          LIMIT :limit'
     );
     $stmt->bindValue('limit', $limit, PDO::PARAM_INT);
@@ -82,7 +82,7 @@ function get_upload_by_id(PDO $pdo, int $id): ?array
 {
     $stmt = $pdo->prepare(
         'SELECT u.id, u.school_id, u.school_year, u.original_filename, u.stored_filename, u.file_path,
-                u.file_size, u.uploaded_at, u.extraction_status, u.records_extracted, s.school_name
+                u.file_size, u.uploaded_at, u.extraction_status, u.records_extracted, s.school_name, s.campus
          FROM latin_honor_uploads u
          JOIN schools s ON s.id = u.school_id
          WHERE u.id = :id
@@ -96,15 +96,16 @@ function get_upload_by_id(PDO $pdo, int $id): ?array
 
 function handle_upload_request(PDO $pdo, array $post, array $files, int $uploadedBy, string $storageDir, int $maxBytes = 20971520): array
 {
+    $schoolId = (int) ($post['school_id'] ?? 0);
     $schoolName = trim((string) ($post['school_name'] ?? ''));
     $schoolYear = trim((string) ($post['school_year'] ?? ''));
     $confirmDuplicate = !empty($post['confirm_duplicate']);
 
-    if ($schoolName === '' || $schoolYear === '') {
+    if (($schoolId <= 0 && $schoolName === '') || $schoolYear === '') {
         return ['status' => 'error', 'message' => 'SCHOOL NAME AND SCHOOL YEAR ARE REQUIRED.'];
     }
 
-    if (mb_strlen($schoolName) > 255) {
+    if ($schoolId <= 0 && mb_strlen($schoolName) > 255) {
         return ['status' => 'error', 'message' => 'SCHOOL NAME IS TOO LONG.'];
     }
 
@@ -127,7 +128,15 @@ function handle_upload_request(PDO $pdo, array $post, array $files, int $uploade
         return ['status' => 'error', 'message' => $validation['error']];
     }
 
-    $school = find_or_create_school($pdo, $schoolName);
+    if ($schoolId > 0) {
+        $school = get_school_by_id($pdo, $schoolId);
+        if ($school === null) {
+            return ['status' => 'error', 'message' => 'SELECTED SCHOOL COULD NOT BE FOUND. PLEASE REFRESH THE PAGE AND TRY AGAIN.'];
+        }
+    } else {
+        $school = find_or_create_school($pdo, $schoolName);
+        $school['campus'] = $school['campus'] ?? '';
+    }
 
     $existing = find_existing_upload($pdo, $school['id'], $schoolYear);
     if ($existing !== null && !$confirmDuplicate) {
@@ -139,7 +148,7 @@ function handle_upload_request(PDO $pdo, array $post, array $files, int $uploade
     }
 
     $uploadNumber = next_upload_number($pdo, $school['id'], $schoolYear);
-    $storedFilename = build_stored_filename($school['school_name'], $schoolYear, $uploadNumber);
+    $storedFilename = build_stored_filename($school['school_name'], $schoolYear, $uploadNumber, (string) ($school['campus'] ?? ''));
 
     $resolvedStorageDir = realpath($storageDir);
     if ($resolvedStorageDir === false) {

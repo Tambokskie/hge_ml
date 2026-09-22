@@ -36,6 +36,54 @@ class UploadQueriesTest extends TestCase
         $this->assertSame('ABC University', $recent[1]['school_name']);
     }
 
+    public function testGetRecentUploadsPutsZeroExtractedRecordsFirstRegardlessOfDate(): void
+    {
+        $pdo = TestDb::pdo();
+        // Newest upload already has extracted records...
+        $pdo->exec(
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number, uploaded_at, records_extracted)
+             VALUES (1, '2026', 'c.pdf', 'ABC_UNIVERSITY_2026_1.pdf', '/x/c.pdf', 10, SHA2('c',256), 1, 1, '2026-03-01 00:00:00', 15)"
+        );
+        // ...but an older upload still hasn't been extracted, so it must
+        // surface first regardless of being the least recent upload.
+        $pdo->exec(
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number, uploaded_at, records_extracted)
+             VALUES (2, '2024', 'a.pdf', 'XYZ_COLLEGE_2024_1.pdf', '/x/a.pdf', 10, SHA2('a',256), 1, 1, '2024-01-01 00:00:00', 0)"
+        );
+
+        $recent = get_recent_uploads($pdo, 5);
+
+        $this->assertSame('XYZ College', $recent[0]['school_name']);
+        $this->assertSame(0, (int) $recent[0]['records_extracted']);
+        $this->assertSame('ABC University', $recent[1]['school_name']);
+    }
+
+    public function testGetRecentUploadsOrdersMultipleZeroExtractedByDate(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec(
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number, uploaded_at, records_extracted)
+             VALUES (1, '2025', 'a.pdf', 'ABC_UNIVERSITY_2025_1.pdf', '/x/a.pdf', 10, SHA2('a',256), 1, 1, '2025-01-01 00:00:00', 0)"
+        );
+        $pdo->exec(
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number, uploaded_at, records_extracted)
+             VALUES (2, '2026', 'b.pdf', 'XYZ_COLLEGE_2026_1.pdf', '/x/b.pdf', 10, SHA2('b',256), 1, 1, '2026-01-01 00:00:00', 0)"
+        );
+        // A non-zero upload sitting between them by date must still sort
+        // after both zero-extracted rows.
+        $pdo->exec(
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number, uploaded_at, records_extracted)
+             VALUES (1, '2025', 'c.pdf', 'ABC_UNIVERSITY_2025_2.pdf', '/x/c.pdf', 10, SHA2('c',256), 1, 2, '2025-06-01 00:00:00', 5)"
+        );
+
+        $recent = get_recent_uploads($pdo, 5);
+
+        $this->assertSame('XYZ College', $recent[0]['school_name']);
+        $this->assertSame('ABC University', $recent[1]['school_name']);
+        $this->assertSame(0, (int) $recent[1]['records_extracted']);
+        $this->assertSame(5, (int) $recent[2]['records_extracted']);
+    }
+
     public function testGetRecentUploadsRespectsLimit(): void
     {
         $pdo = TestDb::pdo();
@@ -64,6 +112,35 @@ class UploadQueriesTest extends TestCase
         $this->assertSame('ABC University', $upload['school_name']);
         $this->assertSame('/x/a.pdf', $upload['file_path']);
         $this->assertSame('pending', $upload['extraction_status']);
+    }
+
+    public function testGetUploadByIdIncludesSchoolCampus(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec("UPDATE schools SET campus = 'MAIN CAMPUS' WHERE id = 1");
+        $pdo->exec(
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number)
+             VALUES (1, '2025', 'a.pdf', 'ABC_UNIVERSITY_2025_1.pdf', '/x/a.pdf', 10, SHA2('a',256), 1, 1)"
+        );
+        $id = (int) $pdo->lastInsertId();
+
+        $upload = get_upload_by_id($pdo, $id);
+
+        $this->assertSame('MAIN CAMPUS', $upload['campus']);
+    }
+
+    public function testGetRecentUploadsIncludesSchoolCampus(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec("UPDATE schools SET campus = 'MAIN CAMPUS' WHERE id = 1");
+        $pdo->exec(
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number)
+             VALUES (1, '2025', 'a.pdf', 'ABC_UNIVERSITY_2025_1.pdf', '/x/a.pdf', 10, SHA2('a',256), 1, 1)"
+        );
+
+        $recent = get_recent_uploads($pdo, 5);
+
+        $this->assertSame('MAIN CAMPUS', $recent[0]['campus']);
     }
 
     public function testGetUploadByIdReturnsNullForUnknownId(): void

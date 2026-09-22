@@ -213,6 +213,56 @@ class HandleUploadRequestTest extends TestCase
         $this->assertSame(0, $uploadCount);
     }
 
+    public function testSchoolIdResolvesExactCampusAndAvoidsCrossCampusFilenameCollision(): void
+    {
+        $pdo = TestDb::pdo();
+
+        // Reproduces the real production bug: two schools sharing the same
+        // school_name but different campuses. VILLABA already has a 2026
+        // upload; uploading for ISABEL (first time, same year) must resolve
+        // to ISABEL specifically (via school_id) and must NOT collide with
+        // VILLABA's existing on-disk file, since campus is now baked into
+        // the stored filename.
+        $villaba = create_school($pdo, 'Visayas State University', 'Villaba Address', 'Villaba');
+        $isabel = create_school($pdo, 'Visayas State University', 'Isabel Address', 'Isabel');
+
+        $villabaResult = handle_upload_request(
+            $pdo,
+            ['school_id' => (string) $villaba['id'], 'school_year' => '2026'],
+            ['pdf_file' => $this->fileField()],
+            1,
+            $this->storageDir
+        );
+        $this->assertSame('success', $villabaResult['status']);
+        $this->assertFileExists($this->storageDir . '/VISAYAS_STATE_UNIVERSITY_VILLABA_2026_1.pdf');
+
+        $isabelResult = handle_upload_request(
+            $pdo,
+            ['school_id' => (string) $isabel['id'], 'school_year' => '2026'],
+            ['pdf_file' => $this->fileField()],
+            1,
+            $this->storageDir
+        );
+
+        $this->assertSame('success', $isabelResult['status']);
+        $this->assertSame($isabel['id'], $isabelResult['upload']['school_id']);
+        $this->assertFileExists($this->storageDir . '/VISAYAS_STATE_UNIVERSITY_ISABEL_2026_1.pdf');
+    }
+
+    public function testUnknownSchoolIdReturnsError(): void
+    {
+        $result = handle_upload_request(
+            TestDb::pdo(),
+            ['school_id' => '999', 'school_year' => '2026'],
+            ['pdf_file' => $this->fileField()],
+            1,
+            $this->storageDir
+        );
+
+        $this->assertSame('error', $result['status']);
+        $this->assertSame('SELECTED SCHOOL COULD NOT BE FOUND. PLEASE REFRESH THE PAGE AND TRY AGAIN.', $result['message']);
+    }
+
     public function testSchoolNameTooLongReturnsError(): void
     {
         $result = handle_upload_request(

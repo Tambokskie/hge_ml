@@ -58,29 +58,36 @@ class SchoolsTest extends TestCase
         $this->assertSame(1, $count);
     }
 
-    public function testGetActiveSchoolNamesReturnsOnlyActiveSchoolsSortedAlphabetically(): void
+    public function testGetSchoolByIdReturnsExactRowIncludingCampus(): void
     {
         $pdo = TestDb::pdo();
-        $pdo->exec("INSERT INTO schools (school_name, status) VALUES ('XYZ College', 'active')");
-        $pdo->exec("INSERT INTO schools (school_name, status) VALUES ('ABC University', 'active')");
-        $pdo->exec("INSERT INTO schools (school_name, status) VALUES ('Disabled School', 'disabled')");
+        $villaba = create_school($pdo, 'Visayas State University', 'Villaba', 'Villaba');
+        $isabel = create_school($pdo, 'Visayas State University', 'Isabel', 'Isabel');
 
-        $names = get_active_school_names($pdo);
+        $found = get_school_by_id($pdo, $isabel['id']);
 
-        $this->assertSame(['ABC University', 'XYZ College'], $names);
+        $this->assertSame($isabel['id'], $found['id']);
+        $this->assertSame('ISABEL', $found['campus']);
+        $this->assertNotSame($villaba['id'], $found['id']);
     }
 
-    public function testGetActiveSchoolsListReturnsIdAndNameForActiveSchoolsOnly(): void
+    public function testGetSchoolByIdReturnsNullForUnknownId(): void
+    {
+        $this->assertNull(get_school_by_id(TestDb::pdo(), 999));
+    }
+
+    public function testGetActiveSchoolsListReturnsIdNameAndCampusForActiveSchoolsOnlySortedAlphabetically(): void
     {
         $pdo = TestDb::pdo();
-        $pdo->exec("INSERT INTO schools (school_name, status) VALUES ('XYZ College', 'active')");
-        $pdo->exec("INSERT INTO schools (school_name, status) VALUES ('ABC University', 'active')");
+        $pdo->exec("INSERT INTO schools (school_name, campus, status) VALUES ('XYZ College', '', 'active')");
+        $pdo->exec("INSERT INTO schools (school_name, campus, status) VALUES ('ABC University', 'MAIN CAMPUS', 'active')");
         $pdo->exec("INSERT INTO schools (school_name, status) VALUES ('Disabled School', 'disabled')");
 
         $schools = get_active_schools_list($pdo);
 
         $this->assertCount(2, $schools);
         $this->assertSame('ABC University', $schools[0]['school_name']);
+        $this->assertSame('MAIN CAMPUS', $schools[0]['campus']);
         $this->assertSame('XYZ College', $schools[1]['school_name']);
         $this->assertArrayHasKey('id', $schools[0]);
     }
