@@ -73,7 +73,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <?php else: ?>
                             <a href="<?= e(APP_BASE_URL) ?>/admin/review.php?upload_id=<?= (int) $upload['id'] ?>"
                                 class="mt-2 inline-block rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium px-4 py-2 transition-colors"><?= $upload['extraction_status'] === 'draft' ? 'RESUME DRAFT REVIEW' : 'CONTINUE REVIEW' ?></a>
-                            <button type="button" id="extract-records-btn" data-upload-id="<?= (int) $upload['id'] ?>"
+                            <button type="button" id="extract-records-btn" data-upload-id="<?= (int) $upload['id'] ?>" data-records-extracted="<?= (int) $upload['records_extracted'] ?>"
                                 class="mt-2 ml-2 inline-block rounded-lg border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 text-sm px-4 py-2 transition-colors">RE-EXTRACT RECORDS</button>
                         <?php endif; ?>
                     <?php endif; ?>

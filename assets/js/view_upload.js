@@ -68,5 +68,29 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
-    btn.addEventListener('click', extract);
+    btn.addEventListener('click', function () {
+        var recordsExtracted = parseInt(btn.dataset.recordsExtracted, 10) || 0;
+        if (recordsExtracted <= 0) {
+            extract();
+            return;
+        }
+
+        showModal({
+            icon: '<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>',
+            iconClassName: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
+            title: 'CONFIRM RE-EXTRACTION',
+            bodyHtml: '<p>RE-EXTRACTING WILL DISCARD THE PREVIOUSLY EXTRACTED DATA FOR THIS UPLOAD, INCLUDING ANY EDITS MADE TO IT. THIS CANNOT BE UNDONE. DO YOU WANT TO CONTINUE?</p>',
+            buttons: [
+                { label: 'CANCEL', className: 'flex-1 rounded-full border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors' },
+                {
+                    label: 'RE-EXTRACT',
+                    className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-accent-600 hover:bg-accent-500 text-white transition-colors',
+                    onClick: function (close) {
+                        close();
+                        extract();
+                    },
+                },
+            ],
+        });
+    });
 });
