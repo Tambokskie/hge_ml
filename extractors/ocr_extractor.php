@@ -9,6 +9,11 @@ class OcrExtractor implements ExtractorInterface
 {
     use ParsesHonorRows;
 
+    public function __construct(array $extraCourseKeywords = [])
+    {
+        $this->setExtraCourseKeywords($extraCourseKeywords);
+    }
+
     public function extract(string $filePath): array
     {
         $ghostscriptPath = resolve_ghostscript_path();

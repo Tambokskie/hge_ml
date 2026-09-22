@@ -81,11 +81,20 @@ CREATE TABLE latin_honor_graduates (
 CREATE TABLE activity_log (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NULL,
-  action ENUM('login','logout','pdf_upload','pdf_delete','record_created','record_updated','record_removed','record_draft_saved','search','user_created','user_updated','user_removed','school_created','school_updated','school_removed','application_filed','db_backup') NOT NULL,
+  action ENUM('login','logout','pdf_upload','pdf_delete','record_created','record_updated','record_removed','record_draft_saved','search','user_created','user_updated','user_removed','school_created','school_updated','school_removed','application_filed','db_backup','ocr_keyword_created','ocr_keyword_removed') NOT NULL,
   details TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id),
   KEY idx_created_at (created_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE ocr_course_keywords (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  keyword VARCHAR(50) NOT NULL,
+  created_by INT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (created_by) REFERENCES users(id),
+  UNIQUE KEY uq_keyword (keyword)
 ) ENGINE=InnoDB;
 
 CREATE TABLE graduate_applications (

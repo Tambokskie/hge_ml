@@ -17,15 +17,56 @@ trait ParsesHonorRows
      * after it are both non-word characters, so no \b exists between
      * them), silently rejecting the exact abbreviated forms this list
      * exists to support.
+     *
+     * "ACHELOR" alongside "BACHELOR" covers a common OCR failure on
+     * scanned lists: a decorative/serif capital "B" at the start of a
+     * table cell is dropped entirely rather than misread as another
+     * letter, leaving "achelor of Science..." with nothing to anchor on.
      */
-    private const COURSE_KEYWORD_PATTERN = '/(?<![A-Za-z0-9])('
-        . 'BACHELOR|MASTER|DOCTOR(?:ATE)?|DIPLOMA|ASSOCIATE|CERTIFICATE|TECHNICAL|VOCATIONAL'
-        . '|B\.\s*S\.?|B\.\s*A\.?|M\.\s*A\.?|M\.\s*S\.?|PH\.\s*D\.?'
-        . '|BSA|BSIT|BSCS|BSBA|BSED|BEED|BSN|BSCE|BSME|BSEE|BSIE|BSHM|BSTM|BSE|BSREM'
-        . '|BFA|BTVTE|BTECH|BT|ABM|AB|BS|BA'
-        . '|MBA|MPA|MAED|MED|MA|MS'
-        . '|PHD'
-        . ')(?![A-Za-z0-9])/i';
+    private const COURSE_KEYWORDS = [
+        'BACHELOR', 'ACHELOR', 'MASTER', 'DOCTOR(?:ATE)?', 'DIPLOMA', 'ASSOCIATE', 'CERTIFICATE', 'TECHNICAL', 'VOCATIONAL',
+        'B\.\s*S\.?', 'B\.\s*A\.?', 'M\.\s*A\.?', 'M\.\s*S\.?', 'PH\.\s*D\.?',
+        'BSA', 'BSAB', 'BSIT', 'BSCS', 'BSBA', 'BSED', 'BEED', 'BSN', 'BSCE', 'BSME', 'BSEE', 'BSIE', 'BSHM', 'BSTM', 'BSE', 'BSREM', 'BPED',
+        'BFA', 'BTVTE', 'BTECH', 'BT', 'ABM', 'AB', 'BS', 'BA',
+        'MBA', 'MPA', 'MAED', 'MED', 'MA', 'MS',
+        'PHD',
+    ];
+
+    /**
+     * Admin-managed additions from the OCR Course Keywords settings page
+     * (see includes/ocr_keywords.php), set via setExtraCourseKeywords()
+     * before parseRows() runs. Each is preg_quote()'d before it ever
+     * reaches courseKeywordPattern() — admin input is plain text, never a
+     * regex fragment like the hardcoded tokens above.
+     */
+    private array $extraCourseKeywords = [];
+
+    private ?string $compiledCourseKeywordPattern = null;
+
+    public function setExtraCourseKeywords(array $keywords): void
+    {
+        $this->extraCourseKeywords = array_values(array_unique(array_filter(array_map(
+            static fn ($keyword): string => trim(mb_strtoupper((string) $keyword)),
+            $keywords
+        ))));
+        $this->compiledCourseKeywordPattern = null;
+    }
+
+    private function courseKeywordPattern(): string
+    {
+        if ($this->compiledCourseKeywordPattern !== null) {
+            return $this->compiledCourseKeywordPattern;
+        }
+
+        $tokens = self::COURSE_KEYWORDS;
+        foreach ($this->extraCourseKeywords as $keyword) {
+            $tokens[] = preg_quote($keyword, '/');
+        }
+
+        $this->compiledCourseKeywordPattern = '/(?<![A-Za-z0-9])(' . implode('|', $tokens) . ')(?![A-Za-z0-9])/i';
+
+        return $this->compiledCourseKeywordPattern;
+    }
 
     /**
      * Sentinel written into a ditto row's latin_honor/graduation_date while
@@ -39,9 +80,10 @@ trait ParsesHonorRows
     protected function parseRows(string $text): array
     {
         $hasGwaColumn = (bool) preg_match('/\bGWA\b|\bGPA\b/i', $text);
+        $lines = $this->mergeSplitHonorLines(preg_split('/\r\n|\r|\n/', $text));
 
         $rows = [];
-        foreach (preg_split('/\r\n|\r|\n/', $text) as $line) {
+        foreach ($lines as $line) {
             $row = $this->parseLine($line, $hasGwaColumn);
             if ($row !== null) {
                 $rows[] = $row;
@@ -49,6 +91,63 @@ trait ParsesHonorRows
         }
 
         return $this->resolveDittoMarks($rows);
+    }
+
+    /**
+     * When a table cell's course text wraps onto 2-3 lines, OCR sometimes
+     * splits the *honor phrase itself* across the line boundary — e.g. a
+     * row's line ends "... Magna Cum" and the honor concludes on the next
+     * line as "Accountancy Laude July 04, 2025", or in the worst case the
+     * whole honor phrase lands alone on its own orphaned line while the row
+     * number/name line has no honor text at all. Neither line matches
+     * matchHonor() on its own, so without this the row is silently dropped
+     * (or, worse, misidentified as a ditto row and given a guessed honor).
+     *
+     * Joins such a line with the next one whenever doing so completes a
+     * recognizable honor phrase AND the honor phrase starts within the
+     * first ~20 characters of the next line — that second condition is
+     * what keeps this from ever merging a genuine ditto/incomplete row into
+     * an unrelated row that happens to follow it (a real row's name+course
+     * always runs well past 20 characters before its own honor phrase).
+     *
+     * Also requires the current line to actually look like part of a row
+     * (a leading row number, or a course keyword) before even attempting
+     * this — otherwise an unrelated prose/header line sitting just above a
+     * real row would get pulled into it too.
+     */
+    private function mergeSplitHonorLines(array $lines): array
+    {
+        $count = count($lines);
+        $consumed = array_fill(0, $count, false);
+        $merged = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            if ($consumed[$i]) {
+                continue;
+            }
+
+            $line = $lines[$i];
+            $looksLikeRow = preg_match('/^\s*\d{1,3}[.)]\s/', $line) === 1
+                || preg_match($this->courseKeywordPattern(), $line) === 1;
+
+            if ($looksLikeRow && $i + 1 < $count && $this->matchHonor($line) === null) {
+                $next = $lines[$i + 1];
+                $candidate = rtrim($line) . ' ' . ltrim($next);
+                $honorMatch = $this->matchHonor($candidate);
+
+                if ($honorMatch !== null) {
+                    $prefixFromNext = $honorMatch['position'] - (strlen(rtrim($line)) + 1);
+                    if ($prefixFromNext <= 20) {
+                        $line = $candidate;
+                        $consumed[$i + 1] = true;
+                    }
+                }
+            }
+
+            $merged[] = $line;
+        }
+
+        return $merged;
     }
 
     /**
@@ -116,7 +215,7 @@ trait ParsesHonorRows
         // the Latin Honor, so take the rightmost match before it rather
         // than the first one in the line.
         $bachelorPosition = null;
-        if (preg_match_all(self::COURSE_KEYWORD_PATTERN, $trimmed, $courseMatches, PREG_OFFSET_CAPTURE)) {
+        if (preg_match_all($this->courseKeywordPattern(), $trimmed, $courseMatches, PREG_OFFSET_CAPTURE)) {
             foreach ($courseMatches[0] as $match) {
                 if ($match[1] < $honorPosition) {
                     $bachelorPosition = $match[1];
@@ -237,7 +336,7 @@ trait ParsesHonorRows
      */
     private function parseDittoLine(string $trimmed, string $rawLine): ?array
     {
-        if (!preg_match_all(self::COURSE_KEYWORD_PATTERN, $trimmed, $courseMatches, PREG_OFFSET_CAPTURE)) {
+        if (!preg_match_all($this->courseKeywordPattern(), $trimmed, $courseMatches, PREG_OFFSET_CAPTURE)) {
             return null;
         }
 
@@ -307,12 +406,21 @@ trait ParsesHonorRows
         return trim($text);
     }
 
+    /**
+     * The gap between CUM and LAUDE is deliberately bounded slop, not plain
+     * \s*: once mergeSplitHonorLines() has spliced two OCR lines together,
+     * whatever caused the split (a wrapped course word, a stray date/pipe)
+     * usually still sits between them. Matching only the position where the
+     * phrase starts (never the matched text itself, which is always one of
+     * the three fixed constants below) means widening this can't corrupt
+     * the honor value — it only lets previously-unrecognized phrases match.
+     */
     private function matchHonor(string $text): ?array
     {
         $patterns = [
-            'SUMMA CUM LAUDE' => '/SUMMA\s*CUM\s*LAUDE/i',
-            'MAGNA CUM LAUDE' => '/MAGNA\s*CUM\s*LAUDE/i',
-            'CUM LAUDE' => '/CUM\s*LAUDE/i',
+            'SUMMA CUM LAUDE' => '/SUMMA\s*CUM[^\n]{0,45}?LAUDE/i',
+            'MAGNA CUM LAUDE' => '/MAGNA\s*CUM[^\n]{0,45}?LAUDE/i',
+            'CUM LAUDE' => '/CUM[^\n]{0,45}?LAUDE/i',
         ];
 
         foreach ($patterns as $honor => $pattern) {

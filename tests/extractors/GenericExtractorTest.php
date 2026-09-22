@@ -573,6 +573,161 @@ class GenericExtractorTest extends TestCase
         $this->assertSame('BSREM', $rows[0]['course']);
     }
 
+    public function testHonorPhraseSplitAcrossWrappedCourseLinesIsRecovered(): void
+    {
+        // tests/fixtures/wrapped-course-honor-split-ocr-output.txt is
+        // verbatim Tesseract output of a real school's honor list (16
+        // graduates, name-first layout) whose Course column wraps onto 2-3
+        // lines per row. That wrapping pushes the honor phrase itself
+        // across the OCR line boundary — e.g. one line ends "... Magna Cum"
+        // and the next reads "Accountancy Laude July 04, 2025" — which
+        // used to mean matchHonor() found the phrase on neither line and
+        // the whole row, name included, was silently dropped.
+        $text = file_get_contents(__DIR__ . '/../fixtures/wrapped-course-honor-split-ocr-output.txt');
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        // 13 of the 16 real graduates are recoverable this way. The other
+        // 3 are lost to OCR failures no text heuristic can fix: one row's
+        // "CUM" was truncated mid-word ("M Cu"), one's honor OCR'd as
+        // unrecognizable noise ("Magne a"), and one row sat on a colored
+        // highlight Tesseract couldn't read at all.
+        $this->assertCount(13, $rows);
+
+        $byName = [];
+        foreach ($rows as $row) {
+            $byName[$row['graduate_name']] = $row;
+        }
+
+        // Every recovered row's honor tier and date must be correct — the
+        // whole point of the fix — even though course text is sometimes
+        // truncated to its first visual line (acceptable: OCR rows are
+        // already flagged "OCR — VERIFY" for a human to tidy up).
+        $this->assertArrayHasKey('Contajo, Erika T.', $byName);
+        $this->assertSame('SUMMA CUM LAUDE', $byName['Contajo, Erika T.']['latin_honor']);
+        $this->assertSame('2025-07-04', $byName['Contajo, Erika T.']['graduation_date']);
+
+        $this->assertSame('MAGNA CUM LAUDE', $byName['Parrilla, Jejomar V.']['latin_honor']);
+        $this->assertSame('2025-07-04', $byName['Parrilla, Jejomar V.']['graduation_date']);
+
+        $this->assertSame('CUM LAUDE', $byName['Dacal, Leo Meian E.']['latin_honor']);
+        $this->assertSame('2025-07-04', $byName['Dacal, Leo Meian E.']['graduation_date']);
+
+        // "ACHELOR" (Bachelor with its decorative leading "B" dropped by
+        // OCR) still anchors the course split correctly.
+        $this->assertArrayHasKey('Binueza, Jewel D.', $byName);
+        $this->assertStringContainsStringIgnoringCase('achelor of Science', $byName['Binueza, Jewel D.']['course']);
+    }
+
+    public function testHonorPhraseMergeNeverBleedsIntoAnUnrelatedFollowingRow(): void
+    {
+        // Regression guard for the fix above: a genuine ditto row (no honor
+        // phrase of its own) must never be merged with a real, unrelated
+        // row that happens to follow it just because that row's honor
+        // phrase is technically "the next line".
+        $text = "JUAN DELA CRUZ    BSA    -do-    -do-\n"
+            . "MARIA SANTOS    BSA    MAGNA CUM LAUDE    APRIL 24, 2026\n";
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        $this->assertCount(2, $rows);
+        $this->assertSame('MARIA SANTOS', $rows[1]['graduate_name']);
+        $this->assertSame('MAGNA CUM LAUDE', $rows[1]['latin_honor']);
+    }
+
+    public function testFusedCumLaudeWithNoSpaceStillMatches(): void
+    {
+        // Real OCR sometimes drops the space entirely ("SUMMA CUMLAUDE")
+        // rather than adding one — the loosened gap between CUM and LAUDE
+        // must still accept a zero-width gap, not just a wider one.
+        $text = "DEGREE/COURSE\n1 ABELLAR, JOMARI JESS S. BSREM SUMMA CUMLAUDE APRIL 24, 2026\n";
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('SUMMA CUM LAUDE', $rows[0]['latin_honor']);
+    }
+
+    public function testBpedAndBsabCourseAbbreviationsAreRecognized(): void
+    {
+        // tests/fixtures/bped-bsab-course-ocr-output.txt is verbatim
+        // Tesseract output of a real school's honor list (38 graduates)
+        // whose Course column uses "BPED" (Bachelor of Physical Education)
+        // and "BSAB" (Bachelor of Science in Agribusiness) — abbreviations
+        // that weren't in COURSE_KEYWORD_PATTERN, so every row using them
+        // was silently dropped (no anchor to find the course/name split on).
+        $text = file_get_contents(__DIR__ . '/../fixtures/bped-bsab-course-ocr-output.txt');
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        $byName = [];
+        foreach ($rows as $row) {
+            $byName[$row['graduate_name']] = $row;
+        }
+
+        $this->assertArrayHasKey('Magbanua, Christine Key P.', $byName);
+        $this->assertSame('BPED', $byName['Magbanua, Christine Key P.']['course']);
+        $this->assertSame('CUM LAUDE', $byName['Magbanua, Christine Key P.']['latin_honor']);
+
+        $this->assertArrayHasKey('Corbo, Lejaen F.', $byName);
+        $this->assertSame('BSAB', $byName['Corbo, Lejaen F.']['course']);
+
+        $this->assertArrayHasKey('Dayandayan, Darwin C.', $byName);
+        $this->assertSame('BSAB', $byName['Dayandayan, Darwin C.']['course']);
+
+        // All 10 BPED rows in the source document must be recovered.
+        $bpedCount = count(array_filter($rows, static fn (array $row): bool => $row['course'] === 'BPED'));
+        $this->assertSame(10, $bpedCount);
+    }
+
+    public function testAdminManagedCourseKeywordIsRecognizedOnceRegistered(): void
+    {
+        // A course abbreviation nobody hardcoded has no anchor to split the
+        // course text from the name on, until an administrator adds it via
+        // the OCR Course Keywords settings page
+        // (includes/ocr_keywords.php -> setExtraCourseKeywords()). Without
+        // that anchor the row still parses (name-first layouts don't require
+        // a course match to find the honor phrase), but "course" comes back
+        // empty and the course text is left stuck inside "graduate_name".
+        $text = "DEGREE/COURSE\n1 SANTOS, JUAN D. BSCRIM CUM LAUDE APRIL 24, 2026\n";
+
+        $withoutKeyword = new \GenericExtractor();
+        $rowsWithout = $this->callParseRows($withoutKeyword, $text);
+        $this->assertCount(1, $rowsWithout);
+        $this->assertSame('', $rowsWithout[0]['course']);
+        $this->assertStringContainsString('BSCRIM', $rowsWithout[0]['graduate_name']);
+
+        $withKeyword = new \GenericExtractor(['BSCRIM']);
+        $rows = $this->callParseRows($withKeyword, $text);
+        $this->assertCount(1, $rows);
+        $this->assertSame('BSCRIM', $rows[0]['course']);
+        $this->assertStringNotContainsString('BSCRIM', $rows[0]['graduate_name']);
+    }
+
+    public function testCustomCourseKeywordIsRegexEscapedNotInterpretedAsAPattern(): void
+    {
+        // A keyword containing a literal "." must match only that literal
+        // character, never "any character" — proof the constructor path
+        // preg_quote()'s admin-supplied keywords before compiling them in.
+        $extractor = new \GenericExtractor(['B.I.T.']);
+
+        $literalMatch = $this->callParseRows($extractor, "1 CRUZ, ANA B. B.I.T. CUM LAUDE APRIL 24, 2026\n");
+        $this->assertSame('B.I.T.', $literalMatch[0]['course']);
+
+        $wouldMatchIfDotWereWildcard = $this->callParseRows($extractor, "1 CRUZ, ANA B. BXITX CUM LAUDE APRIL 24, 2026\n");
+        $this->assertSame('', $wouldMatchIfDotWereWildcard[0]['course']);
+    }
+
+    public function testSetExtraCourseKeywordsNormalizesCaseAndWhitespace(): void
+    {
+        $extractor = new \GenericExtractor();
+        $extractor->setExtraCourseKeywords(['  bscrim  ']);
+
+        $rows = $this->callParseRows($extractor, "1 SANTOS, JUAN D. BSCRIM CUM LAUDE APRIL 24, 2026\n");
+        $this->assertCount(1, $rows);
+        $this->assertSame('BSCRIM', $rows[0]['course']);
+    }
+
     private function callParseRows(\GenericExtractor $extractor, string $text): array
     {
         $reflection = new \ReflectionMethod($extractor, 'parseRows');

@@ -6,6 +6,7 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/uploads.php';
 require_once __DIR__ . '/../includes/extraction_review.php';
 require_once __DIR__ . '/../includes/ocr_tools.php';
+require_once __DIR__ . '/../includes/ocr_keywords.php';
 require_once __DIR__ . '/../extractors/ExtractorInterface.php';
 require_once __DIR__ . '/../extractors/ParsesHonorRows.php';
 require_once __DIR__ . '/../extractors/generic_extractor.php';
@@ -39,7 +40,9 @@ try {
     }
 
     try {
-        $result = (new GenericExtractor())->extract($upload['file_path']);
+        $extraCourseKeywords = array_column(get_ocr_course_keywords($pdo), 'keyword');
+
+        $result = (new GenericExtractor($extraCourseKeywords))->extract($upload['file_path']);
         if ($result['status'] === 'failed') {
             $toolStatus = check_ocr_tools_installed();
             $missingTools = array_keys(array_filter($toolStatus, fn (bool $installed) => !$installed));
@@ -54,7 +57,7 @@ try {
                 exit;
             }
 
-            $result = (new OcrExtractor())->extract($upload['file_path']);
+            $result = (new OcrExtractor($extraCourseKeywords))->extract($upload['file_path']);
         }
     } catch (\Throwable $e) {
         error_log('Extraction failed: ' . $e->getMessage());

@@ -139,8 +139,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function openBackupModal() {
         var submitting = false;
         var bodyHtml =
-            '<div class="space-y-3">' +
-            '<p class="text-sm text-gray-700 dark:text-gray-300">FOR SECURITY, CONFIRM YOUR ADMINISTRATOR CREDENTIALS TO DOWNLOAD A FULL DATABASE BACKUP.</p>' +
+            '<p class="mb-4">FOR SECURITY, CONFIRM YOUR ADMINISTRATOR CREDENTIALS TO DOWNLOAD A FULL DATABASE BACKUP.</p>' +
+            '<div class="text-left space-y-3">' +
             '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">USERNAME</label>' +
             '<input id="modal-backup-username" type="text" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
             '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">PASSWORD</label>' +
@@ -148,13 +148,14 @@ document.addEventListener('DOMContentLoaded', function () {
             '</div>';
 
         showModal({
+            icon: '<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 10-8 0v4h8z" /></svg>',
             title: 'CONFIRM ADMINISTRATOR IDENTITY',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                { label: 'CANCEL', className: 'flex-1 rounded-full border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors' },
                 {
                     label: 'CREATE DB BACKUP',
-                    className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                    className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-accent-600 hover:bg-accent-500 text-white transition-colors',
                     onClick: function (modalClose) {
                         if (submitting) {
                             return;

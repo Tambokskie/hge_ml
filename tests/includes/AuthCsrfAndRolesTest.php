@@ -53,4 +53,39 @@ class AuthCsrfAndRolesTest extends TestCase
     {
         $this->assertNull(current_user());
     }
+
+    public function testHasStepUpIsFalseWithNoGrant(): void
+    {
+        $this->assertFalse(has_step_up('ocr_courses'));
+    }
+
+    public function testGrantStepUpSatisfiesHasStepUpForSamePurpose(): void
+    {
+        grant_step_up('ocr_courses');
+
+        $this->assertTrue(has_step_up('ocr_courses'));
+    }
+
+    public function testHasStepUpRejectsDifferentPurpose(): void
+    {
+        grant_step_up('ocr_courses');
+
+        $this->assertFalse(has_step_up('some_other_purpose'));
+    }
+
+    public function testHasStepUpRejectsExpiredGrant(): void
+    {
+        grant_step_up('ocr_courses', -1);
+
+        $this->assertFalse(has_step_up('ocr_courses'));
+    }
+
+    public function testStepUpDestinationsIncludesOcrCourses(): void
+    {
+        $destinations = step_up_destinations();
+
+        $this->assertArrayHasKey('ocr_courses', $destinations);
+        $this->assertSame('ocr_courses', $destinations['ocr_courses']['purpose']);
+        $this->assertSame('/admin/ocr_courses.php', $destinations['ocr_courses']['path']);
+    }
 }

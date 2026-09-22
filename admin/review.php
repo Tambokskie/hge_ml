@@ -59,7 +59,7 @@ include __DIR__ . '/../includes/sidebar.php';
 <main class="lg:ml-64 min-h-screen bg-gray-50 dark:bg-surface-950">
     <div class="p-6 lg:p-8">
         <h1 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">REVIEW EXTRACTED RECORDS</h1>
-        <p class="text-sm text-gray-600 dark:text-gray-500 mb-6"><?= e_upper($upload['school_name']) ?> — <?= e($upload['school_year']) ?></p>
+        <p class="text-sm text-gray-600 dark:text-gray-500 mb-6"><?= e_upper(format_school_display_name($upload['school_name'], $upload['campus'])) ?> — <?= e($upload['school_year']) ?></p>
 
         <?php if ($upload['extraction_status'] === 'failed'): ?>
             <div class="mb-6 rounded-lg border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 text-sm px-4 py-3">
@@ -111,9 +111,9 @@ include __DIR__ . '/../includes/sidebar.php';
                         data-filename="<?= e($upload['original_filename']) ?>"
                         class="rounded-lg border border-accent-500/40 text-accent-600 dark:text-accent-300 hover:bg-accent-500/10 text-sm font-medium px-4 py-2 transition-colors">VIEW UPLOADED PDF</button>
                 <button type="button" id="save-draft-btn"
-                    class="rounded-lg border border-accent-500/40 text-accent-600 dark:text-accent-300 hover:bg-accent-500/10 text-sm font-medium px-4 py-2 transition-colors">SAVE AS DRAFT</button>
+                    class="rounded-lg border border-orange-500/40 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 text-sm font-medium px-4 py-2 transition-colors">SAVE AS DRAFT</button>
                 <button type="button" id="save-records-btn"
-                    class="rounded-lg border border-accent-500/40 text-accent-600 dark:text-accent-300 hover:bg-accent-500/10 text-sm font-medium px-4 py-2 transition-colors">SAVE RECORDS</button>
+                    class="rounded-lg border border-green-500/40 text-green-600 dark:text-green-400 hover:bg-green-500/10 text-sm font-medium px-4 py-2 transition-colors">SAVE RECORDS</button>
                 <form method="post" class="inline">
                     <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
                     <input type="hidden" name="cancel" value="1">

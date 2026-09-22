@@ -125,3 +125,50 @@ function require_role(string $role): void
         die('YOU DO NOT HAVE PERMISSION TO ACCESS THIS PAGE.');
     }
 }
+
+/**
+ * Sensitive settings pages beyond require_role() (e.g. OCR course keywords)
+ * are gated behind a fresh credential re-check, the same step-up pattern
+ * CLAUDE.md documents for api/backup_database.php — a valid session + role
+ * isn't enough. Destinations are a fixed whitelist, never built from raw
+ * request input, so `next` can't be turned into an open redirect or a way
+ * to name an arbitrary purpose.
+ */
+function step_up_destinations(): array
+{
+    return [
+        'ocr_courses' => ['purpose' => 'ocr_courses', 'path' => '/admin/ocr_courses.php', 'label' => 'OCR COURSE KEYWORDS'],
+    ];
+}
+
+function has_step_up(string $purpose): bool
+{
+    ensure_session();
+    $stepUp = $_SESSION['step_up'] ?? null;
+
+    return is_array($stepUp)
+        && ($stepUp['purpose'] ?? null) === $purpose
+        && ($stepUp['expires_at'] ?? 0) >= time();
+}
+
+function grant_step_up(string $purpose, int $ttlSeconds = 600): void
+{
+    ensure_session();
+    $_SESSION['step_up'] = [
+        'purpose' => $purpose,
+        'expires_at' => time() + $ttlSeconds,
+    ];
+}
+
+/**
+ * Page-load gate: denies direct/bookmarked/typed-URL access to a step-up
+ * protected admin page whenever the session doesn't already hold a valid,
+ * unexpired grant for that exact purpose — redirecting to the credential
+ * check instead of ever rendering the protected page's content.
+ */
+function require_step_up(string $purpose, string $nextKey): void
+{
+    if (!has_step_up($purpose)) {
+        redirect(APP_BASE_URL . '/admin/verify_identity.php?next=' . urlencode($nextKey));
+    }
+}

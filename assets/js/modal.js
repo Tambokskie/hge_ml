@@ -5,20 +5,33 @@ function showModal(config) {
     overlay.className = 'fixed inset-0 z-40 flex items-center justify-center bg-black/60 px-4';
 
     var box = document.createElement('div');
-    box.className = 'w-full max-w-md rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-6';
+    box.className = 'w-full max-w-md rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-6'
+        + (config.icon ? ' text-center' : '');
+
+    if (config.icon) {
+        var iconWrap = document.createElement('div');
+        iconWrap.className = 'mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full '
+            + (config.iconClassName || 'bg-accent-500/10 text-accent-600 dark:text-accent-300');
+        iconWrap.innerHTML = config.icon;
+        box.appendChild(iconWrap);
+    }
 
     var heading = document.createElement('h2');
-    heading.className = 'text-base font-semibold text-gray-900 dark:text-white mb-3';
+    heading.className = config.icon
+        ? 'text-base font-semibold text-gray-900 dark:text-white mb-2'
+        : 'text-base font-semibold text-gray-900 dark:text-white mb-3';
     heading.textContent = config.title;
     box.appendChild(heading);
 
     var body = document.createElement('div');
-    body.className = 'text-sm text-gray-700 dark:text-gray-300 mb-5';
+    body.className = config.icon
+        ? 'text-sm text-gray-600 dark:text-gray-400 mb-6'
+        : 'text-sm text-gray-700 dark:text-gray-300 mb-5';
     body.innerHTML = config.bodyHtml;
     box.appendChild(body);
 
     var buttonRow = document.createElement('div');
-    buttonRow.className = 'flex justify-end gap-2';
+    buttonRow.className = config.icon ? 'flex gap-3' : 'flex justify-end gap-2';
 
     function close() {
         document.removeEventListener('keydown', onKeydown);
