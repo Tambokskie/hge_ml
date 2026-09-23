@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 {
                     label: 'CONFIRM',
-                    className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                    className: 'rounded-lg px-4 py-2 text-sm bg-csc-navy-600 hover:bg-csc-navy-500 text-white',
                     onClick: onConfirm,
                 },
             ],
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
                 {
                     label: 'CREATE',
-                    className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                    className: 'rounded-lg px-4 py-2 text-sm bg-csc-navy-600 hover:bg-csc-navy-500 text-white',
                     onClick: function (modalClose) {
                         var values = {
                             name: document.getElementById('modal-name').value,
@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
                 {
                     label: 'SAVE',
-                    className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                    className: 'rounded-lg px-4 py-2 text-sm bg-csc-navy-600 hover:bg-csc-navy-500 text-white',
                     onClick: function (modalClose) {
                         var values = {
                             schoolId: defaults.schoolId,
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
                 {
                     label: 'CONFIRM',
-                    className: 'rounded-lg px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white',
+                    className: 'rounded-lg px-4 py-2 text-sm bg-csc-red-600 hover:bg-csc-red-500 text-white',
                     onClick: function (modalClose) {
                         if (submitting) {
                             return;

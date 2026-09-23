@@ -11,7 +11,7 @@ function showModal(config) {
     if (config.icon) {
         var iconWrap = document.createElement('div');
         iconWrap.className = 'mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full '
-            + (config.iconClassName || 'bg-accent-500/10 text-accent-600 dark:text-accent-300');
+            + (config.iconClassName || 'bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300');
         iconWrap.innerHTML = config.icon;
         box.appendChild(iconWrap);
     }

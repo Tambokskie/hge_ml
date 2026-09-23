@@ -17,6 +17,17 @@ module.exports = {
           700: 'rgb(var(--color-accent-700) / <alpha-value>)',
           800: 'rgb(var(--color-accent-800) / <alpha-value>)',
         },
+        // CSC brand colors, used for confirmation dialogs/modals and notifications (toasts).
+        'csc-navy': {
+          300: '#8791d1',
+          500: '#3f4aad',
+          600: '#2a338f',
+        },
+        'csc-red': {
+          400: '#f4707d',
+          500: '#f04555',
+          600: '#ec1c2d',
+        },
       },
       keyframes: {
         floatA: {

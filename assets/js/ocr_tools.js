@@ -17,7 +17,7 @@ function promptOcrToolsInstall(options) {
             },
             {
                 label: 'INSTALL',
-                className: 'rounded-lg px-4 py-2 text-sm bg-accent-600 hover:bg-accent-500 text-white',
+                className: 'rounded-lg px-4 py-2 text-sm bg-csc-navy-600 hover:bg-csc-navy-500 text-white',
                 onClick: function (close) {
                     close();
                     installOcrTools(options);

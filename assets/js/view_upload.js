@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 { label: 'CANCEL', className: 'flex-1 rounded-full border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors' },
                 {
                     label: 'RE-EXTRACT',
-                    className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-accent-600 hover:bg-accent-500 text-white transition-colors',
+                    className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-csc-navy-600 hover:bg-csc-navy-500 text-white transition-colors',
                     onClick: function (close) {
                         close();
                         extract();

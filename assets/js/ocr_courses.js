@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
                     {
                         label: 'REMOVE',
-                        className: 'rounded-lg px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white',
+                        className: 'rounded-lg px-4 py-2 text-sm bg-csc-red-600 hover:bg-csc-red-500 text-white',
                         onClick: function (modalClose) {
                             postJson(config.apiBase + '/api/remove_ocr_keyword.php', {
                                 csrf_token: config.csrfToken,

@@ -9,9 +9,9 @@ function showToast(type, message) {
 
     var colors = {
         success: 'border-green-500/30 bg-green-500/10 text-green-400',
-        error: 'border-red-500/30 bg-red-500/10 text-red-400',
+        error: 'border-csc-red-600/30 bg-csc-red-600/10 text-csc-red-400',
         warning: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400',
-        info: 'border-blue-500/30 bg-blue-500/10 text-blue-400',
+        info: 'border-csc-navy-600/30 bg-csc-navy-600/10 text-csc-navy-300',
     };
     var colorClass = colors[type] || colors.info;
 
