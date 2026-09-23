@@ -26,71 +26,259 @@ try {
 $currentUser = current_user();
 $currentPage = 'upload';
 $csrfToken = csrf_token();
+$isAdmin = user_has_role($currentUser, 'administrator');
+
+if ($upload !== null) {
+    $status = $upload['extraction_status'];
+    $statusPill = [
+        'pending' => ['label' => 'PENDING EXTRACTION', 'class' => 'bg-gray-500/15 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400'],
+        'extracted' => ['label' => 'EXTRACTED', 'class' => 'bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300'],
+        'draft' => ['label' => 'DRAFT', 'class' => 'bg-yellow-500/15 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400'],
+        'reviewed' => ['label' => 'REVIEWED', 'class' => 'bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400'],
+        'failed' => ['label' => 'EXTRACTION FAILED', 'class' => 'bg-yellow-500/15 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400'],
+    ][$status] ?? ['label' => e_upper($status), 'class' => 'bg-gray-500/15 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400'];
+
+    $bannerMessage = [
+        'pending' => 'YOUR FILE HAS BEEN UPLOADED AND IS READY FOR EXTRACTION.',
+        'extracted' => 'YOUR FILE HAS BEEN EXTRACTED AND IS READY FOR REVIEW. YOU CAN CONTINUE THE REVIEW OR DOWNLOAD A COPY FOR YOUR RECORDS.',
+        'draft' => 'YOU HAVE A SAVED DRAFT FOR THIS UPLOAD. RESUME THE REVIEW WHEN YOU\'RE READY TO FINISH IT.',
+        'reviewed' => 'THIS UPLOAD HAS BEEN REVIEWED AND ITS RECORDS ARE SAVED TO THE DATABASE.',
+        'failed' => 'TEXT COULD NOT BE RELIABLY EXTRACTED FROM THIS PDF. YOU CAN ADD RECORDS MANUALLY IN THE REVIEW SCREEN.',
+    ][$status] ?? 'YOUR FILE HAS BEEN SUCCESSFULLY UPLOADED.';
+
+    $canManageExtraction = $isAdmin && $status !== 'reviewed';
+    $canRemove = $isAdmin && (int) $upload['records_extracted'] === 0;
+}
 
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
 ?>
 <main class="lg:ml-64 min-h-screen bg-gray-50 dark:bg-surface-950">
-    <div class="p-6 lg:p-8 max-w-2xl">
-        <div class="mb-6 flex items-start gap-4">
-            <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
-                <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+    <div class="p-6 lg:p-8">
+        <div class="max-w-6xl mx-auto">
+            <div class="mb-6 flex items-start gap-4">
+                <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                    <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-csc-navy-600 dark:text-white">UPLOAD DETAILS</h1>
+                    <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">VIEW AND MANAGE YOUR UPLOADED DOCUMENT.</p>
+                </div>
             </div>
-            <h1 class="text-2xl font-bold text-csc-navy-600 dark:text-white">UPLOAD DETAILS</h1>
-        </div>
 
         <?php if ($upload === null): ?>
             <div class="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-6 text-center text-gray-500 dark:text-gray-400 hge-shadow">
                 <p class="text-sm">NO UPLOAD RECORD FOUND.</p>
             </div>
         <?php else: ?>
-            <div class="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-6 space-y-4 hge-shadow">
-                <div>
-                    <p class="text-xs text-gray-600 dark:text-gray-500">SCHOOL</p>
-                    <p class="text-sm text-gray-900 dark:text-white"><?= e_upper(format_school_display_name($upload['school_name'], $upload['campus'])) ?></p>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-600 dark:text-gray-500">SCHOOL YEAR</p>
-                    <p class="text-sm text-gray-900 dark:text-white"><?= e($upload['school_year']) ?></p>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-600 dark:text-gray-500">FILE NAME</p>
-                    <p class="text-sm text-gray-900 dark:text-white"><?= e($upload['original_filename']) ?></p>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-600 dark:text-gray-500">DATE UPLOADED</p>
-                    <p class="text-sm text-gray-900 dark:text-white"><?= e_upper(date('F j, Y', strtotime($upload['uploaded_at']))) ?></p>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-600 dark:text-gray-500">RECORDS</p>
-                    <p class="text-sm text-gray-900 dark:text-white">
-                        <?php if ($upload['extraction_status'] === 'draft'): ?>
-                            <?= (int) $draftRecordCount ?> RECORD(S) IN DRAFT
-                            <span class="ml-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium bg-yellow-500/20 text-yellow-400">NOT AN OFFICIAL RECORD YET</span>
-                        <?php else: ?>
-                            <?= (int) $upload['records_extracted'] ?> RECORDS — <?= e_upper($upload['extraction_status']) ?>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                <div class="lg:col-span-2 bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-6 hge-shadow">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-start gap-3 min-w-0">
+                            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-csc-red-600/10 text-csc-red-600 dark:text-csc-red-400">
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                            </span>
+                            <div class="min-w-0">
+                                <p class="text-base font-bold text-gray-900 dark:text-white break-words"><?= e($upload['original_filename']) ?></p>
+                                <p class="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 mt-1">
+                                    DOCUMENT UPLOADED SUCCESSFULLY
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                </p>
+                            </div>
+                        </div>
+                        <span class="shrink-0 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold <?= $statusPill['class'] ?>"><?= e($statusPill['label']) ?></span>
+                    </div>
+
+                    <div class="my-5 border-t border-gray-100 dark:border-white/10"></div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                        <div class="flex items-start gap-2.5">
+                            <svg class="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-bold tracking-wide text-gray-500 dark:text-gray-500">SCHOOL</p>
+                                <p class="text-sm text-gray-900 dark:text-white truncate"><?= e_upper(format_school_display_name($upload['school_name'], $upload['campus'])) ?></p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2.5">
+                            <svg class="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-bold tracking-wide text-gray-500 dark:text-gray-500">STORED FILE NAME</p>
+                                <p class="text-sm text-gray-900 dark:text-white truncate"><?= e($upload['stored_filename']) ?></p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2.5">
+                            <svg class="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-bold tracking-wide text-gray-500 dark:text-gray-500">SCHOOL YEAR</p>
+                                <p class="text-sm text-gray-900 dark:text-white"><?= e($upload['school_year']) ?></p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2.5">
+                            <svg class="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-bold tracking-wide text-gray-500 dark:text-gray-500">FILE FORMAT</p>
+                                <p class="text-sm text-gray-900 dark:text-white">PDF</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2.5">
+                            <svg class="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-bold tracking-wide text-gray-500 dark:text-gray-500">UPLOADED BY</p>
+                                <p class="text-sm text-gray-900 dark:text-white truncate"><?= $upload['uploaded_by_name'] !== null ? e_upper($upload['uploaded_by_name']) : 'SYSTEM' ?></p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2.5">
+                            <svg class="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375" /></svg>
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-bold tracking-wide text-gray-500 dark:text-gray-500">RECORDS</p>
+                                <p class="text-sm text-gray-900 dark:text-white">
+                                    <?php if ($status === 'draft'): ?>
+                                        <?= (int) $draftRecordCount ?> IN DRAFT
+                                    <?php else: ?>
+                                        <?= (int) $upload['records_extracted'] ?> EXTRACTED
+                                    <?php endif; ?>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2.5">
+                            <svg class="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-bold tracking-wide text-gray-500 dark:text-gray-500">DATE UPLOADED</p>
+                                <p class="text-sm text-gray-900 dark:text-white"><?= e_upper(date('F j, Y', strtotime($upload['uploaded_at']))) ?></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="my-5 border-t border-gray-100 dark:border-white/10"></div>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <?php if ($canManageExtraction): ?>
+                            <?php if ($status === 'pending'): ?>
+                                <button type="button" id="extract-records-btn" data-upload-id="<?= (int) $upload['id'] ?>"
+                                    class="inline-flex items-center gap-1.5 rounded-xl bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-semibold px-4 py-2.5 transition-colors">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                                    EXTRACT RECORDS
+                                </button>
+                            <?php else: ?>
+                                <a href="<?= e(APP_BASE_URL) ?>/admin/review.php?upload_id=<?= (int) $upload['id'] ?>"
+                                    class="inline-flex items-center gap-1.5 rounded-xl bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-semibold px-4 py-2.5 transition-colors">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                                    <?= $status === 'draft' ? 'RESUME DRAFT REVIEW' : 'CONTINUE REVIEW' ?>
+                                </a>
+                                <button type="button" id="extract-records-btn" data-upload-id="<?= (int) $upload['id'] ?>" data-should-confirm="true"
+                                    class="inline-flex items-center gap-1.5 rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-semibold px-4 py-2.5 transition-colors">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                                    RE-EXTRACT RECORDS
+                                </button>
+                            <?php endif; ?>
                         <?php endif; ?>
-                    </p>
-                    <?php if (user_has_role($currentUser, 'administrator') && $upload['extraction_status'] !== 'reviewed'): ?>
-                        <?php if ($upload['extraction_status'] === 'pending'): ?>
-                            <button type="button" id="extract-records-btn" data-upload-id="<?= (int) $upload['id'] ?>"
-                                class="mt-2 inline-block rounded-lg bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-medium px-4 py-2 transition-colors">EXTRACT RECORDS</button>
-                        <?php else: ?>
-                            <a href="<?= e(APP_BASE_URL) ?>/admin/review.php?upload_id=<?= (int) $upload['id'] ?>"
-                                class="mt-2 inline-block rounded-lg bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-medium px-4 py-2 transition-colors"><?= $upload['extraction_status'] === 'draft' ? 'RESUME DRAFT REVIEW' : 'CONTINUE REVIEW' ?></a>
-                            <button type="button" id="extract-records-btn" data-upload-id="<?= (int) $upload['id'] ?>" data-records-extracted="<?= (int) $upload['records_extracted'] ?>"
-                                class="mt-2 ml-2 inline-block rounded-lg border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 text-sm px-4 py-2 transition-colors">RE-EXTRACT RECORDS</button>
-                        <?php endif; ?>
-                    <?php endif; ?>
+                        <a href="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $upload['id'] ?>" download="<?= e($upload['original_filename']) ?>"
+                            class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-white/15 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-semibold px-4 py-2.5 transition-colors">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                            DOWNLOAD PDF
+                        </a>
+                    </div>
+
+                    <button type="button" class="view-pdf-btn mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-csc-navy-600 dark:text-csc-navy-300 hover:underline"
+                            data-pdf-url="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $upload['id'] ?>"
+                            data-filename="<?= e($upload['original_filename']) ?>">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        VIEW DOCUMENT
+                    </button>
                 </div>
-                <button type="button" id="view-pdf-btn"
-                        data-pdf-url="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $upload['id'] ?>"
-                        data-filename="<?= e($upload['original_filename']) ?>"
-                        class="inline-flex items-center gap-2 rounded-lg bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-medium px-4 py-2 transition-colors">VIEW PDF</button>
+
+                <div class="space-y-6">
+                    <div class="rounded-xl border border-csc-navy-500/20 bg-csc-navy-600/5 dark:bg-csc-navy-600/10 p-5">
+                        <div class="flex items-start gap-3">
+                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-csc-navy-600 text-white">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+                            </span>
+                            <div>
+                                <p class="text-sm font-bold text-csc-navy-600 dark:text-csc-navy-300">DOCUMENT UPLOADED!</p>
+                                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1"><?= $bannerMessage ?></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-5 hge-shadow">
+                        <div class="flex items-center gap-2 mb-3">
+                            <svg class="h-5 w-5 text-csc-navy-600 dark:text-csc-navy-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" /></svg>
+                            <h2 class="text-sm font-bold text-csc-navy-600 dark:text-white">QUICK ACTIONS</h2>
+                        </div>
+                        <div class="divide-y divide-gray-100 dark:divide-white/5">
+                            <button type="button" class="view-pdf-btn w-full flex items-center gap-3 py-3 first:pt-0 group text-left"
+                                    data-pdf-url="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $upload['id'] ?>"
+                                    data-filename="<?= e($upload['original_filename']) ?>">
+                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                                </span>
+                                <span class="min-w-0 flex-1">
+                                    <span class="block text-sm font-semibold text-gray-900 dark:text-white">VIEW DOCUMENT</span>
+                                    <span class="block text-xs text-gray-500 dark:text-gray-500">OPEN THE UPLOADED FILE IN A NEW TAB.</span>
+                                </span>
+                                <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-navy-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                            </button>
+
+                            <a href="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $upload['id'] ?>" download="<?= e($upload['original_filename']) ?>" class="flex items-center gap-3 py-3 group">
+                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                                </span>
+                                <span class="min-w-0 flex-1">
+                                    <span class="block text-sm font-semibold text-gray-900 dark:text-white">DOWNLOAD PDF</span>
+                                    <span class="block text-xs text-gray-500 dark:text-gray-500">SAVE A COPY TO YOUR DEVICE.</span>
+                                </span>
+                                <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-navy-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                            </a>
+
+                            <?php if ($canManageExtraction && $status !== 'pending'): ?>
+                                <button type="button" id="quick-reextract-btn" data-upload-id="<?= (int) $upload['id'] ?>" data-should-confirm="true"
+                                        class="w-full flex items-center gap-3 py-3 group text-left">
+                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                                    </span>
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block text-sm font-semibold text-gray-900 dark:text-white">RE-EXTRACT RECORDS</span>
+                                        <span class="block text-xs text-gray-500 dark:text-gray-500">UPDATE EXTRACTED DATA FROM THE FILE.</span>
+                                    </span>
+                                    <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-navy-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                                </button>
+                            <?php endif; ?>
+
+                            <?php if ($canRemove): ?>
+                                <button type="button" id="remove-upload-btn"
+                                        data-upload-id="<?= (int) $upload['id'] ?>"
+                                        data-label="<?= e(format_school_display_name($upload['school_name'], $upload['campus']) . ' (' . $upload['school_year'] . ')') ?>"
+                                        class="w-full flex items-center gap-3 py-3 last:pb-0 group text-left">
+                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-csc-red-600/10 text-csc-red-600 dark:text-csc-red-400">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                                    </span>
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block text-sm font-semibold text-csc-red-600 dark:text-csc-red-400">REMOVE FILE</span>
+                                        <span class="block text-xs text-gray-500 dark:text-gray-500">DELETE THIS UPLOAD (CANNOT BE UNDONE).</span>
+                                    </span>
+                                    <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-red-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 p-5">
+                        <div class="flex items-start gap-3">
+                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" /></svg>
+                            </span>
+                            <div>
+                                <p class="text-sm font-bold text-gray-900 dark:text-white">NEED HELP?</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">IF YOU HAVE ANY ISSUES WITH THIS FILE, PLEASE CONTACT YOUR SYSTEM ADMINISTRATOR.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <?php include __DIR__ . '/../includes/pdf_drawer.php'; ?>
         <?php endif; ?>
+        </div>
     </div>
 </main>
 <?php include __DIR__ . '/../includes/footer.php'; ?>
@@ -98,7 +286,8 @@ include __DIR__ . '/../includes/sidebar.php';
 <script>
 window.HGE_VIEW_UPLOAD = {
     csrfToken: <?= json_encode($csrfToken) ?>,
-    apiBase: <?= json_encode(APP_BASE_URL) ?>
+    apiBase: <?= json_encode(APP_BASE_URL) ?>,
+    dashboardUrl: <?= json_encode(APP_BASE_URL . '/admin/dashboard.php') ?>
 };
 </script>
 <script src="<?= e(asset_url('assets/js/view_upload.js')) ?>"></script>
