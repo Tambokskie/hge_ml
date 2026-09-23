@@ -1,4 +1,4 @@
-<aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 -translate-x-full lg:translate-x-0 transition-transform bg-csc-sidebar dark:bg-surface-900 border-r border-white/10 flex flex-col">
+<aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 -translate-x-full lg:translate-x-0 transition-transform bg-csc-navy-600 dark:bg-surface-900 border-r border-white/10 flex flex-col">
     <div class="px-5 py-5 border-b border-white/10 flex flex-col items-center text-center">
         <img src="<?= e(asset_url('assets/images/csclogo.png')) ?>" alt="Civil Service Commission" class="h-10 w-auto mb-2">
         <p class="text-sm font-semibold tracking-wide text-white">CSC-HGE VERIFY</p>
