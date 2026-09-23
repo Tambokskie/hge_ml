@@ -1,11 +1,11 @@
 document.addEventListener('DOMContentLoaded', function () {
+    var config = window.HGE_VIEW_UPLOAD;
+
     document.querySelectorAll('.view-pdf-btn').forEach(function (viewPdfBtn) {
         viewPdfBtn.addEventListener('click', function () {
-            openPdfDrawer(viewPdfBtn.dataset.pdfUrl, viewPdfBtn.dataset.filename);
+            openPdfDrawer(viewPdfBtn.dataset.pdfUrl, viewPdfBtn.dataset.filename, config && config.pdfDetails);
         });
     });
-
-    var config = window.HGE_VIEW_UPLOAD;
 
     var removeBtn = document.getElementById('remove-upload-btn');
     if (config && removeBtn) {

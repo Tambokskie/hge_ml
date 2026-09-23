@@ -287,7 +287,12 @@ include __DIR__ . '/../includes/sidebar.php';
 window.HGE_VIEW_UPLOAD = {
     csrfToken: <?= json_encode($csrfToken) ?>,
     apiBase: <?= json_encode(APP_BASE_URL) ?>,
-    dashboardUrl: <?= json_encode(APP_BASE_URL . '/admin/dashboard.php') ?>
+    dashboardUrl: <?= json_encode(APP_BASE_URL . '/admin/dashboard.php') ?>,
+    pdfDetails: {
+        school: <?= json_encode(mb_strtoupper(format_school_display_name($upload['school_name'], $upload['campus']))) ?>,
+        schoolYear: <?= json_encode($upload['school_year']) ?>,
+        uploadedAt: <?= json_encode(mb_strtoupper(date('F j, Y', strtotime($upload['uploaded_at'])))) ?>
+    }
 };
 </script>
 <script src="<?= e(asset_url('assets/js/view_upload.js')) ?>"></script>

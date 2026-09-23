@@ -220,7 +220,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     label: 'VIEW SOURCE PDF',
                     className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-csc-navy-600 hover:bg-csc-navy-500 text-white transition-colors',
                     onClick: function () {
-                        openPdfDrawer(config.apiBase + '/api/serve_pdf.php?id=' + encodeURIComponent(data.uploadId), data.filename);
+                        openPdfDrawer(config.apiBase + '/api/serve_pdf.php?id=' + encodeURIComponent(data.uploadId), data.filename, {
+                            school: data.school,
+                            uploadedAt: data.uploadedAt,
+                        });
                     },
                 },
             ],
