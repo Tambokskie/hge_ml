@@ -64,23 +64,23 @@ document.addEventListener('DOMContentLoaded', function () {
         var submitting = false;
         prefill = prefill || { name: '', address: '', campus: '' };
         var bodyHtml =
-            '<div class="space-y-3">' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">SCHOOL NAME</label>' +
-            '<input id="modal-name" type="text" value="' + escapeHtml(prefill.name) + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">ADDRESS</label>' +
-            '<input id="modal-address" type="text" value="' + escapeHtml(prefill.address) + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">CAMPUS (OPTIONAL)</label>' +
-            '<input id="modal-campus" type="text" value="' + escapeHtml(prefill.campus) + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div class="space-y-4">' +
+            modalField({ id: 'modal-name', label: 'SCHOOL NAME', required: true, icon: 'building', value: prefill.name, placeholder: 'Enter school name' }) +
+            modalField({ id: 'modal-address', label: 'ADDRESS', required: true, icon: 'location', value: prefill.address, placeholder: 'Enter school address' }) +
+            modalField({ id: 'modal-campus', label: 'CAMPUS', optional: true, icon: 'building', value: prefill.campus, placeholder: 'Enter campus name (optional)' }) +
             '</div>';
 
         showModal({
+            icon: modalHeaderIcon('building'),
             title: 'CREATE SCHOOL',
+            subtitle: 'Add a school where Latin Honor graduates are recorded.',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                { label: 'CANCEL', className: MODAL_BTN.secondary },
                 {
-                    label: 'CREATE',
-                    className: 'rounded-lg px-4 py-2 text-sm bg-csc-navy-600 hover:bg-csc-navy-500 text-white',
+                    label: 'CREATE SCHOOL',
+                    icon: modalButtonIcon('plus'),
+                    className: MODAL_BTN.primary,
                     onClick: function (modalClose) {
                         var values = {
                             name: document.getElementById('modal-name').value,
@@ -137,28 +137,28 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function openEditModal(defaults) {
         var submitting = false;
-        var bodyHtml =
-            '<div class="space-y-3">' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">SCHOOL NAME</label>' +
-            '<input id="modal-name" type="text" value="' + escapeHtml(defaults.name) + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">ADDRESS</label>' +
-            '<input id="modal-address" type="text" value="' + escapeHtml(defaults.address) + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">CAMPUS (OPTIONAL)</label>' +
-            '<input id="modal-campus" type="text" value="' + escapeHtml(defaults.campus) + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">STATUS</label>' +
-            '<select id="modal-status" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">' +
+        var statusOptionsHtml =
             '<option value="active"' + (defaults.status === 'active' ? ' selected' : '') + '>ACTIVE</option>' +
-            '<option value="disabled"' + (defaults.status === 'disabled' ? ' selected' : '') + '>DISABLED</option></select></div>' +
+            '<option value="disabled"' + (defaults.status === 'disabled' ? ' selected' : '') + '>DISABLED</option>';
+        var bodyHtml =
+            '<div class="space-y-4">' +
+            modalField({ id: 'modal-name', label: 'SCHOOL NAME', required: true, icon: 'building', value: defaults.name }) +
+            modalField({ id: 'modal-address', label: 'ADDRESS', required: true, icon: 'location', value: defaults.address }) +
+            modalField({ id: 'modal-campus', label: 'CAMPUS', optional: true, icon: 'building', value: defaults.campus }) +
+            modalField({ id: 'modal-status', label: 'STATUS', type: 'select', icon: 'tag', optionsHtml: statusOptionsHtml }) +
             '</div>';
 
         showModal({
+            icon: modalHeaderIcon('building'),
             title: 'EDIT SCHOOL',
+            subtitle: 'Update this school’s details.',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                { label: 'CANCEL', className: MODAL_BTN.secondary },
                 {
-                    label: 'SAVE',
-                    className: 'rounded-lg px-4 py-2 text-sm bg-csc-navy-600 hover:bg-csc-navy-500 text-white',
+                    label: 'SAVE CHANGES',
+                    icon: modalButtonIcon('check'),
+                    className: MODAL_BTN.primary,
                     onClick: function (modalClose) {
                         var values = {
                             schoolId: defaults.schoolId,
@@ -222,20 +222,23 @@ document.addEventListener('DOMContentLoaded', function () {
         var submitting = false;
         var displayName = target.campus !== '' ? target.name + '-' + target.campus : target.name;
         var bodyHtml =
-            '<div class="space-y-3">' +
-            '<p class="text-sm text-gray-700 dark:text-gray-300">PERMANENTLY REMOVE <span class="text-gray-900 dark:text-white font-medium">' + escapeHtml(displayName) + '</span>? THIS CANNOT BE UNDONE.</p>' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">ENTER YOUR PASSWORD TO CONFIRM</label>' +
-            '<input id="modal-remove-password" type="password" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div class="space-y-4">' +
+            '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">PERMANENTLY REMOVE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(displayName) + '</span>? THIS CANNOT BE UNDONE.</p>' +
+            modalField({ id: 'modal-remove-password', label: 'ENTER YOUR PASSWORD TO CONFIRM', required: true, type: 'password', icon: 'lock' }) +
             '</div>';
 
         showModal({
+            icon: modalHeaderIcon('trash'),
+            iconClassName: 'bg-csc-red-600/10 text-csc-red-600 dark:text-csc-red-400',
             title: 'REMOVE SCHOOL',
+            subtitle: 'This action permanently deletes the school and cannot be undone.',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                { label: 'CANCEL', className: MODAL_BTN.secondary },
                 {
-                    label: 'CONFIRM',
-                    className: 'rounded-lg px-4 py-2 text-sm bg-csc-red-600 hover:bg-csc-red-500 text-white',
+                    label: 'REMOVE SCHOOL',
+                    icon: modalButtonIcon('trash'),
+                    className: MODAL_BTN.danger,
                     onClick: function (modalClose) {
                         if (submitting) {
                             return;

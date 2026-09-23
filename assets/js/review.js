@@ -64,21 +64,21 @@ document.addEventListener('DOMContentLoaded', function () {
     if (massUpdateDateBtn) {
         massUpdateDateBtn.addEventListener('click', function () {
             var bodyHtml =
-                '<p class="mb-4">THIS SETS THE DATE OF GRADUATION FOR <strong>EVERY RECORD IN THIS TABLE</strong> — NOT JUST THE ONES CURRENTLY FILTERED/VISIBLE.</p>' +
-                '<div class="text-left">' +
-                '<label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">DATE OF GRADUATION</label>' +
-                '<input id="modal-mass-date" type="date" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">' +
+                '<div class="space-y-4">' +
+                modalField({ id: 'modal-mass-date', label: 'DATE OF GRADUATION', required: true, type: 'date', icon: 'calendar' }) +
                 '</div>';
 
             showModal({
-                icon: '<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>',
+                icon: modalHeaderIcon('calendar'),
                 title: 'MASS UPDATE DATE OF GRADUATION',
+                subtitle: 'Sets the date of graduation for every record in this table — not just the ones currently filtered/visible.',
                 bodyHtml: bodyHtml,
                 buttons: [
-                    { label: 'CANCEL', className: 'flex-1 rounded-full border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors' },
+                    { label: 'CANCEL', className: MODAL_BTN.secondary },
                     {
                         label: 'CONFIRM',
-                        className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-csc-navy-600 hover:bg-csc-navy-500 text-white transition-colors',
+                        icon: modalButtonIcon('check'),
+                        className: MODAL_BTN.primary,
                         onClick: function (modalClose) {
                             var date = document.getElementById('modal-mass-date').value;
                             if (!date) {
@@ -118,27 +118,25 @@ document.addEventListener('DOMContentLoaded', function () {
         }).join('');
 
         var bodyHtml =
-            '<div class="space-y-3">' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">GRADUATE NAME</label>' +
-            '<input id="modal-graduate-name" type="text" value="' + escapeHtml(defaults.name || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">DEGREE/COURSE</label>' +
-            '<input id="modal-course" type="text" value="' + escapeHtml(defaults.course || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">LATIN HONOR</label>' +
-            '<select id="modal-latin-honor" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">' + optionsHtml + '</select></div>' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">DATE OF GRADUATION</label>' +
-            '<input id="modal-graduation-date" type="date" value="' + escapeHtml(defaults.date || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
-            '<div><label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">YEAR GRADUATED</label>' +
-            '<input id="modal-graduation-year" type="text" value="' + escapeHtml(defaults.year || '') + '" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm"></div>' +
+            '<div class="space-y-4">' +
+            modalField({ id: 'modal-graduate-name', label: 'GRADUATE NAME', required: true, icon: 'user', value: defaults.name || '' }) +
+            modalField({ id: 'modal-course', label: 'DEGREE/COURSE', icon: 'academic', value: defaults.course || '' }) +
+            modalField({ id: 'modal-latin-honor', label: 'LATIN HONOR', type: 'select', icon: 'tag', optionsHtml: optionsHtml }) +
+            modalField({ id: 'modal-graduation-date', label: 'DATE OF GRADUATION', type: 'date', icon: 'calendar', value: defaults.date || '' }) +
+            modalField({ id: 'modal-graduation-year', label: 'YEAR GRADUATED', icon: 'hash', value: defaults.year || '' }) +
             '</div>';
 
         showModal({
+            icon: modalHeaderIcon(isNew ? 'plus' : 'academic'),
             title: isNew ? 'ADD RECORD' : 'EDIT RECORD',
+            subtitle: isNew ? 'Add a new honor graduate record to this upload.' : 'Update this honor graduate record.',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
+                { label: 'CANCEL', className: MODAL_BTN.secondary },
                 {
                     label: 'SAVE',
-                    className: 'rounded-lg px-4 py-2 text-sm bg-csc-navy-600 hover:bg-csc-navy-500 text-white',
+                    icon: modalButtonIcon('check'),
+                    className: MODAL_BTN.primary,
                     onClick: function (modalClose) {
                         var payload = {
                             csrf_token: config.csrfToken,
