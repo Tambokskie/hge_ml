@@ -33,6 +33,7 @@ module.exports = {
           500: '#f04555',
           600: '#ec1c2d',
         },
+        'csc-sidebar': '#31399a',
       },
       keyframes: {
         floatA: {
