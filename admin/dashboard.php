@@ -24,8 +24,15 @@ include __DIR__ . '/../includes/sidebar.php';
 ?>
 <main class="lg:ml-64 min-h-screen bg-gray-50 dark:bg-surface-950">
     <div class="p-6 lg:p-8">
-        <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-1">WELCOME, <span class="text-csc-navy-600 dark:text-csc-navy-300"><?= e_upper($currentUser['name'] ?? '') ?></span>!</h2>
-        <h1 class="text-2xl font-bold text-csc-navy-600 dark:text-white mb-6">DASHBOARD</h1>
+        <div class="mb-6 flex items-start gap-4">
+            <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-csc-navy-600 dark:text-white">DASHBOARD</h1>
+                <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">WELCOME, <span class="font-semibold text-csc-navy-600 dark:text-csc-navy-300"><?= e_upper($currentUser['name'] ?? '') ?></span>!</p>
+            </div>
+        </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
