@@ -114,6 +114,63 @@ class ExtractionReviewMutationTest extends TestCase
         $this->assertFalse($result['ok']);
     }
 
+    public function testRemoveStagedRowsDeletesMultipleByIndex(): void
+    {
+        start_extraction_review(1, [
+            ['graduate_name' => 'Juan Dela Cruz', 'latin_honor' => 'CUM LAUDE', 'graduation_date' => null, 'graduation_year' => 2026],
+            ['graduate_name' => 'Maria Santos', 'latin_honor' => 'MAGNA CUM LAUDE', 'graduation_date' => null, 'graduation_year' => 2026],
+            ['graduate_name' => 'Pedro Reyes', 'latin_honor' => 'CUM LAUDE', 'graduation_date' => null, 'graduation_year' => 2026],
+        ]);
+
+        $result = remove_staged_rows(1, [0, 2]);
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame(2, $result['removed']);
+        $rows = get_extraction_review(1)['rows'];
+        $this->assertCount(1, $rows);
+        $this->assertSame('Maria Santos', $rows[0]['graduate_name']);
+    }
+
+    public function testRemoveStagedRowsIgnoresUnknownIndexesButRemovesValidOnes(): void
+    {
+        $result = remove_staged_rows(1, [0, 99]);
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame(1, $result['removed']);
+        $rows = get_extraction_review(1)['rows'];
+        $this->assertCount(1, $rows);
+        $this->assertSame('Maria Santos', $rows[0]['graduate_name']);
+    }
+
+    public function testRemoveStagedRowsIgnoresDuplicateIndexes(): void
+    {
+        $result = remove_staged_rows(1, [0, 0, 0]);
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame(1, $result['removed']);
+        $rows = get_extraction_review(1)['rows'];
+        $this->assertCount(1, $rows);
+        $this->assertSame('Maria Santos', $rows[0]['graduate_name']);
+    }
+
+    public function testRemoveStagedRowsFailsWhenNoIndexesAreValid(): void
+    {
+        $result = remove_staged_rows(1, [99, 100]);
+
+        $this->assertFalse($result['ok']);
+        $rows = get_extraction_review(1)['rows'];
+        $this->assertCount(2, $rows);
+    }
+
+    public function testRemoveStagedRowsFailsWithoutActiveReview(): void
+    {
+        clear_extraction_review();
+
+        $result = remove_staged_rows(1, [0]);
+
+        $this->assertFalse($result['ok']);
+    }
+
     public function testMassUpdateStagedGraduationDateSetsDateAndYearOnEveryRow(): void
     {
         $result = mass_update_staged_graduation_date(1, '2026-07-02');

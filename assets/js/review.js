@@ -226,6 +226,72 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    var selectAllCheckbox = document.getElementById('review-select-all');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function () {
+            document.querySelectorAll('.review-row-checkbox').forEach(function (checkbox) {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+        });
+    }
+
+    if (rowsTbody) {
+        rowsTbody.addEventListener('change', function (event) {
+            if (event.target.classList.contains('review-row-checkbox') && !event.target.checked && selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+            }
+        });
+    }
+
+    var multipleDeletionBtn = document.getElementById('multiple-deletion-btn');
+    if (multipleDeletionBtn) {
+        multipleDeletionBtn.addEventListener('click', function () {
+            var checkedBoxes = Array.prototype.slice.call(document.querySelectorAll('.review-row-checkbox:checked'));
+
+            if (checkedBoxes.length === 0) {
+                showToast('error', 'PLEASE SELECT AT LEAST ONE RECORD TO REMOVE.');
+                return;
+            }
+
+            var rowIndexes = checkedBoxes.map(function (checkbox) {
+                return checkbox.dataset.rowIndex;
+            });
+
+            showModal({
+                icon: '<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>',
+                iconClassName: 'bg-csc-red-600/10 text-csc-red-600 dark:text-csc-red-400',
+                title: 'REMOVE ' + rowIndexes.length + ' RECORD(S)?',
+                bodyHtml: '<p>THIS WILL PERMANENTLY REMOVE THE ' + rowIndexes.length + ' SELECTED RECORD(S) FROM THIS REVIEW. THIS CANNOT BE UNDONE.</p>',
+                buttons: [
+                    { label: 'CANCEL', className: 'flex-1 rounded-full border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors' },
+                    {
+                        label: 'REMOVE RECORDS',
+                        className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-csc-red-600 hover:bg-csc-red-500 text-white transition-colors',
+                        onClick: function (close) {
+                            close();
+                            postJson(config.apiBase + '/api/delete_graduates.php', {
+                                csrf_token: config.csrfToken,
+                                upload_id: config.uploadId,
+                                row_indexes: rowIndexes.join(','),
+                            })
+                                .then(function (data) {
+                                    if (data.status === 'success') {
+                                        showToast('success', data.message);
+                                        reload();
+                                    } else {
+                                        showToast('error', data.message);
+                                    }
+                                })
+                                .catch(function () {
+                                    showToast('error', 'THE RECORDS COULD NOT BE REMOVED. PLEASE TRY AGAIN.');
+                                });
+                        },
+                    },
+                ],
+            });
+        });
+    }
+
     var saveBtn = document.getElementById('save-records-btn');
     if (saveBtn) {
         saveBtn.addEventListener('click', function () {

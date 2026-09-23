@@ -123,6 +123,8 @@ include __DIR__ . '/../includes/sidebar.php';
                     class="rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-medium px-4 py-2.5 transition-colors">ADD RECORD</button>
                 <button type="button" id="mass-update-date-btn"
                     class="rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-medium px-4 py-2.5 transition-colors">MASS UPDATE DATE</button>
+                <button type="button" id="multiple-deletion-btn"
+                    class="rounded-xl border border-csc-red-500/40 text-csc-red-600 dark:text-csc-red-400 hover:bg-csc-red-500/10 text-sm font-medium px-4 py-2.5 transition-colors">MULTIPLE DELETION</button>
                 <button type="button" id="view-pdf-btn"
                         data-pdf-url="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $uploadId ?>"
                         data-filename="<?= e($upload['original_filename']) ?>"
@@ -144,6 +146,10 @@ include __DIR__ . '/../includes/sidebar.php';
             <table class="w-full text-sm text-left">
                 <thead>
                     <tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">
+                        <th class="px-4 py-3 w-10">
+                            <input type="checkbox" id="review-select-all" aria-label="Select all records"
+                                class="h-4 w-4 rounded border-gray-300 dark:border-white/20 text-csc-navy-600 focus:ring-csc-navy-500/40">
+                        </th>
                         <th class="px-4 py-3">NO.</th>
                         <th class="px-4 py-3">GRADUATE NAME</th>
                         <th class="px-4 py-3">DEGREE/COURSE</th>
@@ -156,13 +162,17 @@ include __DIR__ . '/../includes/sidebar.php';
                 </thead>
                 <tbody id="review-rows-tbody">
                     <?php if (empty($rows)): ?>
-                        <tr><td colspan="8" class="px-4 py-6 text-center text-gray-600 dark:text-gray-500">NO RECORDS YET. CLICK ADD RECORD ABOVE.</td></tr>
+                        <tr><td colspan="9" class="px-4 py-6 text-center text-gray-600 dark:text-gray-500">NO RECORDS YET. CLICK ADD RECORD ABOVE.</td></tr>
                     <?php else: ?>
                         <?php foreach ($rows as $index => $row): ?>
                             <?php $status = staged_row_status($row); ?>
                             <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5"
                                 data-filter-name="<?= e(mb_strtoupper($row['graduate_name'])) ?>"
                                 data-filter-course="<?= e($row['course'] ?? '') ?>">
+                                <td class="px-4 py-3">
+                                    <input type="checkbox" class="review-row-checkbox h-4 w-4 rounded border-gray-300 dark:border-white/20 text-csc-navy-600 focus:ring-csc-navy-500/40"
+                                        data-row-index="<?= $index ?>" aria-label="Select record">
+                                </td>
                                 <td class="px-4 py-3"><?= $index + 1 ?></td>
                                 <td class="px-4 py-3"><?= e_upper($row['graduate_name']) ?></td>
                                 <td class="px-4 py-3"><?= ($row['course'] ?? '') !== '' ? e_upper($row['course']) : '—' ?></td>

@@ -116,6 +116,34 @@ function remove_staged_row(int $uploadId, int $rowIndex): array
 }
 
 /**
+ * @param int[] $rowIndexes
+ */
+function remove_staged_rows(int $uploadId, array $rowIndexes): array
+{
+    $review = get_extraction_review($uploadId);
+    if ($review === null) {
+        return ['ok' => false, 'error' => 'NO ACTIVE REVIEW SESSION FOR THIS UPLOAD.'];
+    }
+
+    $rows = $review['rows'];
+    $validIndexes = array_filter(
+        array_unique(array_map('intval', $rowIndexes)),
+        static fn (int $index): bool => array_key_exists($index, $rows)
+    );
+
+    if (empty($validIndexes)) {
+        return ['ok' => false, 'error' => 'NO VALID RECORDS WERE SELECTED.'];
+    }
+
+    foreach ($validIndexes as $index) {
+        unset($rows[$index]);
+    }
+    $_SESSION['extraction_review']['rows'] = array_values($rows);
+
+    return ['ok' => true, 'removed' => count($validIndexes)];
+}
+
+/**
  * Sets the date of graduation (and the year derived from it) on every
  * staged row at once — for when a PDF's list never had a date column at
  * all, so every row would otherwise need the same date typed in by hand.
