@@ -272,4 +272,24 @@ document.addEventListener('DOMContentLoaded', function () {
         event.preventDefault();
         submitForm(null);
     });
+
+    var schoolsSearch = document.getElementById('uploaded-schools-search');
+    var schoolsList = document.getElementById('uploaded-schools-list');
+    var schoolsEmpty = document.getElementById('uploaded-schools-empty');
+    if (schoolsSearch && schoolsList) {
+        schoolsSearch.addEventListener('input', function () {
+            var query = schoolsSearch.value.trim().toUpperCase();
+            var visibleCount = 0;
+            schoolsList.querySelectorAll('.uploaded-school-item').forEach(function (item) {
+                var visible = query === '' || item.dataset.search.indexOf(query) !== -1;
+                item.classList.toggle('hidden', !visible);
+                if (visible) {
+                    visibleCount++;
+                }
+            });
+            if (schoolsEmpty) {
+                schoolsEmpty.classList.toggle('hidden', visibleCount !== 0);
+            }
+        });
+    }
 });
