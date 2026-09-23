@@ -215,7 +215,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '</div>';
 
         showModal({
-            icon: modalHeaderIcon('academic'),
+            icon: modalHeaderIcon('pen'),
             title: 'EDIT HONOR GRADUATE RECORD',
             subtitle: 'Update this honor graduate’s saved record.',
             bodyHtml: bodyHtml,
