@@ -71,8 +71,22 @@ document.addEventListener('DOMContentLoaded', function () {
         return pairs.join('&');
     }
 
+    function updateRecordsFoundPill(totalRows) {
+        var pill = document.getElementById('lookup-records-found');
+        if (!pill) {
+            return;
+        }
+        if (totalRows === null) {
+            pill.classList.add('hidden');
+            return;
+        }
+        pill.textContent = totalRows + ' RECORD' + (totalRows === 1 ? '' : 'S') + ' FOUND';
+        pill.classList.remove('hidden');
+    }
+
     function renderResults(data) {
         if (!data.has_filters) {
+            updateRecordsFoundPill(null);
             resultsContainer.innerHTML =
                 '<div class="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-10 text-center text-gray-500 dark:text-gray-400">' +
                 '<p class="text-sm">SEARCH BY NAME, SCHOOL, OR YEAR TO FIND HONOR GRADUATE RECORDS.</p></div>';
@@ -80,11 +94,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (data.rows.length === 0) {
+            updateRecordsFoundPill(0);
             resultsContainer.innerHTML =
                 '<div class="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-10 text-center text-gray-500 dark:text-gray-400">' +
                 '<p class="text-sm font-medium text-gray-700 dark:text-gray-300">NO HONOR GRADUATE RECORD FOUND.</p></div>';
             return;
         }
+
+        updateRecordsFoundPill(data.pagination.total_rows);
 
         var rowsHtml = data.rows.map(function (row) {
             var displayDate = formatDisplayDate(row.graduation_date);
@@ -92,27 +109,28 @@ document.addEventListener('DOMContentLoaded', function () {
             var displayApplicationDate = formatDisplayDate(row.application_date);
             var courseDisplay = row.course ? escapeHtml(String(row.course).toUpperCase()) : '—';
             var editBtnHtml = config.isAdmin
-                ? '<button type="button" class="edit-graduate-btn text-yellow-600 dark:text-yellow-400 hover:underline ml-3" ' +
+                ? '<button type="button" class="edit-graduate-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5" title="Edit record" ' +
                   'data-id="' + escapeHtml(String(row.id)) + '" ' +
                   'data-name="' + escapeHtml(row.graduate_name) + '" ' +
                   'data-course="' + escapeHtml(row.course || '') + '" ' +
                   'data-honor="' + escapeHtml(row.latin_honor) + '" ' +
                   'data-date="' + escapeHtml(row.graduation_date || '') + '" ' +
-                  'data-year="' + escapeHtml(String(row.graduation_year)) + '">EDIT</button>'
+                  'data-year="' + escapeHtml(String(row.graduation_year)) + '">' + actionIcon('pen') + '</button>'
                 : '';
             var applyBtnHtml = parseInt(row.has_applied, 10) === 1
-                ? '<span class="inline-block rounded px-1.5 py-0.5 text-[10px] font-medium bg-blue-500/20 text-blue-600 dark:text-blue-400 ml-3">APPLIED</span>'
-                : '<button type="button" class="apply-graduate-btn text-blue-600 dark:text-blue-400 hover:underline ml-3" ' +
+                ? ''
+                : '<button type="button" class="apply-graduate-btn rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5" title="Mark as applied" ' +
                   'data-id="' + escapeHtml(String(row.id)) + '" ' +
-                  'data-name="' + escapeHtml(row.graduate_name) + '">APPLIED</button>';
+                  'data-name="' + escapeHtml(row.graduate_name) + '">' + actionIcon('check') + '</button>';
             return '<tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">' +
                 '<td class="px-4 py-3">' + escapeHtml(String(row.graduate_name).toUpperCase()) + '</td>' +
                 '<td class="px-4 py-3">' + courseDisplay + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(formatSchoolDisplayName(row.school_name, row.campus).toUpperCase()) + '</td>' +
-                '<td class="px-4 py-3">' + escapeHtml(row.latin_honor) + '</td>' +
+                '<td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + honorPillClass(row.latin_honor) + '">' + escapeHtml(row.latin_honor) + '</span></td>' +
                 '<td class="px-4 py-3">' + escapeHtml(String(row.graduation_year)) + '</td>' +
-                '<td class="px-4 py-3 whitespace-nowrap">' +
-                '<button type="button" class="view-graduate-btn text-green-600 dark:text-green-400 hover:underline" ' +
+                '<td class="px-4 py-3">' + escapeHtml(displayApplicationDate) + '</td>' +
+                '<td class="px-4 py-3"><div class="flex items-center justify-end gap-1.5">' +
+                '<button type="button" class="view-graduate-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5" title="View record" ' +
                 'data-name="' + escapeHtml(row.graduate_name) + '" ' +
                 'data-course="' + escapeHtml(row.course || '') + '" ' +
                 'data-school="' + escapeHtml(formatSchoolDisplayName(row.school_name, row.campus)) + '" ' +
@@ -121,28 +139,39 @@ document.addEventListener('DOMContentLoaded', function () {
                 'data-year="' + escapeHtml(String(row.graduation_year)) + '" ' +
                 'data-upload-id="' + escapeHtml(String(row.upload_id)) + '" ' +
                 'data-filename="' + escapeHtml(row.original_filename) + '" ' +
-                'data-uploaded-at="' + escapeHtml(displayUploadedAt) + '">VIEW</button>' +
+                'data-uploaded-at="' + escapeHtml(displayUploadedAt) + '">' + actionIcon('eye') + '</button>' +
                 applyBtnHtml +
                 editBtnHtml +
-                '</td>' +
-                '<td class="px-4 py-3">' + escapeHtml(displayApplicationDate) + '</td>' +
+                '</div></td>' +
                 '</tr>';
         }).join('');
 
         var pagination = data.pagination;
+        var rangeStart = pagination.total_rows === 0 ? 0 : pagination.offset + 1;
+        var rangeEnd = Math.min(pagination.offset + pagination.per_page, pagination.total_rows);
+        var pageButtonsHtml =
+            (pagination.page > 1
+                ? '<button type="button" class="lookup-page-btn rounded-lg border border-gray-200 dark:border-white/10 p-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="' + (pagination.page - 1) + '" aria-label="Previous page">' + actionIcon('chevronLeft') + '</button>'
+                : '') +
+            paginationWindow(pagination.page, pagination.total_pages).map(function (pageNum) {
+                var isCurrent = pageNum === pagination.page;
+                return '<button type="button" class="lookup-page-btn min-w-[2.25rem] rounded-lg px-2.5 py-1.5 text-sm font-medium ' +
+                    (isCurrent ? 'bg-csc-navy-600 text-white' : 'border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5') +
+                    '" data-page="' + pageNum + '">' + pageNum + '</button>';
+            }).join('') +
+            (pagination.page < pagination.total_pages
+                ? '<button type="button" class="lookup-page-btn rounded-lg border border-gray-200 dark:border-white/10 p-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="' + (pagination.page + 1) + '" aria-label="Next page">' + actionIcon('chevronRight') + '</button>'
+                : '');
         var paginationHtml =
-            '<div id="lookup-pagination" class="flex items-center justify-between mt-4 text-sm text-gray-500 dark:text-gray-400">' +
-            '<span>PAGE ' + pagination.page + ' OF ' + pagination.total_pages + ' (' + pagination.total_rows + ' RECORDS)</span>' +
-            '<div class="flex gap-2">' +
-            (pagination.page > 1 ? '<button type="button" class="lookup-page-btn rounded-lg border border-gray-200 dark:border-white/10 px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="' + (pagination.page - 1) + '">PREV</button>' : '') +
-            (pagination.page < pagination.total_pages ? '<button type="button" class="lookup-page-btn rounded-lg border border-gray-200 dark:border-white/10 px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="' + (pagination.page + 1) + '">NEXT</button>' : '') +
-            '</div></div>';
+            '<div id="lookup-pagination" class="flex flex-wrap items-center justify-between gap-3 mt-4 text-sm text-gray-500 dark:text-gray-400">' +
+            '<span>SHOWING ' + rangeStart + ' TO ' + rangeEnd + ' OF ' + pagination.total_rows + ' ENTRIES</span>' +
+            '<div class="flex items-center gap-1.5">' + pageButtonsHtml + '</div></div>';
 
         resultsContainer.innerHTML =
             '<div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto"><table class="w-full text-sm text-left">' +
             '<thead><tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">' +
             '<th class="px-4 py-3">GRADUATE NAME</th><th class="px-4 py-3">DEGREE/COURSE</th><th class="px-4 py-3">SCHOOL</th><th class="px-4 py-3">LATIN HONOR</th>' +
-            '<th class="px-4 py-3">GRADUATION YEAR</th><th class="px-4 py-3">ACTION</th><th class="px-4 py-3">APPLIED</th></tr></thead>' +
+            '<th class="px-4 py-3">GRADUATION YEAR</th><th class="px-4 py-3">APPLIED</th><th class="px-4 py-3 text-right">ACTION</th></tr></thead>' +
             '<tbody id="lookup-results-tbody">' + rowsHtml + '</tbody></table></div>' + paginationHtml;
     }
 
@@ -475,6 +504,16 @@ document.addEventListener('DOMContentLoaded', function () {
         event.preventDefault();
         performSearch(currentParams(1), true);
     });
+
+    var clearFiltersBtn = document.getElementById('lookup-clear-filters-btn');
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', function () {
+            document.getElementById('filter-school').value = '';
+            document.getElementById('filter-year').value = '';
+            document.getElementById('filter-name').value = '';
+            performSearch(currentParams(1), true);
+        });
+    }
 
     var bulkUpdateDateBtn = document.getElementById('bulk-update-date-btn');
     if (bulkUpdateDateBtn) {

@@ -31,6 +31,22 @@ function format_school_display_name(string $schoolName, ?string $campus = null):
 }
 
 /**
+ * Tailwind classes for a Latin Honor pill badge, color-coded by tier
+ * (mirrored in assets/js/lookup.js's honorPillClass() for the AJAX-rendered table).
+ */
+function latin_honor_pill_class(string $honor): string
+{
+    switch (strtoupper(trim($honor))) {
+        case 'SUMMA CUM LAUDE':
+            return 'bg-amber-500/15 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400';
+        case 'MAGNA CUM LAUDE':
+            return 'bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300';
+        default:
+            return 'bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400';
+    }
+}
+
+/**
  * Visual urgency tier for a still-pending (0 extracted records) upload,
  * based on how many whole days it's been sitting unprocessed: nothing for
  * under 3 days, a light-orange highlight for 3-6 days, and a pulsing
@@ -92,6 +108,23 @@ function paginate(int $totalRows, int $page, int $perPage = 25): array
         'total_rows' => $totalRows,
         'offset' => $offset,
     ];
+}
+
+/**
+ * Up to 5 page numbers to render as pagination pills, centered on the
+ * current page and clamped to the valid [1, totalPages] range (mirrored
+ * in assets/js/lookup.js's paginationWindow() for the AJAX-rendered table).
+ */
+function lookup_pagination_window(int $page, int $totalPages, int $windowSize = 5): array
+{
+    if ($totalPages <= $windowSize) {
+        return range(1, $totalPages);
+    }
+
+    $half = (int) floor($windowSize / 2);
+    $start = max(1, min($page - $half, $totalPages - $windowSize + 1));
+
+    return range($start, $start + $windowSize - 1);
 }
 
 function redirect(string $path): void
@@ -216,7 +249,7 @@ function create_or_update_admin(PDO $pdo, string $username, string $email, strin
 function sidebar_nav_class(string $currentPage, string $navPage): string
 {
     if ($currentPage === $navPage) {
-        return 'bg-accent-600/20 text-accent-600 dark:text-accent-300 border-l-2 border-accent-500 transition-all duration-200 ease-out active:scale-[0.98]';
+        return 'bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300 border-l-2 border-csc-navy-600 transition-all duration-200 ease-out active:scale-[0.98]';
     }
 
     return 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white hover:translate-x-0.5 border-l-2 border-transparent transition-all duration-200 ease-out active:scale-[0.98]';

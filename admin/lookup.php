@@ -53,38 +53,72 @@ include __DIR__ . '/../includes/sidebar.php';
 ?>
 <main class="lg:ml-64 min-h-screen bg-gray-50 dark:bg-surface-950">
     <div class="p-6 lg:p-8">
-        <h1 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">HONOR GRADUATE LOOK-UP</h1>
-        <p class="text-sm text-gray-600 dark:text-gray-500 mb-6">SEARCH BY SCHOOL, GRADUATION YEAR, OR GRADUATE NAME TO VERIFY A HONOR GRADUATE RECORD.</p>
+        <div class="mb-6 flex items-start gap-4">
+            <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607Z" /></svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-csc-navy-600 dark:text-white">HONOR GRADUATE LOOK-UP</h1>
+                <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">SEARCH BY SCHOOL, GRADUATION YEAR, OR GRADUATE NAME TO VERIFY A HONOR GRADUATE RECORD.</p>
+            </div>
+        </div>
 
         <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow">
             <form id="lookup-filter-form" method="get" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
-                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">SCHOOL</label>
-                    <select name="school_id" id="filter-school" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">
-                        <option value="">ALL SCHOOLS</option>
-                        <?php foreach ($schools as $school): ?>
-                            <option value="<?= (int) $school['id'] ?>" <?= $schoolId === (int) $school['id'] ? 'selected' : '' ?>><?= e_upper(format_school_display_name($school['school_name'], $school['campus'])) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <label class="mb-1.5 block text-xs font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">SCHOOL</label>
+                    <div class="relative">
+                        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400 dark:text-gray-500">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
+                        </span>
+                        <select name="school_id" id="filter-school" class="w-full rounded-xl bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-white/10 pl-10 pr-3 py-2.5 text-sm focus:border-csc-navy-500 focus:ring-2 focus:ring-csc-navy-500/20 focus:outline-none">
+                            <option value="">ALL SCHOOLS</option>
+                            <?php foreach ($schools as $school): ?>
+                                <option value="<?= (int) $school['id'] ?>" <?= $schoolId === (int) $school['id'] ? 'selected' : '' ?>><?= e_upper(format_school_display_name($school['school_name'], $school['campus'])) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">GRADUATION YEAR</label>
-                    <select name="year" id="filter-year" class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm">
-                        <option value="">ALL YEARS</option>
-                        <?php foreach ($years as $y): ?>
-                            <option value="<?= (int) $y ?>" <?= $year === (int) $y ? 'selected' : '' ?>><?= (int) $y ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <label class="mb-1.5 block text-xs font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">GRADUATION YEAR</label>
+                    <div class="relative">
+                        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400 dark:text-gray-500">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+                        </span>
+                        <select name="year" id="filter-year" class="w-full rounded-xl bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-white/10 pl-10 pr-3 py-2.5 text-sm focus:border-csc-navy-500 focus:ring-2 focus:ring-csc-navy-500/20 focus:outline-none">
+                            <option value="">ALL YEARS</option>
+                            <?php foreach ($years as $y): ?>
+                                <option value="<?= (int) $y ?>" <?= $year === (int) $y ? 'selected' : '' ?>><?= (int) $y ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
                 <div class="sm:col-span-2">
-                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">GRADUATE NAME</label>
-                    <input type="text" name="name" id="filter-name" value="<?= e($name) ?>" placeholder="SEARCH BY NAME..." class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm uppercase placeholder:text-gray-400 dark:placeholder:text-gray-600">
+                    <label class="mb-1.5 block text-xs font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">GRADUATE NAME</label>
+                    <div class="relative">
+                        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400 dark:text-gray-500">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+                        </span>
+                        <input type="text" name="name" id="filter-name" value="<?= e($name) ?>" placeholder="SEARCH BY NAME..." class="w-full rounded-xl bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-white/10 pl-10 pr-3 py-2.5 text-sm uppercase placeholder:text-gray-400 placeholder:normal-case dark:placeholder:text-gray-600 focus:border-csc-navy-500 focus:ring-2 focus:ring-csc-navy-500/20 focus:outline-none">
+                    </div>
                 </div>
                 <div class="sm:col-span-4 flex flex-wrap items-center justify-between gap-3">
-                    <button type="submit" class="rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium px-4 py-2">SEARCH</button>
-                    <?php if ($isAdmin): ?>
-                    <button type="button" id="bulk-update-date-btn" class="rounded-lg border border-accent-500/40 text-accent-600 dark:text-accent-300 hover:bg-accent-500/10 text-sm font-medium px-4 py-2">UPDATE GRADUATION DATE</button>
-                    <?php endif; ?>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="submit" class="inline-flex items-center gap-1.5 rounded-xl bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-semibold px-4 py-2.5 transition-colors">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607Z" /></svg>
+                            SEARCH
+                        </button>
+                        <button type="button" id="lookup-clear-filters-btn" class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-white/15 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium px-4 py-2.5 transition-colors">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                            CLEAR FILTERS
+                        </button>
+                        <?php if ($isAdmin): ?>
+                        <button type="button" id="bulk-update-date-btn" class="inline-flex items-center gap-1.5 rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-medium px-4 py-2.5 transition-colors">UPDATE GRADUATION DATE</button>
+                        <?php endif; ?>
+                    </div>
+                    <span id="lookup-records-found" class="inline-flex items-center rounded-full bg-gray-100 dark:bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400 <?= (!$hasFilters || $searchFailed) ? 'hidden' : '' ?>">
+                        <?= (int) ($searchResult['pagination']['total_rows'] ?? 0) ?> RECORD<?= (int) ($searchResult['pagination']['total_rows'] ?? 0) === 1 ? '' : 'S' ?> FOUND
+                    </span>
                 </div>
             </form>
         </div>
@@ -112,8 +146,8 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <th class="px-4 py-3">SCHOOL</th>
                                 <th class="px-4 py-3">LATIN HONOR</th>
                                 <th class="px-4 py-3">GRADUATION YEAR</th>
-                                <th class="px-4 py-3">ACTION</th>
                                 <th class="px-4 py-3">APPLIED</th>
+                                <th class="px-4 py-3 text-right">ACTION</th>
                             </tr>
                         </thead>
                         <tbody id="lookup-results-tbody">
@@ -122,50 +156,70 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <td class="px-4 py-3"><?= e_upper($row['graduate_name']) ?></td>
                                     <td class="px-4 py-3"><?= ($row['course'] ?? '') !== '' ? e_upper($row['course']) : '—' ?></td>
                                     <td class="px-4 py-3"><?= e_upper(format_school_display_name($row['school_name'], $row['campus'])) ?></td>
-                                    <td class="px-4 py-3"><?= e($row['latin_honor']) ?></td>
-                                    <td class="px-4 py-3"><?= e((string) $row['graduation_year']) ?></td>
-                                    <td class="px-4 py-3 whitespace-nowrap">
-                                        <button type="button" class="view-graduate-btn text-green-600 dark:text-green-400 hover:underline"
-                                            data-name="<?= e($row['graduate_name']) ?>"
-                                            data-course="<?= e($row['course'] ?? '') ?>"
-                                            data-school="<?= e(format_school_display_name($row['school_name'], $row['campus'])) ?>"
-                                            data-honor="<?= e($row['latin_honor']) ?>"
-                                            data-date="<?= e(format_date_display($row['graduation_date'])) ?>"
-                                            data-year="<?= e((string) $row['graduation_year']) ?>"
-                                            data-upload-id="<?= (int) $row['upload_id'] ?>"
-                                            data-filename="<?= e($row['original_filename']) ?>"
-                                            data-uploaded-at="<?= e_upper(date('F j, Y', strtotime($row['uploaded_at']))) ?>">VIEW</button>
-                                        <?php if ((int) $row['has_applied'] === 1): ?>
-                                        <span class="inline-block rounded px-1.5 py-0.5 text-[10px] font-medium bg-blue-500/20 text-blue-600 dark:text-blue-400 ml-3">APPLIED</span>
-                                        <?php else: ?>
-                                        <button type="button" class="apply-graduate-btn text-blue-600 dark:text-blue-400 hover:underline ml-3"
-                                            data-id="<?= (int) $row['id'] ?>"
-                                            data-name="<?= e($row['graduate_name']) ?>">APPLIED</button>
-                                        <?php endif; ?>
-                                        <?php if ($isAdmin): ?>
-                                        <button type="button" class="edit-graduate-btn text-yellow-600 dark:text-yellow-400 hover:underline ml-3"
-                                            data-id="<?= (int) $row['id'] ?>"
-                                            data-name="<?= e($row['graduate_name']) ?>"
-                                            data-course="<?= e($row['course'] ?? '') ?>"
-                                            data-honor="<?= e($row['latin_honor']) ?>"
-                                            data-date="<?= e((string) $row['graduation_date']) ?>"
-                                            data-year="<?= e((string) $row['graduation_year']) ?>">EDIT</button>
-                                        <?php endif; ?>
+                                    <td class="px-4 py-3">
+                                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold <?= latin_honor_pill_class($row['latin_honor']) ?>"><?= e($row['latin_honor']) ?></span>
                                     </td>
+                                    <td class="px-4 py-3"><?= e((string) $row['graduation_year']) ?></td>
                                     <td class="px-4 py-3"><?= e(format_date_display($row['application_date'] ?? null)) ?></td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center justify-end gap-1.5">
+                                            <button type="button" class="view-graduate-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5" title="View record"
+                                                data-name="<?= e($row['graduate_name']) ?>"
+                                                data-course="<?= e($row['course'] ?? '') ?>"
+                                                data-school="<?= e(format_school_display_name($row['school_name'], $row['campus'])) ?>"
+                                                data-honor="<?= e($row['latin_honor']) ?>"
+                                                data-date="<?= e(format_date_display($row['graduation_date'])) ?>"
+                                                data-year="<?= e((string) $row['graduation_year']) ?>"
+                                                data-upload-id="<?= (int) $row['upload_id'] ?>"
+                                                data-filename="<?= e($row['original_filename']) ?>"
+                                                data-uploaded-at="<?= e_upper(date('F j, Y', strtotime($row['uploaded_at']))) ?>">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                            </button>
+                                            <?php if ((int) $row['has_applied'] !== 1): ?>
+                                            <button type="button" class="apply-graduate-btn rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5" title="Mark as applied"
+                                                data-id="<?= (int) $row['id'] ?>"
+                                                data-name="<?= e($row['graduate_name']) ?>">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                            </button>
+                                            <?php endif; ?>
+                                            <?php if ($isAdmin): ?>
+                                            <button type="button" class="edit-graduate-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5" title="Edit record"
+                                                data-id="<?= (int) $row['id'] ?>"
+                                                data-name="<?= e($row['graduate_name']) ?>"
+                                                data-course="<?= e($row['course'] ?? '') ?>"
+                                                data-honor="<?= e($row['latin_honor']) ?>"
+                                                data-date="<?= e((string) $row['graduation_date']) ?>"
+                                                data-year="<?= e((string) $row['graduation_year']) ?>">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
+                                            </button>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
-                <div id="lookup-pagination" class="flex items-center justify-between mt-4 text-sm text-gray-500 dark:text-gray-400">
-                    <span>PAGE <?= (int) $searchResult['pagination']['page'] ?> OF <?= (int) $searchResult['pagination']['total_pages'] ?> (<?= (int) $searchResult['pagination']['total_rows'] ?> RECORDS)</span>
-                    <div class="flex gap-2">
-                        <?php if ($searchResult['pagination']['page'] > 1): ?>
-                            <button type="button" class="lookup-page-btn rounded-lg border border-gray-200 dark:border-white/10 px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="<?= (int) $searchResult['pagination']['page'] - 1 ?>">PREV</button>
+                <?php
+                    $pageInfo = $searchResult['pagination'];
+                    $rangeStart = $pageInfo['total_rows'] === 0 ? 0 : $pageInfo['offset'] + 1;
+                    $rangeEnd = min($pageInfo['offset'] + $pageInfo['per_page'], $pageInfo['total_rows']);
+                ?>
+                <div id="lookup-pagination" class="flex flex-wrap items-center justify-between gap-3 mt-4 text-sm text-gray-500 dark:text-gray-400">
+                    <span>SHOWING <?= (int) $rangeStart ?> TO <?= (int) $rangeEnd ?> OF <?= (int) $pageInfo['total_rows'] ?> ENTRIES</span>
+                    <div class="flex items-center gap-1.5">
+                        <?php if ($pageInfo['page'] > 1): ?>
+                            <button type="button" class="lookup-page-btn rounded-lg border border-gray-200 dark:border-white/10 p-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="<?= (int) $pageInfo['page'] - 1 ?>" aria-label="Previous page">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                            </button>
                         <?php endif; ?>
-                        <?php if ($searchResult['pagination']['page'] < $searchResult['pagination']['total_pages']): ?>
-                            <button type="button" class="lookup-page-btn rounded-lg border border-gray-200 dark:border-white/10 px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="<?= (int) $searchResult['pagination']['page'] + 1 ?>">NEXT</button>
+                        <?php foreach (lookup_pagination_window($pageInfo['page'], $pageInfo['total_pages']) as $pageNum): ?>
+                            <button type="button" class="lookup-page-btn min-w-[2.25rem] rounded-lg px-2.5 py-1.5 text-sm font-medium <?= $pageNum === $pageInfo['page'] ? 'bg-csc-navy-600 text-white' : 'border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5' ?>" data-page="<?= (int) $pageNum ?>"><?= (int) $pageNum ?></button>
+                        <?php endforeach; ?>
+                        <?php if ($pageInfo['page'] < $pageInfo['total_pages']): ?>
+                            <button type="button" class="lookup-page-btn rounded-lg border border-gray-200 dark:border-white/10 p-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="<?= (int) $pageInfo['page'] + 1 ?>" aria-label="Next page">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                            </button>
                         <?php endif; ?>
                     </div>
                 </div>
