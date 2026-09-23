@@ -32,7 +32,12 @@ include __DIR__ . '/../includes/sidebar.php';
 ?>
 <main class="lg:ml-64 min-h-screen bg-gray-50 dark:bg-surface-950">
     <div class="p-6 lg:p-8 max-w-2xl">
-        <h1 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">UPLOAD DETAILS</h1>
+        <div class="mb-6 flex items-start gap-4">
+            <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+            </div>
+            <h1 class="text-2xl font-bold text-csc-navy-600 dark:text-white">UPLOAD DETAILS</h1>
+        </div>
 
         <?php if ($upload === null): ?>
             <div class="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-6 text-center text-gray-500 dark:text-gray-400 hge-shadow">
@@ -69,10 +74,10 @@ include __DIR__ . '/../includes/sidebar.php';
                     <?php if (user_has_role($currentUser, 'administrator') && $upload['extraction_status'] !== 'reviewed'): ?>
                         <?php if ($upload['extraction_status'] === 'pending'): ?>
                             <button type="button" id="extract-records-btn" data-upload-id="<?= (int) $upload['id'] ?>"
-                                class="mt-2 inline-block rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium px-4 py-2 transition-colors">EXTRACT RECORDS</button>
+                                class="mt-2 inline-block rounded-lg bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-medium px-4 py-2 transition-colors">EXTRACT RECORDS</button>
                         <?php else: ?>
                             <a href="<?= e(APP_BASE_URL) ?>/admin/review.php?upload_id=<?= (int) $upload['id'] ?>"
-                                class="mt-2 inline-block rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium px-4 py-2 transition-colors"><?= $upload['extraction_status'] === 'draft' ? 'RESUME DRAFT REVIEW' : 'CONTINUE REVIEW' ?></a>
+                                class="mt-2 inline-block rounded-lg bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-medium px-4 py-2 transition-colors"><?= $upload['extraction_status'] === 'draft' ? 'RESUME DRAFT REVIEW' : 'CONTINUE REVIEW' ?></a>
                             <button type="button" id="extract-records-btn" data-upload-id="<?= (int) $upload['id'] ?>" data-records-extracted="<?= (int) $upload['records_extracted'] ?>"
                                 class="mt-2 ml-2 inline-block rounded-lg border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 text-sm px-4 py-2 transition-colors">RE-EXTRACT RECORDS</button>
                         <?php endif; ?>
@@ -81,7 +86,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 <button type="button" id="view-pdf-btn"
                         data-pdf-url="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $upload['id'] ?>"
                         data-filename="<?= e($upload['original_filename']) ?>"
-                        class="inline-flex items-center gap-2 rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium px-4 py-2 transition-colors">VIEW PDF</button>
+                        class="inline-flex items-center gap-2 rounded-lg bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-medium px-4 py-2 transition-colors">VIEW PDF</button>
             </div>
 
             <?php include __DIR__ . '/../includes/pdf_drawer.php'; ?>

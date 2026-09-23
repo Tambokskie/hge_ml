@@ -64,17 +64,29 @@ document.addEventListener('DOMContentLoaded', function () {
         }).join('');
 
         var pagination = data.pagination;
+        var rangeStart = pagination.total_rows === 0 ? 0 : pagination.offset + 1;
+        var rangeEnd = Math.min(pagination.offset + pagination.per_page, pagination.total_rows);
+        var pageButtonsHtml =
+            (pagination.page > 1
+                ? '<button type="button" class="activity-page-btn rounded-lg border border-gray-200 dark:border-white/10 p-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="' + (pagination.page - 1) + '" aria-label="Previous page">' + actionIcon('chevronLeft') + '</button>'
+                : '') +
+            paginationWindow(pagination.page, pagination.total_pages).map(function (pageNum) {
+                var isCurrent = pageNum === pagination.page;
+                return '<button type="button" class="activity-page-btn min-w-[2.25rem] rounded-lg px-2.5 py-1.5 text-sm font-medium ' +
+                    (isCurrent ? 'bg-csc-navy-600 text-white' : 'border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5') +
+                    '" data-page="' + pageNum + '">' + pageNum + '</button>';
+            }).join('') +
+            (pagination.page < pagination.total_pages
+                ? '<button type="button" class="activity-page-btn rounded-lg border border-gray-200 dark:border-white/10 p-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="' + (pagination.page + 1) + '" aria-label="Next page">' + actionIcon('chevronRight') + '</button>'
+                : '');
         var paginationHtml =
-            '<div id="activity-pagination" class="flex items-center justify-between mt-4 text-sm text-gray-500 dark:text-gray-400">' +
-            '<span>PAGE ' + pagination.page + ' OF ' + pagination.total_pages + ' (' + pagination.total_rows + ' ENTRIES)</span>' +
-            '<div class="flex gap-2">' +
-            (pagination.page > 1 ? '<button type="button" class="activity-page-btn rounded-lg border border-gray-200 dark:border-white/10 px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="' + (pagination.page - 1) + '">PREV</button>' : '') +
-            (pagination.page < pagination.total_pages ? '<button type="button" class="activity-page-btn rounded-lg border border-gray-200 dark:border-white/10 px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="' + (pagination.page + 1) + '">NEXT</button>' : '') +
-            '</div></div>';
+            '<div id="activity-pagination" class="flex flex-wrap items-center justify-between gap-3 mt-4 text-sm text-gray-500 dark:text-gray-400">' +
+            '<span>SHOWING ' + rangeStart + ' TO ' + rangeEnd + ' OF ' + pagination.total_rows + ' ENTRIES</span>' +
+            '<div class="flex items-center gap-1.5">' + pageButtonsHtml + '</div></div>';
 
         resultsContainer.innerHTML =
             '<div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto"><table class="w-full text-sm text-left">' +
-            '<thead><tr class="text-xs text-gray-600 dark:text-gray-500 border-b border-gray-200 dark:border-white/10">' +
+            '<thead><tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">' +
             '<th class="px-4 py-3">TIMESTAMP</th><th class="px-4 py-3">USER</th><th class="px-4 py-3">ACTION</th><th class="px-4 py-3">DETAILS</th></tr></thead>' +
             '<tbody id="activity-results-tbody">' + rowsHtml + '</tbody></table></div>' + paginationHtml;
     }

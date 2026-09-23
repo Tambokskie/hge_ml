@@ -21,7 +21,12 @@ include __DIR__ . '/../includes/sidebar.php';
     <div class="p-6 lg:p-8">
         <div class="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             <div class="lg:col-span-2 bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-6 sm:p-8 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
-                <h1 class="text-xl font-semibold text-accent-700 dark:text-accent-400 mb-6 text-center">UPLOAD LATIN HONOR LIST</h1>
+                <div class="flex flex-col items-center text-center mb-6">
+                    <div class="flex h-14 w-14 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300 mb-3">
+                        <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 8.25 12 3.75m0 0L7.5 8.25M12 3.75v12" /></svg>
+                    </div>
+                    <h1 class="text-xl font-bold text-csc-navy-600 dark:text-white">UPLOAD LATIN HONOR LIST</h1>
+                </div>
 
                 <form id="upload-form" action="<?= e(APP_BASE_URL) ?>/api/upload_pdf.php" data-view-upload-url="<?= e(APP_BASE_URL) ?>/admin/view_upload.php" data-extract-url="<?= e(APP_BASE_URL) ?>/api/extract_pdf.php" method="post" enctype="multipart/form-data" class="space-y-5">
                     <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
@@ -30,7 +35,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1" for="school_id">SCHOOL NAME</label>
                         <div class="flex items-center gap-2">
                             <select id="school_id" name="school_id" required
-                                   class="flex-1 min-w-0 rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-accent-500">
+                                   class="flex-1 min-w-0 rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-csc-navy-500">
                                 <option value="" disabled selected>SELECT A SCHOOL</option>
                                 <?php foreach ($activeSchools as $school): ?>
                                     <option value="<?= (int) $school['id'] ?>"><?= e_upper(format_school_display_name($school['school_name'], $school['campus'])) ?></option>
@@ -44,13 +49,13 @@ include __DIR__ . '/../includes/sidebar.php';
                         <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1" for="school_year">SCHOOL YEAR</label>
                         <input type="text" id="school_year" name="school_year" required placeholder="e.g. 2025"
                                inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"
-                               class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-accent-500">
+                               class="w-full rounded-lg bg-gray-100 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm focus:outline-none focus:border-csc-navy-500">
                         <p class="text-xs italic text-gray-400 dark:text-gray-600 mt-1">Only numbers are accepted in the SCHOOL YEAR field</p>
                     </div>
 
                     <div>
                         <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">PDF FILE</label>
-                        <div id="dropzone" class="cursor-pointer rounded-xl border-2 border-dashed border-gray-300 dark:border-white/15 px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400 hover:border-accent-500 transition-colors">
+                        <div id="dropzone" class="cursor-pointer rounded-xl border-2 border-dashed border-gray-300 dark:border-white/15 px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400 hover:border-csc-navy-500 transition-colors">
                             <p>DRAG &amp; DROP PDF HERE</p>
                             <p class="text-xs mt-1">OR CLICK TO BROWSE</p>
                             <p class="text-xs text-gray-400 dark:text-gray-600 mt-2">PDF ONLY, UP TO 20 MB</p>
@@ -59,22 +64,22 @@ include __DIR__ . '/../includes/sidebar.php';
                         <p id="file-info" class="text-xs text-gray-500 dark:text-gray-400 mt-2"></p>
                     </div>
 
-                    <button type="submit" id="upload-submit-btn" class="w-full rounded-lg bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">UPLOAD</button>
+                    <button type="submit" id="upload-submit-btn" class="w-full rounded-lg bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-medium py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">UPLOAD</button>
                 </form>
 
-                <div id="upload-progress" class="hidden mt-4 rounded-lg border border-accent-500/30 bg-accent-500/10 px-4 py-3">
+                <div id="upload-progress" class="hidden mt-4 rounded-lg border border-csc-navy-500/30 bg-csc-navy-500/10 px-4 py-3">
                     <div class="flex items-center justify-between gap-3 mb-2">
-                        <span id="upload-progress-label" class="text-sm text-accent-600 dark:text-accent-300"></span>
-                        <span id="upload-progress-percent" class="hidden shrink-0 text-xs font-semibold tabular-nums text-accent-600 dark:text-accent-300"></span>
+                        <span id="upload-progress-label" class="text-sm text-csc-navy-600 dark:text-csc-navy-300"></span>
+                        <span id="upload-progress-percent" class="hidden shrink-0 text-xs font-semibold tabular-nums text-csc-navy-600 dark:text-csc-navy-300"></span>
                     </div>
-                    <div class="relative h-2 w-full overflow-hidden rounded-full bg-accent-500/20">
-                        <div id="upload-progress-bar" class="absolute inset-y-0 left-0 h-full rounded-full bg-accent-600 transition-[width] duration-300 ease-out" style="width: 0%"></div>
+                    <div class="relative h-2 w-full overflow-hidden rounded-full bg-csc-navy-500/20">
+                        <div id="upload-progress-bar" class="absolute inset-y-0 left-0 h-full rounded-full bg-csc-navy-600 transition-[width] duration-300 ease-out" style="width: 0%"></div>
                     </div>
                 </div>
             </div>
 
             <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-6 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
-                <h2 class="text-sm font-semibold text-accent-700 dark:text-accent-400 mb-4 text-center">SCHOOLS UPLOADED</h2>
+                <h2 class="text-sm font-semibold text-csc-navy-600 dark:text-csc-navy-300 mb-4 text-center">SCHOOLS UPLOADED</h2>
                 <?php if (empty($uploadedSchools)): ?>
                     <p class="text-sm text-gray-600 dark:text-gray-500 text-center py-6">NO SCHOOLS UPLOADED YET.</p>
                 <?php else: ?>
