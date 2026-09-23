@@ -84,9 +84,11 @@ function get_upload_by_id(PDO $pdo, int $id): ?array
 {
     $stmt = $pdo->prepare(
         'SELECT u.id, u.school_id, u.school_year, u.original_filename, u.stored_filename, u.file_path,
-                u.file_size, u.uploaded_at, u.extraction_status, u.records_extracted, s.school_name, s.campus
+                u.file_size, u.uploaded_at, u.extraction_status, u.records_extracted, s.school_name, s.campus,
+                usr.name AS uploaded_by_name
          FROM latin_honor_uploads u
          JOIN schools s ON s.id = u.school_id
+         LEFT JOIN users usr ON usr.id = u.uploaded_by
          WHERE u.id = :id
          LIMIT 1'
     );
