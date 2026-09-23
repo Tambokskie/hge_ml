@@ -1,4 +1,59 @@
-function openPdfDrawer(url, filename) {
+function pdfDrawerDetailRow(icon, label, value) {
+    return '<div class="flex items-start gap-2.5">'
+        + '<svg class="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">' + (ICON_PATHS[icon] || '') + '</svg>'
+        + '<div class="min-w-0">'
+        + '<p class="text-[11px] font-bold tracking-wide text-gray-500 dark:text-gray-500">' + escapeHtml(label) + '</p>'
+        + '<p class="text-sm text-gray-900 dark:text-white break-words">' + escapeHtml(value) + '</p>'
+        + '</div></div>';
+}
+
+function renderPdfDrawerDetails(filename, details) {
+    var fields = document.getElementById('pdf-drawer-details-fields');
+    if (!fields) {
+        return;
+    }
+
+    details = details || {};
+    var rows = '';
+    rows += pdfDrawerDetailRow('document', 'FILE NAME', filename || 'PDF PREVIEW');
+    if (details.school) {
+        rows += pdfDrawerDetailRow('building', 'SCHOOL', details.school);
+    }
+    if (details.schoolYear) {
+        rows += pdfDrawerDetailRow('calendar', 'SCHOOL YEAR', details.schoolYear);
+    }
+    if (details.uploadedAt) {
+        rows += pdfDrawerDetailRow('calendar', 'DATE UPLOADED', details.uploadedAt);
+    }
+    rows += pdfDrawerDetailRow('tag', 'FILE FORMAT', 'PDF');
+
+    fields.innerHTML = rows;
+}
+
+function setPdfDrawerTab(tab) {
+    var tabs = document.querySelectorAll('.pdf-drawer-tab');
+    var previewPanel = document.getElementById('pdf-drawer-panel-preview');
+    var detailsPanel = document.getElementById('pdf-drawer-panel-details');
+
+    tabs.forEach(function (btn) {
+        var isActive = btn.dataset.pdfDrawerTab === tab;
+        btn.classList.toggle('border-csc-navy-600', isActive);
+        btn.classList.toggle('text-csc-navy-600', isActive);
+        btn.classList.toggle('dark:text-csc-navy-300', isActive);
+        btn.classList.toggle('border-transparent', !isActive);
+        btn.classList.toggle('text-gray-500', !isActive);
+        btn.classList.toggle('dark:text-gray-400', !isActive);
+    });
+
+    if (previewPanel) {
+        previewPanel.classList.toggle('hidden', tab !== 'preview');
+    }
+    if (detailsPanel) {
+        detailsPanel.classList.toggle('hidden', tab !== 'details');
+    }
+}
+
+function openPdfDrawer(url, filename, details) {
     var drawer = document.getElementById('pdf-drawer');
     var overlay = document.getElementById('pdf-drawer-overlay');
     var frame = document.getElementById('pdf-drawer-frame');
@@ -21,6 +76,9 @@ function openPdfDrawer(url, filename) {
     if (loading) {
         loading.classList.remove('hidden');
     }
+
+    renderPdfDrawerDetails(filename, details);
+    setPdfDrawerTab('preview');
 
     frame.src = url;
 
@@ -79,6 +137,12 @@ document.addEventListener('DOMContentLoaded', function () {
     if (closeBtn) {
         closeBtn.addEventListener('click', closePdfDrawer);
     }
+
+    document.querySelectorAll('.pdf-drawer-tab').forEach(function (tabBtn) {
+        tabBtn.addEventListener('click', function () {
+            setPdfDrawerTab(tabBtn.dataset.pdfDrawerTab);
+        });
+    });
 
     frame.addEventListener('load', function () {
         if (!drawer.classList.contains('translate-x-full')) {

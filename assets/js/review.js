@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var viewPdfBtn = document.getElementById('view-pdf-btn');
     if (viewPdfBtn) {
         viewPdfBtn.addEventListener('click', function () {
-            openPdfDrawer(viewPdfBtn.dataset.pdfUrl, viewPdfBtn.dataset.filename);
+            openPdfDrawer(viewPdfBtn.dataset.pdfUrl, viewPdfBtn.dataset.filename, config.pdfDetails);
         });
     }
 
