@@ -115,7 +115,7 @@ function paginate(int $totalRows, int $page, int $perPage = 25): array
  * current page and clamped to the valid [1, totalPages] range (mirrored
  * in assets/js/lookup.js's paginationWindow() for the AJAX-rendered table).
  */
-function lookup_pagination_window(int $page, int $totalPages, int $windowSize = 5): array
+function pagination_window(int $page, int $totalPages, int $windowSize = 5): array
 {
     if ($totalPages <= $windowSize) {
         return range(1, $totalPages);
@@ -248,11 +248,15 @@ function create_or_update_admin(PDO $pdo, string $username, string $email, strin
 
 function sidebar_nav_class(string $currentPage, string $navPage): string
 {
+    // The sidebar itself is CSC navy in light mode and dark surface in dark mode (see
+    // includes/sidebar.php), so the active/inactive treatments below are deliberately
+    // NOT mirror images of each other: light mode needs light-on-navy contrast, while
+    // dark mode keeps its original navy-accent-on-dark-surface look.
     if ($currentPage === $navPage) {
-        return 'bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300 border-l-2 border-csc-navy-600 transition-all duration-200 ease-out active:scale-[0.98]';
+        return 'bg-white text-csc-navy-600 dark:bg-csc-navy-600/10 dark:text-csc-navy-300 border-l-2 border-white dark:border-csc-navy-600 transition-all duration-200 ease-out active:scale-[0.98]';
     }
 
-    return 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white hover:translate-x-0.5 border-l-2 border-transparent transition-all duration-200 ease-out active:scale-[0.98]';
+    return 'text-white/70 dark:text-gray-400 hover:bg-white/10 dark:hover:bg-white/5 hover:text-white dark:hover:text-white hover:translate-x-0.5 border-l-2 border-transparent transition-all duration-200 ease-out active:scale-[0.98]';
 }
 
 function get_distinct_graduation_years(PDO $pdo): array

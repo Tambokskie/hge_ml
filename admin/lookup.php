@@ -213,7 +213,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
                             </button>
                         <?php endif; ?>
-                        <?php foreach (lookup_pagination_window($pageInfo['page'], $pageInfo['total_pages']) as $pageNum): ?>
+                        <?php foreach (pagination_window($pageInfo['page'], $pageInfo['total_pages']) as $pageNum): ?>
                             <button type="button" class="lookup-page-btn min-w-[2.25rem] rounded-lg px-2.5 py-1.5 text-sm font-medium <?= $pageNum === $pageInfo['page'] ? 'bg-csc-navy-600 text-white' : 'border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5' ?>" data-page="<?= (int) $pageNum ?>"><?= (int) $pageNum ?></button>
                         <?php endforeach; ?>
                         <?php if ($pageInfo['page'] < $pageInfo['total_pages']): ?>

@@ -5,7 +5,12 @@ module.exports = {
     extend: {
       colors: {
         surface: {
-          950: '#0b0b0f',
+          // 950 is the page/body canvas (main content only - the sidebar is pinned to
+          // 900 regardless of theme, see includes/sidebar.php). Lightened from #0b0b0f
+          // so dark-mode pages read as a soft charcoal rather than near-black; cards
+          // and inputs (900/800) are unchanged and stay visually distinct via their
+          // existing border/shadow treatment.
+          950: '#17171d',
           900: '#121218',
           800: '#1a1a22',
         },

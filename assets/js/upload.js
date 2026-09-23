@@ -101,16 +101,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
     dropzone.addEventListener('dragover', function (event) {
         event.preventDefault();
-        dropzone.classList.add('border-accent-500');
+        dropzone.classList.add('border-csc-navy-500');
     });
 
     dropzone.addEventListener('dragleave', function () {
-        dropzone.classList.remove('border-accent-500');
+        dropzone.classList.remove('border-csc-navy-500');
     });
 
     dropzone.addEventListener('drop', function (event) {
         event.preventDefault();
-        dropzone.classList.remove('border-accent-500');
+        dropzone.classList.remove('border-csc-navy-500');
         if (event.dataTransfer.files.length > 0) {
             fileInput.files = event.dataTransfer.files;
             showFileInfo(fileInput.files[0]);

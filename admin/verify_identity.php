@@ -23,10 +23,10 @@ include __DIR__ . '/../includes/sidebar.php';
 ?>
 <main class="lg:ml-64 min-h-screen bg-gray-50 dark:bg-surface-950 flex items-center justify-center p-6">
     <div class="w-full max-w-md rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-6 sm:p-8 text-center hge-shadow">
-        <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-accent-500/10 text-accent-600 dark:text-accent-300">
+        <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
             <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 10-8 0v4h8z" /></svg>
         </div>
-        <h1 class="text-base font-semibold text-gray-900 dark:text-white mb-2">CONFIRM ADMINISTRATOR IDENTITY</h1>
+        <h1 class="text-base font-semibold text-csc-navy-600 dark:text-white mb-2">CONFIRM ADMINISTRATOR IDENTITY</h1>
         <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">FOR SECURITY, CONFIRM YOUR ADMINISTRATOR CREDENTIALS TO CONTINUE TO <?= e_upper($destination['label']) ?>.</p>
 
         <form id="verify-identity-form" class="text-left space-y-3">
@@ -47,7 +47,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 <a href="<?= e(APP_BASE_URL) ?>/admin/dashboard.php"
                     class="flex-1 text-center rounded-full border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">CANCEL</a>
                 <button type="submit" id="verify-submit-btn"
-                    class="flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-accent-600 hover:bg-accent-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">VERIFY IDENTITY</button>
+                    class="flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-csc-navy-600 hover:bg-csc-navy-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">VERIFY IDENTITY</button>
             </div>
         </form>
     </div>
