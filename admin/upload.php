@@ -19,15 +19,19 @@ include __DIR__ . '/../includes/sidebar.php';
 ?>
 <main class="lg:ml-64 min-h-screen bg-gray-50 dark:bg-surface-950">
     <div class="p-6 lg:p-8">
-        <div class="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            <div class="lg:col-span-2 bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-6 sm:p-8 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
-                <div class="flex flex-col items-center text-center mb-6">
-                    <div class="flex h-14 w-14 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300 mb-3">
-                        <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 8.25 12 3.75m0 0L7.5 8.25M12 3.75v12" /></svg>
-                    </div>
-                    <h1 class="text-xl font-bold text-csc-navy-600 dark:text-white">UPLOAD LATIN HONOR LIST</h1>
+        <div class="max-w-5xl mx-auto">
+            <div class="mb-6 flex items-start gap-4">
+                <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                    <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 8.25 12 3.75m0 0L7.5 8.25M12 3.75v12" /></svg>
                 </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-csc-navy-600 dark:text-white">UPLOAD LATIN HONOR LIST</h1>
+                    <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">UPLOAD A SCHOOL'S LATIN HONOR LIST PDF TO EXTRACT AND REVIEW GRADUATE RECORDS.</p>
+                </div>
+            </div>
 
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <div class="lg:col-span-2 bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-6 sm:p-8 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
                 <form id="upload-form" action="<?= e(APP_BASE_URL) ?>/api/upload_pdf.php" data-view-upload-url="<?= e(APP_BASE_URL) ?>/admin/view_upload.php" data-extract-url="<?= e(APP_BASE_URL) ?>/api/extract_pdf.php" method="post" enctype="multipart/form-data" class="space-y-5">
                     <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
 
@@ -93,6 +97,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     </ul>
                 <?php endif; ?>
             </div>
+        </div>
         </div>
     </div>
 </main>
