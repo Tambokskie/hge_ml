@@ -155,13 +155,13 @@ include __DIR__ . '/../includes/sidebar.php';
                 <?php else: ?>
                     <table class="w-full text-sm text-left">
                         <thead>
-                            <tr class="text-xs text-gray-600 dark:text-gray-500 border-b border-gray-200 dark:border-white/10">
+                            <tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">
                                 <th class="px-4 py-3">SCHOOL</th>
                                 <th class="px-4 py-3">YEAR</th>
                                 <th class="px-4 py-3">RECORDS EXTRACTED</th>
                                 <th class="px-4 py-3">DATE UPLOADED</th>
                                 <th class="px-4 py-3">FILE NAME</th>
-                                <th class="px-4 py-3">ACTION</th>
+                                <th class="px-4 py-3 text-right">ACTION</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -172,14 +172,20 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <td class="px-4 py-3"><?= (int) $upload['records_extracted'] ?> RECORDS</td>
                                     <td class="px-4 py-3"><?= e_upper(date('F j, Y', strtotime($upload['uploaded_at']))) ?></td>
                                     <td class="px-4 py-3"><?= e($upload['original_filename']) ?></td>
-                                    <td class="px-4 py-3 whitespace-nowrap">
-                                        <a href="<?= e(APP_BASE_URL) ?>/admin/view_upload.php?id=<?= (int) $upload['id'] ?>" class="text-csc-navy-600 dark:text-csc-navy-300 hover:underline">VIEW</a>
-                                        <?php if ($isAdmin && (int) $upload['records_extracted'] === 0): ?>
-                                        <button type="button" class="delete-upload-btn text-red-600 dark:text-red-400 hover:underline ml-3"
-                                            data-upload-id="<?= (int) $upload['id'] ?>"
-                                            data-school="<?= e(format_school_display_name($upload['school_name'], $upload['campus'])) ?>"
-                                            data-year="<?= e($upload['school_year']) ?>">DELETE</button>
-                                        <?php endif; ?>
+                                    <td class="px-4 py-3 text-right">
+                                        <div class="flex items-center justify-end gap-1.5">
+                                            <a href="<?= e(APP_BASE_URL) ?>/admin/view_upload.php?id=<?= (int) $upload['id'] ?>" class="rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5" title="View upload">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                            </a>
+                                            <?php if ($isAdmin && (int) $upload['records_extracted'] === 0): ?>
+                                            <button type="button" class="delete-upload-btn rounded-lg bg-csc-red-600/10 hover:bg-csc-red-600/20 text-csc-red-600 dark:text-csc-red-400 p-1.5" title="Delete upload"
+                                                data-upload-id="<?= (int) $upload['id'] ?>"
+                                                data-school="<?= e(format_school_display_name($upload['school_name'], $upload['campus'])) ?>"
+                                                data-year="<?= e($upload['school_year']) ?>">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                                            </button>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

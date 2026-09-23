@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         resultsContainer.innerHTML =
             '<div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto"><table class="w-full text-sm text-left">' +
-            '<thead><tr class="text-xs text-gray-600 dark:text-gray-500 border-b border-gray-200 dark:border-white/10">' +
+            '<thead><tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">' +
             '<th class="px-4 py-3">TIMESTAMP</th><th class="px-4 py-3">USER</th><th class="px-4 py-3">ACTION</th><th class="px-4 py-3">DETAILS</th></tr></thead>' +
             '<tbody id="activity-results-tbody">' + rowsHtml + '</tbody></table></div>' + paginationHtml;
     }
