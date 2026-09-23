@@ -26,14 +26,13 @@ module.exports = {
         'csc-navy': {
           300: '#8791d1',
           500: '#3f4aad',
-          600: '#2a338f',
+          600: '#31399a',
         },
         'csc-red': {
           400: '#f4707d',
           500: '#f04555',
           600: '#ec1c2d',
         },
-        'csc-sidebar': '#31399a',
       },
       keyframes: {
         floatA: {
