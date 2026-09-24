@@ -80,7 +80,8 @@ trait ParsesHonorRows
     protected function parseRows(string $text): array
     {
         $hasGwaColumn = (bool) preg_match('/\bGWA\b|\bGPA\b/i', $text);
-        $lines = $this->mergeSplitHonorLines(preg_split('/\r\n|\r|\n/', $text));
+        $lines = $this->mergeOrphanedHonorFragmentLines(preg_split('/\r\n|\r|\n/', $text));
+        $lines = $this->mergeSplitHonorLines($lines);
 
         $rows = [];
         foreach ($lines as $line) {
@@ -148,6 +149,57 @@ trait ParsesHonorRows
         }
 
         return $merged;
+    }
+
+    /**
+     * The other direction of the same OCR failure mergeSplitHonorLines()
+     * fixes: instead of a row line ending mid-phrase and the next line
+     * completing it, the honor phrase's opening words land completely
+     * alone on their own orphaned line (typically because the table cell
+     * rendered the tier name — "MAGNA CUM" — on its own visual row), with
+     * one or more genuinely blank OCR lines before the row's actual
+     * content ("1 LAUDE GERALDEZ, CRISTIAN JACA BSIT 1.15") resumes. Ties
+     * these back together by scanning forward past any blank lines for a
+     * line containing "LAUDE" that doesn't already have a complete honor
+     * of its own. Up to ~20 trailing characters of noise on the fragment
+     * line itself (e.g. "MAGNA CUM the fw") are tolerated and discarded —
+     * only the recognized "(SUMMA/MAGNA) CUM" prefix is kept — but a
+     * fragment that already contains "LAUDE" is left alone, since it isn't
+     * actually orphaned.
+     */
+    private function mergeOrphanedHonorFragmentLines(array $lines): array
+    {
+        $count = count($lines);
+        $consumed = array_fill(0, $count, false);
+        $merged = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            if ($consumed[$i]) {
+                continue;
+            }
+
+            $trimmed = trim($lines[$i]);
+            if (preg_match('/^((?:SUMMA|MAGNA)\s+CUM|CUM)\b.{0,20}$/i', $trimmed, $fragmentMatch) === 1
+                && stripos($trimmed, 'LAUDE') === false
+            ) {
+                $j = $i + 1;
+                while ($j < $count && trim($lines[$j]) === '') {
+                    $j++;
+                }
+
+                if ($j < $count && preg_match('/\bLAUDE\b/i', $lines[$j]) === 1 && $this->matchHonor($lines[$j]) === null) {
+                    $merged[] = $fragmentMatch[1] . ' ' . ltrim($lines[$j]);
+                    for ($k = $i + 1; $k <= $j; $k++) {
+                        $consumed[$k] = true;
+                    }
+                    continue;
+                }
+            }
+
+            $merged[] = $lines[$i];
+        }
+
+        return array_values($merged);
     }
 
     /**
@@ -347,13 +399,23 @@ trait ParsesHonorRows
      * of the name, so it's stripped. Everything after the honor is the
      * course, up to wherever the date starts (so the date text itself
      * doesn't get glued onto the end of the course string).
+     *
+     * The text before the honor is only trusted as a name when it has at
+     * least two words — every real name in these lists is "SURNAME GIVEN
+     * [MIDDLE]", never a single token. A single leftover token there is
+     * actually a row number: either bare digits (cleanGraduateName() has
+     * already stripped those to '') or, worse, digits OCR misread as
+     * letters ("11" -> "il", "18" -> "1g", both of which survive the
+     * digit-strip since they now look like letters). Those lists put the
+     * honor before the name instead — "SEQNUM HONOR NAME COURSE GWA" — so
+     * this delegates to parseHonorLeadingLine() rather than returning null.
      */
     private function parseHonorFirstLine(string $trimmed, string $rawLine, int $honorPosition, int $honorEnd, string $honor): ?array
     {
         $name = $this->cleanGraduateName(substr($trimmed, 0, $honorPosition));
         $name = trim(preg_replace('/\s+[MF]$/u', '', $name) ?? $name);
-        if ($name === '') {
-            return null;
+        if ($name === '' || strpos($name, ' ') === false) {
+            return $this->parseHonorLeadingLine($trimmed, $rawLine, $honorEnd, $honor);
         }
 
         $afterHonor = substr($trimmed, $honorEnd);
@@ -367,6 +429,43 @@ trait ParsesHonorRows
         return [
             'graduate_name' => $name,
             'course' => $course,
+            'latin_honor' => $honor,
+            'graduation_date' => $this->extractDate($rawLine),
+        ];
+    }
+
+    /**
+     * "SEQNUM HONOR NAME COURSE GWA" — parseHonorFirstLine()'s sibling for
+     * when nothing usable precedes the honor at all (just a row number, or
+     * nothing once that number was cleaned away), so the name lives after
+     * the honor too, immediately before the course keyword. Both name and
+     * course are carved out of that same after-honor text using the course
+     * keyword as the boundary between them — the same anchor
+     * parseCourseFirstLine() uses, just on the other side of the honor.
+     *
+     * Takes the LAST course-keyword match, not the first: a short
+     * abbreviation can coincidentally collide with something inside the
+     * name itself (e.g. "Ma." in "VERONILLA, MA. CARLA OROGAN", matching
+     * the "M.A." keyword), and the genuine course token is always the one
+     * closest to the end of the row, right before the GWA figure.
+     */
+    private function parseHonorLeadingLine(string $trimmed, string $rawLine, int $honorEnd, string $honor): ?array
+    {
+        $afterHonor = substr($trimmed, $honorEnd);
+
+        if (!preg_match_all($this->courseKeywordPattern(), $afterHonor, $courseMatches, PREG_OFFSET_CAPTURE) || empty($courseMatches[0])) {
+            return null;
+        }
+
+        $courseStart = end($courseMatches[0])[1];
+        $name = $this->cleanGraduateName(substr($afterHonor, 0, $courseStart));
+        if ($name === '') {
+            return null;
+        }
+
+        return [
+            'graduate_name' => $name,
+            'course' => $this->sanitizeExtractedText(substr($afterHonor, $courseStart)),
             'latin_honor' => $honor,
             'graduation_date' => $this->extractDate($rawLine),
         ];
@@ -441,21 +540,23 @@ trait ParsesHonorRows
     /**
      * Shared cleanup for the name and course columns: drops table-formatting
      * symbols that occasionally survive OCR ('{', '}', '[', ']', '|', '~',
-     * '_', curly/smart quotes) and any standalone number — a row/roll number
-     * or a GWA figure like "1.75" — since none of that is ever part of a
-     * graduate's name or course. A lone underscore (or a run of them) is a
-     * common OCR misread of a checkbox/table-border cell that sits right
-     * after the Latin Honor on a "name-honor-course" layout (e.g. "MAGNA
-     * CUM LAUDE _ Bachelor of Science..."), same root cause as the pipe
-     * case. Only whole, whitespace-delimited numeric tokens are removed, so
-     * genuinely alphanumeric OCR garbage (e.g. "1G5") is left alone rather
-     * than guessed at. Straight quotes/apostrophes are deliberately left
+     * '_', ':', curly/smart quotes) and any standalone number — a row/roll
+     * number or a GWA figure like "1.75" — since none of that is ever part
+     * of a graduate's name or course. A lone underscore (or a run of them)
+     * is a common OCR misread of a checkbox/table-border cell that sits
+     * right after the Latin Honor on a "name-honor-course" layout (e.g.
+     * "MAGNA CUM LAUDE _ Bachelor of Science..."), same root cause as the
+     * pipe case; a stray colon shows up the same way right before a course
+     * abbreviation (e.g. "CAMAY, ELLA MAE M : BSHM"). Only whole,
+     * whitespace-delimited numeric tokens are removed, so genuinely
+     * alphanumeric OCR garbage (e.g. "1G5") is left alone rather than
+     * guessed at. Straight quotes/apostrophes are deliberately left
      * untouched — those can be genuine name punctuation (e.g.
      * "O'Brien-Smith").
      */
     private function sanitizeExtractedText(string $text): string
     {
-        $text = preg_replace('/[{}\[\]|~_‘’“”]/u', '', $text) ?? $text;
+        $text = preg_replace('/[{}\[\]|~_:‘’“”]/u', '', $text) ?? $text;
         $text = preg_replace('/(?<!\S)\d+\.\d+(?!\S)/u', '', $text) ?? $text;
         $text = preg_replace('/(?<!\S)\d+(?!\S)/u', '', $text) ?? $text;
         $text = preg_replace('/\s{2,}/', ' ', $text) ?? $text;

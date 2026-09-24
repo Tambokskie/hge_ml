@@ -776,6 +776,80 @@ class GenericExtractorTest extends TestCase
         $this->assertSame('Bachelor of Elementary Education General Education', $byName['ALIPAR DANNAH MAE CARBON']['course']);
     }
 
+    public function testHandlesHonorLeadingLayoutWithOrphanedHonorFragmentAndRowNumberPrefix(): void
+    {
+        // tests/fixtures/sti-ormoc-honor-leading-ocr-output.txt is a verbatim
+        // excerpt of real Tesseract output from STI College Ormoc's list.
+        // Two distinct failures compounded here: (1) the table cell renders
+        // the tier name on its own line ("MAGNA CUM"), completely orphaned
+        // from the row it belongs to by at least one genuinely blank OCR
+        // line, with the row's actual content ("1 LAUDE GERALDEZ, ...")
+        // resuming afterwards; (2) even once merged/found, the row number
+        // that precedes the honor is sometimes OCR-misread into letters
+        // ("11" -> "il", "18" -> "1g") that survive cleanGraduateName()'s
+        // digit-strip and used to get mistaken for a genuine (garbage)
+        // name, while the real name — which actually sits AFTER the honor,
+        // not before it — got dumped into "course" instead.
+        $text = file_get_contents(__DIR__ . '/../fixtures/sti-ormoc-honor-leading-ocr-output.txt');
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        $this->assertCount(9, $rows);
+
+        $byName = [];
+        foreach ($rows as $row) {
+            $byName[$row['graduate_name']] = $row;
+        }
+
+        // Orphaned "MAGNA CUM" fragment, blank line, then the row itself.
+        $this->assertArrayHasKey('GERALDEZ, CRISTIAN JACA', $byName);
+        $this->assertSame('MAGNA CUM LAUDE', $byName['GERALDEZ, CRISTIAN JACA']['latin_honor']);
+        $this->assertSame('BSIT', $byName['GERALDEZ, CRISTIAN JACA']['course']);
+
+        // The fragment line itself has extra OCR noise ("MAGNA CUM the fw")
+        // that must be discarded rather than glued into the merged row, and
+        // the row line has its own noise (a stray "|" and underscores right
+        // before the course) that sanitizeExtractedText() must still strip.
+        $this->assertArrayHasKey('DAWAT, REXSAM PONCE', $byName);
+        $this->assertSame('MAGNA CUM LAUDE', $byName['DAWAT, REXSAM PONCE']['latin_honor']);
+        $this->assertSame('BSTM', $byName['DAWAT, REXSAM PONCE']['course']);
+
+        // Fragment has trailing noise on the OTHER side ("MAGNA CUM | 497"),
+        // and the row it merges with has no GWA figure at all.
+        $this->assertArrayHasKey('SORIA, NAOMI LYNN PATON-OG', $byName);
+        $this->assertSame('MAGNA CUM LAUDE', $byName['SORIA, NAOMI LYNN PATON-OG']['latin_honor']);
+        $this->assertSame('BSTM', $byName['SORIA, NAOMI LYNN PATON-OG']['course']);
+
+        // "il" (OCR misread of "11") — a bare letter token with no space
+        // must not be mistaken for a real name; the real name lives after
+        // the honor and must not end up jammed into "course" instead.
+        $this->assertArrayHasKey('BAYLON, DHEL MARK SALIDAGA', $byName);
+        $this->assertSame('CUM LAUDE', $byName['BAYLON, DHEL MARK SALIDAGA']['latin_honor']);
+        $this->assertSame('BSIT', $byName['BAYLON, DHEL MARK SALIDAGA']['course']);
+
+        // "| (12," row-number noise entirely non-letter — cleans to ''.
+        $this->assertArrayHasKey('COSENS, DENISE HYDE DANIELES', $byName);
+
+        // Clean "13 CUM LAUDE ..." with no OCR noise at all.
+        $this->assertArrayHasKey('EBCAS, JUNE SIMEONE ELMER GO', $byName);
+
+        // "1g" (OCR misread of "18") — a digit-then-letter token also has
+        // no space and must be treated the same as "il" above.
+        $this->assertArrayHasKey('MARTINEZ, AUDREY ROSE MARIE BASILIO', $byName);
+        $this->assertSame('BSHM', $byName['MARTINEZ, AUDREY ROSE MARIE BASILIO']['course']);
+
+        // A stray colon right before the course keyword must be stripped
+        // rather than left dangling on the end of the name.
+        $this->assertArrayHasKey('CAMAY, ELLA MAE M', $byName);
+        $this->assertSame('BSHM', $byName['CAMAY, ELLA MAE M']['course']);
+
+        // "MA." inside "VERONILLA, MA. CARLA OROGAN" coincidentally matches
+        // the "M.A." course-keyword pattern; the genuine course token
+        // (BSTM, right before the GWA figure) must win, not the collision.
+        $this->assertArrayHasKey('VERONILLA, MA. CARLA OROGAN', $byName);
+        $this->assertSame('BSTM', $byName['VERONILLA, MA. CARLA OROGAN']['course']);
+    }
+
     private function callParseRows(\GenericExtractor $extractor, string $text): array
     {
         $reflection = new \ReflectionMethod($extractor, 'parseRows');
