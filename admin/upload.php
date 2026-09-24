@@ -185,7 +185,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <?php foreach ($uploadedSchools as $school): ?>
                             <?php $displayName = format_school_display_name($school['school_name'], $school['campus']); ?>
                             <li class="uploaded-school-item" data-search="<?= e_upper($displayName . ' ' . $school['address']) ?>">
-                                <a href="<?= e(APP_BASE_URL) ?>/admin/schools.php" class="flex items-center gap-3 py-3 first:pt-0 last:pb-0 group">
+                                <a href="<?= e(APP_BASE_URL) ?>/admin/schools.php" class="flex items-center gap-3 py-4 first:pt-0 last:pb-0 group">
                                     <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
                                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
                                     </span>
