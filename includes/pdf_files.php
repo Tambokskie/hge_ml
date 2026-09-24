@@ -7,7 +7,7 @@ function sanitize_for_filename(string $value): string
     return trim($sanitized, '_');
 }
 
-function build_stored_filename(string $schoolName, string $schoolYear, int $uploadNumber, string $campus = ''): string
+function build_stored_filename(string $schoolName, string $schoolYear, int $uploadNumber, string $campus = '', string $extension = 'pdf'): string
 {
     $schoolPart = sanitize_for_filename($schoolName);
     $yearPart = sanitize_for_filename($schoolYear);
@@ -15,7 +15,7 @@ function build_stored_filename(string $schoolName, string $schoolYear, int $uplo
 
     $namePart = $campusPart !== '' ? "{$schoolPart}_{$campusPart}" : $schoolPart;
 
-    return "{$namePart}_{$yearPart}_{$uploadNumber}.pdf";
+    return "{$namePart}_{$yearPart}_{$uploadNumber}.{$extension}";
 }
 
 function validate_pdf_file_content(string $path, int $size, int $maxBytes): array

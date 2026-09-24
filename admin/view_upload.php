@@ -42,6 +42,8 @@ if ($upload !== null) {
 
     $canManageExtraction = $isAdmin && $status !== 'reviewed';
     $canRemove = $isAdmin && (int) $upload['records_extracted'] === 0;
+    $fileExtension = mb_strtoupper((string) pathinfo($upload['stored_filename'], PATHINFO_EXTENSION));
+    $isTemplateUpload = $fileExtension === 'XLSX';
 }
 
 include __DIR__ . '/../includes/header.php';
@@ -111,7 +113,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <svg class="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
                             <div class="min-w-0">
                                 <p class="text-[11px] font-bold tracking-wide text-gray-500 dark:text-gray-500">FILE FORMAT</p>
-                                <p class="text-sm text-gray-900 dark:text-white">PDF</p>
+                                <p class="text-sm text-gray-900 dark:text-white"><?= e($fileExtension) ?></p>
                             </div>
                         </div>
                         <div class="flex items-start gap-2.5">
@@ -188,6 +190,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <h2 class="text-sm font-bold text-csc-navy-600 dark:text-white">QUICK ACTIONS</h2>
                         </div>
                         <div class="divide-y divide-gray-100 dark:divide-white/5">
+                            <?php if (!$isTemplateUpload): ?>
                             <button type="button" class="view-pdf-btn w-full flex items-center gap-3 py-3 first:pt-0 group text-left"
                                     data-pdf-url="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $upload['id'] ?>"
                                     data-filename="<?= e($upload['original_filename']) ?>">
@@ -200,13 +203,14 @@ include __DIR__ . '/../includes/sidebar.php';
                                 </span>
                                 <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-navy-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
                             </button>
+                            <?php endif; ?>
 
-                            <a href="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $upload['id'] ?>" download="<?= e($upload['original_filename']) ?>" class="flex items-center gap-3 py-3 group">
+                            <a href="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $upload['id'] ?>" download="<?= e($upload['original_filename']) ?>" class="flex items-center gap-3 py-3 <?= $isTemplateUpload ? 'first:pt-0 ' : '' ?>group">
                                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
                                 </span>
                                 <span class="min-w-0 flex-1">
-                                    <span class="block text-sm font-semibold text-gray-900 dark:text-white">DOWNLOAD PDF</span>
+                                    <span class="block text-sm font-semibold text-gray-900 dark:text-white">DOWNLOAD <?= $isTemplateUpload ? 'FILE' : 'PDF' ?></span>
                                     <span class="block text-xs text-gray-500 dark:text-gray-500">SAVE A COPY TO YOUR DEVICE.</span>
                                 </span>
                                 <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-navy-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
@@ -271,7 +275,9 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
 
-            <?php include __DIR__ . '/../includes/pdf_drawer.php'; ?>
+            <?php if (!$isTemplateUpload): ?>
+                <?php include __DIR__ . '/../includes/pdf_drawer.php'; ?>
+            <?php endif; ?>
         <?php endif; ?>
         </div>
     </div>

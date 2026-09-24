@@ -107,7 +107,7 @@ function activity_icon_path(string $action): string
         return 'M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l3 3m0 0-3 3m3-3H3';
     }
 
-    if (in_array($action, ['pdf_upload', 'pdf_delete'], true)) {
+    if (in_array($action, ['pdf_upload', 'pdf_delete', 'template_upload'], true)) {
         return 'M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 8.25 12 3.75m0 0L7.5 8.25M12 3.75v12';
     }
 

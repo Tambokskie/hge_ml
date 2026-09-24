@@ -11,6 +11,7 @@ require_once __DIR__ . '/../extractors/ExtractorInterface.php';
 require_once __DIR__ . '/../extractors/ParsesHonorRows.php';
 require_once __DIR__ . '/../extractors/generic_extractor.php';
 require_once __DIR__ . '/../extractors/ocr_extractor.php';
+require_once __DIR__ . '/../extractors/TemplateExtractor.php';
 
 require_role('administrator');
 
@@ -39,25 +40,35 @@ try {
         exit;
     }
 
+    $isTemplateUpload = strtolower((string) pathinfo($upload['stored_filename'], PATHINFO_EXTENSION)) === 'xlsx';
+
     try {
-        $extraCourseKeywords = array_column(get_ocr_course_keywords($pdo), 'keyword');
-
-        $result = (new GenericExtractor($extraCourseKeywords))->extract($upload['file_path']);
-        if ($result['status'] === 'failed') {
-            $toolStatus = check_ocr_tools_installed();
-            $missingTools = array_keys(array_filter($toolStatus, fn (bool $installed) => !$installed));
-
-            if (!empty($missingTools)) {
-                echo json_encode([
-                    'status' => 'ocr_tools_missing',
-                    'missing' => array_map('mb_strtoupper', $missingTools),
-                    'message' => 'THIS PDF HAS NO EXTRACTABLE TEXT AND REQUIRES OCR TO READ IT. THE FOLLOWING REQUIRED TOOL(S) ARE NOT INSTALLED: '
-                        . mb_strtoupper(implode(', ', $missingTools)) . '.',
-                ]);
+        if ($isTemplateUpload) {
+            $result = (new TemplateExtractor())->extract($upload['file_path']);
+            if ($result['status'] === 'failed') {
+                echo json_encode(['status' => 'error', 'message' => 'THE TEMPLATE COULD NOT BE RE-READ. IT MAY HAVE BEEN EDITED INTO AN INVALID FORMAT.']);
                 exit;
             }
+        } else {
+            $extraCourseKeywords = array_column(get_ocr_course_keywords($pdo), 'keyword');
 
-            $result = (new OcrExtractor($extraCourseKeywords))->extract($upload['file_path']);
+            $result = (new GenericExtractor($extraCourseKeywords))->extract($upload['file_path']);
+            if ($result['status'] === 'failed') {
+                $toolStatus = check_ocr_tools_installed();
+                $missingTools = array_keys(array_filter($toolStatus, fn (bool $installed) => !$installed));
+
+                if (!empty($missingTools)) {
+                    echo json_encode([
+                        'status' => 'ocr_tools_missing',
+                        'missing' => array_map('mb_strtoupper', $missingTools),
+                        'message' => 'THIS PDF HAS NO EXTRACTABLE TEXT AND REQUIRES OCR TO READ IT. THE FOLLOWING REQUIRED TOOL(S) ARE NOT INSTALLED: '
+                            . mb_strtoupper(implode(', ', $missingTools)) . '.',
+                    ]);
+                    exit;
+                }
+
+                $result = (new OcrExtractor($extraCourseKeywords))->extract($upload['file_path']);
+            }
         }
     } catch (\Throwable $e) {
         error_log('Extraction failed: ' . $e->getMessage());

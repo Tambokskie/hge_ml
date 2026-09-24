@@ -17,7 +17,12 @@ try {
         die('THE REQUESTED FILE COULD NOT BE FOUND.');
     }
 
-    header('Content-Type: application/pdf');
+    $extension = strtolower((string) pathinfo($upload['stored_filename'], PATHINFO_EXTENSION));
+    $contentType = $extension === 'xlsx'
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        : 'application/pdf';
+
+    header('Content-Type: ' . $contentType);
     header('Content-Disposition: inline; filename="' . basename($upload['stored_filename']) . '"');
     header('Content-Length: ' . filesize($upload['file_path']));
     readfile($upload['file_path']);

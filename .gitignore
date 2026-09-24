@@ -4,5 +4,8 @@
 /storage/pdfs/*
 !/storage/pdfs/.htaccess
 !/storage/pdfs/.gitkeep
+/storage/templates/*
+!/storage/templates/.htaccess
+!/storage/templates/.gitkeep
 .phpunit.result.cache
 composer.phar

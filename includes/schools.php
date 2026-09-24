@@ -63,6 +63,27 @@ function get_school_by_id(PDO $pdo, int $id): ?array
     ];
 }
 
+/**
+ * Exact (case/whitespace-insensitive) school_name + campus lookup, used by
+ * the "Upload From Template" flow: unlike find_or_create_school() (used by
+ * the PDF upload form, which will create a school on the fly), a template
+ * upload must never silently create a school — it must point at the record
+ * an administrator already added, so a typo or unmigrated school surfaces as
+ * an actionable error instead of a silent duplicate school row.
+ */
+function find_school_by_exact_name_campus(PDO $pdo, string $schoolName, string $campus): ?array
+{
+    $stmt = $pdo->prepare(
+        'SELECT id, school_name, campus FROM schools
+         WHERE UPPER(TRIM(school_name)) = UPPER(TRIM(:name)) AND UPPER(TRIM(campus)) = UPPER(TRIM(:campus))
+         LIMIT 1'
+    );
+    $stmt->execute(['name' => $schoolName, 'campus' => $campus]);
+    $row = $stmt->fetch();
+
+    return $row === false ? null : $row;
+}
+
 function get_active_schools_list(PDO $pdo): array
 {
     $stmt = $pdo->query("SELECT id, school_name, campus FROM schools WHERE status = 'active' ORDER BY school_name ASC");

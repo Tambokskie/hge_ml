@@ -136,10 +136,15 @@ include __DIR__ . '/../includes/sidebar.php';
                     class="rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-medium px-4 py-2.5 transition-colors">MASS UPDATE DATE</button>
                 <button type="button" id="multiple-deletion-btn"
                     class="rounded-xl border border-csc-red-500/40 text-csc-red-600 dark:text-csc-red-400 hover:bg-csc-red-500/10 text-sm font-medium px-4 py-2.5 transition-colors">MULTIPLE DELETION</button>
+                <?php if (strtolower((string) pathinfo($upload['stored_filename'], PATHINFO_EXTENSION)) === 'xlsx'): ?>
+                    <a href="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $uploadId ?>" download="<?= e($upload['original_filename']) ?>"
+                       class="rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-medium px-4 py-2.5 transition-colors inline-flex items-center">DOWNLOAD UPLOADED TEMPLATE</a>
+                <?php else: ?>
                 <button type="button" id="view-pdf-btn"
                         data-pdf-url="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $uploadId ?>"
                         data-filename="<?= e($upload['original_filename']) ?>"
                         class="rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-medium px-4 py-2.5 transition-colors">VIEW UPLOADED PDF</button>
+                <?php endif; ?>
                 <button type="button" id="save-draft-btn"
                     class="rounded-xl border border-orange-500/40 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 text-sm font-medium px-4 py-2.5 transition-colors">SAVE AS DRAFT</button>
                 <button type="button" id="save-records-btn"

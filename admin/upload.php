@@ -39,10 +39,24 @@ include __DIR__ . '/../includes/sidebar.php';
                         </div>
                         <div>
                             <h2 class="text-base font-bold text-csc-navy-600 dark:text-white">UPLOAD DOCUMENT</h2>
-                            <p class="text-xs text-gray-500 dark:text-gray-500 mt-0.5">SELECT A SCHOOL, CHOOSE THE SCHOOL YEAR, AND UPLOAD THE LATIN HONOR LIST PDF.</p>
+                            <p id="upload-mode-description" class="text-xs text-gray-500 dark:text-gray-500 mt-0.5">SELECT A SCHOOL, CHOOSE THE SCHOOL YEAR, AND UPLOAD THE LATIN HONOR LIST PDF.</p>
                         </div>
                     </div>
 
+                    <div class="mb-6 inline-flex rounded-xl bg-gray-100 dark:bg-white/5 p-1">
+                        <button type="button" id="upload-mode-pdf-btn" data-upload-mode="pdf"
+                                class="upload-mode-btn inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold tracking-wide transition-colors bg-white dark:bg-surface-900 text-csc-navy-600 dark:text-csc-navy-300 shadow-sm">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                            PDF FILE
+                        </button>
+                        <button type="button" id="upload-mode-excel-btn" data-upload-mode="excel"
+                                class="upload-mode-btn inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold tracking-wide transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 13.5h3.75m-3.75 3h3.75m3-6H9m9-3v11.25A2.25 2.25 0 0118.75 21H5.25A2.25 2.25 0 013 18.75V5.25A2.25 2.25 0 015.25 3h7.5L18 8.25z" /></svg>
+                            EXCEL TEMPLATE
+                        </button>
+                    </div>
+
+                    <div id="upload-panel-pdf" data-upload-panel="pdf">
                     <form id="upload-form" action="<?= e(APP_BASE_URL) ?>/api/upload_pdf.php" data-view-upload-url="<?= e(APP_BASE_URL) ?>/admin/view_upload.php" data-extract-url="<?= e(APP_BASE_URL) ?>/api/extract_pdf.php" method="post" enctype="multipart/form-data" class="space-y-5">
                         <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
 
@@ -108,6 +122,50 @@ include __DIR__ . '/../includes/sidebar.php';
                         </div>
                         <div class="relative h-2 w-full overflow-hidden rounded-full bg-csc-navy-500/20">
                             <div id="upload-progress-bar" class="absolute inset-y-0 left-0 h-full rounded-full bg-csc-navy-600 transition-[width] duration-300 ease-out" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    </div>
+
+                    <div id="upload-panel-excel" data-upload-panel="excel" class="hidden">
+                        <div class="mb-5 flex items-start justify-between gap-3 rounded-xl border border-csc-navy-500/20 bg-csc-navy-600/5 dark:bg-csc-navy-600/10 px-4 py-3">
+                            <p class="text-xs text-gray-600 dark:text-gray-400">DON'T HAVE THE TEMPLATE YET? DOWNLOAD IT PRE-FILLED WITH YOUR SCHOOL'S EXACT NAME AND CAMPUS.</p>
+                            <button type="button" id="download-template-btn" class="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 px-3 py-2 text-xs font-semibold transition-colors">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                                DOWNLOAD TEMPLATE
+                            </button>
+                        </div>
+
+                        <form id="template-upload-form" action="<?= e(APP_BASE_URL) ?>/api/upload_template.php" data-view-upload-url="<?= e(APP_BASE_URL) ?>/admin/view_upload.php" method="post" enctype="multipart/form-data" class="space-y-5">
+                            <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
+
+                            <div>
+                                <label class="mb-1.5 block text-xs font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">FILLED-OUT TEMPLATE <span class="text-csc-red-600">*</span></label>
+                                <div id="excel-dropzone" class="cursor-pointer rounded-xl border-2 border-dashed border-gray-300 dark:border-white/15 px-6 py-10 text-center hover:border-csc-navy-500 transition-colors">
+                                    <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 8.25 12 3.75m0 0L7.5 8.25M12 3.75v12" /></svg>
+                                    </div>
+                                    <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">DRAG &amp; DROP YOUR TEMPLATE HERE</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">OR CLICK TO BROWSE</p>
+                                    <p class="text-xs text-gray-400 dark:text-gray-600 mt-2">EXCEL (.XLSX) FILE ONLY &bull; MAXIMUM 20 MB</p>
+                                </div>
+                                <input type="file" id="excel_file" name="excel_file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required class="hidden">
+                                <p id="excel-file-info" class="text-xs text-gray-500 dark:text-gray-400 mt-2"></p>
+                            </div>
+
+                            <button type="submit" id="template-upload-submit-btn" class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-semibold py-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 8.25 12 3.75m0 0L7.5 8.25M12 3.75v12" /></svg>
+                                UPLOAD FROM TEMPLATE
+                            </button>
+                        </form>
+
+                        <div id="template-upload-progress" class="hidden mt-4 rounded-lg border border-csc-navy-500/30 bg-csc-navy-500/10 px-4 py-3">
+                            <div class="flex items-center justify-between gap-3 mb-2">
+                                <span id="template-upload-progress-label" class="text-sm text-csc-navy-600 dark:text-csc-navy-300"></span>
+                                <span id="template-upload-progress-percent" class="hidden shrink-0 text-xs font-semibold tabular-nums text-csc-navy-600 dark:text-csc-navy-300"></span>
+                            </div>
+                            <div class="relative h-2 w-full overflow-hidden rounded-full bg-csc-navy-500/20">
+                                <div id="template-upload-progress-bar" class="absolute inset-y-0 left-0 h-full rounded-full bg-csc-navy-600 transition-[width] duration-300 ease-out" style="width: 0%"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -210,4 +268,15 @@ include __DIR__ . '/../includes/sidebar.php';
     </div>
 </main>
 <?php include __DIR__ . '/../includes/footer.php'; ?>
+<script>
+window.HGE_UPLOAD = {
+    downloadTemplateUrl: <?= json_encode(APP_BASE_URL . '/api/download_template.php') ?>,
+    schools: <?= json_encode(array_map(function (array $school) {
+        return [
+            'id' => (int) $school['id'],
+            'label' => mb_strtoupper(format_school_display_name($school['school_name'], $school['campus'])),
+        ];
+    }, $activeSchools)) ?>
+};
+</script>
 <script src="<?= e(asset_url('assets/js/upload.js')) ?>"></script>
