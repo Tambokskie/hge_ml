@@ -130,37 +130,35 @@ include __DIR__ . '/../includes/sidebar.php';
                     $pointCount = count($uploadCounts);
                     $chartMax = max($uploadCounts) ?: 1;
                     $stepX = $pointCount > 1 ? $chartW / ($pointCount - 1) : 0;
-                    $linePoints = [];
                     $chartPoints = [];
                     foreach ($uploadCounts as $i => $count) {
                         $x = round($i * $stepX, 1);
                         $y = round($chartH - ($count / $chartMax) * ($chartH - 10) - 5, 1);
-                        $linePoints[] = [$x, $y];
                         $chartPoints[] = "$x,$y";
                     }
                     $pointsAttr = implode(' ', $chartPoints);
                     $areaAttr = $pointsAttr . " $chartW,$chartH 0,$chartH";
-
-                    // Path length in the SVG's own user units (not rendered pixels), so
-                    // JS can animate stroke-dashoffset from this value down to 0 to draw
-                    // the line left-to-right — the same order these points were built in.
-                    $lineLength = 0.0;
-                    for ($i = 1; $i < count($linePoints); $i++) {
-                        $lineLength += sqrt(($linePoints[$i][0] - $linePoints[$i - 1][0]) ** 2 + ($linePoints[$i][1] - $linePoints[$i - 1][1]) ** 2);
-                    }
-                    $lineLength = round($lineLength, 1) ?: 1.0;
                     ?>
-                    <div id="upload-activity-chart">
+                    <div id="upload-activity-chart" class="opacity-0 transition-opacity duration-300 ease-out">
                         <svg viewBox="0 0 <?= $chartW ?> <?= $chartH ?>" class="w-full h-20" preserveAspectRatio="none">
                             <defs>
+                                <!--
+                                    A single growing rect shared by both the line and the area, so
+                                    they reveal in lockstep. Chosen over animating the polyline's
+                                    stroke-dasharray/dashoffset because that technique, combined with
+                                    this chart's vector-effect="non-scaling-stroke" and non-uniform
+                                    (preserveAspectRatio="none") X/Y scaling, rendered the line with a
+                                    visible gap partway along the path in testing. Clipping never
+                                    touches the polyline's own geometry, so the revealed line is always
+                                    the exact same continuous path as the final static graph.
+                                -->
                                 <clipPath id="upload-activity-clip">
                                     <rect id="upload-activity-clip-rect" x="0" y="0" width="0" height="<?= $chartH ?>" data-target-width="<?= $chartW ?>"></rect>
                                 </clipPath>
                             </defs>
                             <g class="text-csc-navy-600 dark:text-csc-navy-300">
                                 <polygon id="upload-activity-area" points="<?= e($areaAttr) ?>" fill="currentColor" opacity="0.12" clip-path="url(#upload-activity-clip)"></polygon>
-                                <polyline id="upload-activity-line" points="<?= e($pointsAttr) ?>" fill="none" stroke="currentColor" stroke-width="2.5" vector-effect="non-scaling-stroke"
-                                    style="stroke-dasharray: <?= $lineLength ?>; stroke-dashoffset: <?= $lineLength ?>;" data-length="<?= $lineLength ?>"></polyline>
+                                <polyline id="upload-activity-line" points="<?= e($pointsAttr) ?>" fill="none" stroke="currentColor" stroke-width="2.5" vector-effect="non-scaling-stroke" clip-path="url(#upload-activity-clip)"></polyline>
                             </g>
                         </svg>
                         <div class="flex justify-between text-[11px] text-gray-400 dark:text-gray-600 mt-1">

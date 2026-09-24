@@ -7,31 +7,26 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     var target = parseInt(countEl.dataset.countTo, 10) || 0;
+    var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // Draws the line left-to-right (stroke-dashoffset from its full length down
-    // to 0, in the same left-to-right point order the polyline was built in)
-    // while the clip-path rect behind the shaded area grows in step, so the
-    // fill is only ever revealed up to wherever the line currently is. Runs
-    // once, right after the PDF count finishes — never loops.
-    function drawChartLine() {
-        var line = document.getElementById('upload-activity-line');
+    // Reveals the line and the shaded area together by growing one shared
+    // clip-path rect left-to-right — never by touching the polyline's own
+    // dasharray/dashoffset, since that both interacted badly with this
+    // chart's vector-effect="non-scaling-stroke" + preserveAspectRatio="none"
+    // scaling (a visible gap partway along the line) and isn't needed anyway:
+    // clipping exposes the exact same unmodified path the final static graph
+    // uses, so there's no way for it to render as anything but one
+    // continuous line. Runs once, right after the card's own subtle fade-in.
+    function drawChart() {
         var clipRect = document.getElementById('upload-activity-clip-rect');
-        if (!line) {
+        if (!clipRect) {
             return;
         }
 
-        var lineLength = parseFloat(line.dataset.length) || 0;
-        var targetWidth = clipRect ? parseFloat(clipRect.dataset.targetWidth) || 0 : 0;
+        var targetWidth = parseFloat(clipRect.dataset.targetWidth) || 0;
 
-        function setProgress(eased) {
-            line.style.strokeDashoffset = String(lineLength * (1 - eased));
-            if (clipRect) {
-                clipRect.setAttribute('width', String(targetWidth * eased));
-            }
-        }
-
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-            setProgress(1);
+        if (prefersReducedMotion) {
+            clipRect.setAttribute('width', String(targetWidth));
             return;
         }
 
@@ -43,7 +38,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 startTime = timestamp;
             }
             var progress = Math.min((timestamp - startTime) / duration, 1);
-            setProgress(1 - Math.pow(1 - progress, 3));
+            var eased = 1 - Math.pow(1 - progress, 3);
+            clipRect.setAttribute('width', String(targetWidth * eased));
             if (progress < 1) {
                 requestAnimationFrame(step);
             }
@@ -52,13 +48,29 @@ document.addEventListener('DOMContentLoaded', function () {
         requestAnimationFrame(step);
     }
 
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    // Fades the card in first, then — once that quick fade has had time to
+    // land — starts the line/area draw, so the two never visually compete.
+    function revealChartThenDraw() {
+        var chartEl = document.getElementById('upload-activity-chart');
+        if (chartEl) {
+            chartEl.classList.remove('opacity-0');
+        }
+
+        if (prefersReducedMotion) {
+            drawChart();
+            return;
+        }
+
+        setTimeout(drawChart, 300);
+    }
+
+    if (prefersReducedMotion) {
         countEl.textContent = formatCount(target);
-        drawChartLine();
+        revealChartThenDraw();
         return;
     }
 
-    animateCountUp(countEl, target, 1000, drawChartLine);
+    animateCountUp(countEl, target, 1000, revealChartThenDraw);
 });
 
 document.addEventListener('DOMContentLoaded', function () {
