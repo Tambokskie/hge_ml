@@ -172,19 +172,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                 </button>
                             <?php endif; ?>
                         <?php endif; ?>
-                        <a href="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $upload['id'] ?>" download="<?= e($upload['original_filename']) ?>"
-                            class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-white/15 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-semibold px-4 py-2.5 transition-colors">
-                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                            DOWNLOAD PDF
-                        </a>
                     </div>
-
-                    <button type="button" class="view-pdf-btn mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-csc-navy-600 dark:text-csc-navy-300 hover:underline"
-                            data-pdf-url="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $upload['id'] ?>"
-                            data-filename="<?= e($upload['original_filename']) ?>">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        VIEW DOCUMENT
-                    </button>
                 </div>
 
                 <div class="space-y-6">
@@ -229,6 +217,19 @@ include __DIR__ . '/../includes/sidebar.php';
                                 </span>
                                 <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-navy-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
                             </a>
+
+                            <?php if ($isAdmin && $status === 'reviewed'): ?>
+                                <a href="<?= e(APP_BASE_URL) ?>/admin/review.php?upload_id=<?= (int) $upload['id'] ?>" class="flex items-center gap-3 py-3 last:pb-0 group">
+                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
+                                    </span>
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block text-sm font-semibold text-gray-900 dark:text-white">EDIT RECORDS</span>
+                                        <span class="block text-xs text-gray-500 dark:text-gray-500">ADD, EDIT, OR REMOVE SAVED RECORDS.</span>
+                                    </span>
+                                    <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-navy-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                                </a>
+                            <?php endif; ?>
 
                             <?php if ($canManageExtraction && $status !== 'pending'): ?>
                                 <button type="button" id="quick-reextract-btn" data-upload-id="<?= (int) $upload['id'] ?>" data-should-confirm="true"
