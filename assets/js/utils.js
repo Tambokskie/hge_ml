@@ -1,3 +1,35 @@
+function formatCount(value) {
+    return Math.round(value).toLocaleString('en-US');
+}
+
+// Eases `el`'s text content from 0 up to `target` over `duration` ms, calling
+// `onComplete` (if given) once it lands exactly on `target` — used to
+// sequence an animation after the count finishes, e.g. revealing the line
+// graph on the Dashboard's UPLOAD ACTIVITY card only once its PDF count is
+// done counting up.
+function animateCountUp(el, target, duration, onComplete) {
+    var startTime = null;
+
+    function step(timestamp) {
+        if (startTime === null) {
+            startTime = timestamp;
+        }
+        var progress = Math.min((timestamp - startTime) / duration, 1);
+        var eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = formatCount(target * eased);
+        if (progress < 1) {
+            requestAnimationFrame(step);
+        } else {
+            el.textContent = formatCount(target);
+            if (onComplete) {
+                onComplete();
+            }
+        }
+    }
+
+    requestAnimationFrame(step);
+}
+
 // Fade-in count-up for any ".dashboard-stat-number" element (data-count-to
 // gives its target). Self-initializing and page-agnostic so any page can opt
 // a stat card into the same entrance animation as the Dashboard's — see
@@ -6,30 +38,6 @@
 // and a staggered inline animation-delay, containing this number).
 document.addEventListener('DOMContentLoaded', function () {
     var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    function formatCount(value) {
-        return Math.round(value).toLocaleString('en-US');
-    }
-
-    function animateCountUp(el, target, duration) {
-        var startTime = null;
-
-        function step(timestamp) {
-            if (startTime === null) {
-                startTime = timestamp;
-            }
-            var progress = Math.min((timestamp - startTime) / duration, 1);
-            var eased = 1 - Math.pow(1 - progress, 3);
-            el.textContent = formatCount(target * eased);
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            } else {
-                el.textContent = formatCount(target);
-            }
-        }
-
-        requestAnimationFrame(step);
-    }
 
     document.querySelectorAll('.dashboard-stat-number').forEach(function (el, index) {
         var target = parseInt(el.dataset.countTo, 10) || 0;

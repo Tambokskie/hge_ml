@@ -84,7 +84,7 @@ include __DIR__ . '/../includes/sidebar.php';
         <?php endif; ?>
 
         <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 hge-shadow">
+            <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
                 <h2 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">LATIN HONORS BY TYPE</h2>
                 <?php if (array_sum($honorBreakdown) === 0): ?>
                     <p class="text-sm text-gray-600 dark:text-gray-500 text-center py-8">NO RECORDS YET.</p>
@@ -98,10 +98,10 @@ include __DIR__ . '/../includes/sidebar.php';
                     ];
                     ?>
                     <div class="flex items-end gap-4">
-                        <?php foreach ($honorBreakdown as $honor => $count): ?>
+                        <?php $barIndex = 0; foreach ($honorBreakdown as $honor => $count): ?>
                             <div class="flex-1 flex flex-col items-center gap-2">
                                 <div class="w-full flex items-end h-24">
-                                    <div class="w-full rounded-t-md <?= $honorBarColor[$honor] ?>" style="height: <?= (int) round(($count / $honorMax) * 100) ?>%"></div>
+                                    <div class="w-full rounded-t-md <?= $honorBarColor[$honor] ?> motion-safe:animate-grow-bar" style="--bar-height: <?= (int) round(($count / $honorMax) * 100) ?>%; animation-delay: <?= $barIndex++ * 150 ?>ms"></div>
                                 </div>
                                 <p class="text-xs font-semibold text-gray-900 dark:text-white"><?= (int) $count ?></p>
                                 <p class="text-[11px] text-gray-500 dark:text-gray-500 text-center leading-tight"><?= e($honor) ?></p>
@@ -120,7 +120,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     <h2 class="text-sm font-semibold text-gray-900 dark:text-white">UPLOAD ACTIVITY</h2>
                     <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400"><?= (int) $uploadThisMonth ?> THIS MONTH</span>
                 </div>
-                <p class="text-2xl font-bold text-csc-navy-600 dark:text-white mb-2"><?= (int) $uploadTotal ?> PDFS <span class="text-xs font-normal text-gray-500 dark:text-gray-500">(LAST 6 MONTHS)</span></p>
+                <p class="text-2xl font-bold text-csc-navy-600 dark:text-white mb-2"><span id="upload-activity-count" data-count-to="<?= (int) $uploadTotal ?>">0</span> PDFS <span class="text-xs font-normal text-gray-500 dark:text-gray-500">(LAST 6 MONTHS)</span></p>
                 <?php if ($uploadTotal === 0): ?>
                     <p class="text-sm text-gray-600 dark:text-gray-500 text-center py-6">NO UPLOADS IN THIS PERIOD.</p>
                 <?php else: ?>
@@ -130,25 +130,44 @@ include __DIR__ . '/../includes/sidebar.php';
                     $pointCount = count($uploadCounts);
                     $chartMax = max($uploadCounts) ?: 1;
                     $stepX = $pointCount > 1 ? $chartW / ($pointCount - 1) : 0;
+                    $linePoints = [];
                     $chartPoints = [];
                     foreach ($uploadCounts as $i => $count) {
                         $x = round($i * $stepX, 1);
                         $y = round($chartH - ($count / $chartMax) * ($chartH - 10) - 5, 1);
+                        $linePoints[] = [$x, $y];
                         $chartPoints[] = "$x,$y";
                     }
                     $pointsAttr = implode(' ', $chartPoints);
                     $areaAttr = $pointsAttr . " $chartW,$chartH 0,$chartH";
+
+                    // Path length in the SVG's own user units (not rendered pixels), so
+                    // JS can animate stroke-dashoffset from this value down to 0 to draw
+                    // the line left-to-right — the same order these points were built in.
+                    $lineLength = 0.0;
+                    for ($i = 1; $i < count($linePoints); $i++) {
+                        $lineLength += sqrt(($linePoints[$i][0] - $linePoints[$i - 1][0]) ** 2 + ($linePoints[$i][1] - $linePoints[$i - 1][1]) ** 2);
+                    }
+                    $lineLength = round($lineLength, 1) ?: 1.0;
                     ?>
-                    <svg viewBox="0 0 <?= $chartW ?> <?= $chartH ?>" class="w-full h-20" preserveAspectRatio="none">
-                        <g class="text-csc-navy-600 dark:text-csc-navy-300">
-                            <polygon points="<?= e($areaAttr) ?>" fill="currentColor" opacity="0.12"></polygon>
-                            <polyline points="<?= e($pointsAttr) ?>" fill="none" stroke="currentColor" stroke-width="2.5" vector-effect="non-scaling-stroke"></polyline>
-                        </g>
-                    </svg>
-                    <div class="flex justify-between text-[11px] text-gray-400 dark:text-gray-600 mt-1">
-                        <?php foreach ($uploadActivity as $month): ?>
-                            <span><?= e($month['label']) ?></span>
-                        <?php endforeach; ?>
+                    <div id="upload-activity-chart">
+                        <svg viewBox="0 0 <?= $chartW ?> <?= $chartH ?>" class="w-full h-20" preserveAspectRatio="none">
+                            <defs>
+                                <clipPath id="upload-activity-clip">
+                                    <rect id="upload-activity-clip-rect" x="0" y="0" width="0" height="<?= $chartH ?>" data-target-width="<?= $chartW ?>"></rect>
+                                </clipPath>
+                            </defs>
+                            <g class="text-csc-navy-600 dark:text-csc-navy-300">
+                                <polygon id="upload-activity-area" points="<?= e($areaAttr) ?>" fill="currentColor" opacity="0.12" clip-path="url(#upload-activity-clip)"></polygon>
+                                <polyline id="upload-activity-line" points="<?= e($pointsAttr) ?>" fill="none" stroke="currentColor" stroke-width="2.5" vector-effect="non-scaling-stroke"
+                                    style="stroke-dasharray: <?= $lineLength ?>; stroke-dashoffset: <?= $lineLength ?>;" data-length="<?= $lineLength ?>"></polyline>
+                            </g>
+                        </svg>
+                        <div class="flex justify-between text-[11px] text-gray-400 dark:text-gray-600 mt-1">
+                            <?php foreach ($uploadActivity as $month): ?>
+                                <span><?= e($month['label']) ?></span>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
                 <?php endif; ?>
             </div>
@@ -172,8 +191,14 @@ include __DIR__ . '/../includes/sidebar.php';
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($recentUploads as $upload): $agingClass = pending_upload_age_class($upload); ?>
-                                <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5<?= $agingClass !== '' ? ' ' . $agingClass : '' ?><?= (int) $upload['records_extracted'] === 0 ? ' text-green-700 dark:text-green-400' : '' ?>">
+                            <?php foreach ($recentUploads as $rowIndex => $upload):
+                                $agingClass = pending_upload_age_class($upload);
+                                // The critical-aging tier already pulses continuously via its own
+                                // animation; stacking the fade-in-up entrance on top of it would
+                                // fight over the single CSS `animation` property, so skip it there.
+                                $hasPulseAnimation = strpos($agingClass, 'animate-pending-critical-pulse') !== false;
+                            ?>
+                                <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5<?= $agingClass !== '' ? ' ' . $agingClass : '' ?><?= (int) $upload['records_extracted'] === 0 ? ' text-green-700 dark:text-green-400' : '' ?><?= $hasPulseAnimation ? '' : ' motion-safe:animate-fade-in-up' ?>"<?= $hasPulseAnimation ? '' : ' style="animation-delay: ' . ($rowIndex * 50) . 'ms"' ?>>
                                     <td class="px-4 py-3"><?= e_upper(format_school_display_name($upload['school_name'], $upload['campus'])) ?></td>
                                     <td class="px-4 py-3"><?= e($upload['school_year']) ?></td>
                                     <td class="px-4 py-3"><?= (int) $upload['records_extracted'] ?> RECORDS</td>
@@ -213,8 +238,8 @@ include __DIR__ . '/../includes/sidebar.php';
                     <p class="text-sm text-gray-600 dark:text-gray-500 text-center py-6">NO RECENT ACTIVITY.</p>
                 <?php else: ?>
                     <ul class="divide-y divide-gray-100 dark:divide-white/5">
-                        <?php foreach ($recentActivity as $entry): ?>
-                            <li class="flex items-center gap-3 py-3">
+                        <?php foreach ($recentActivity as $activityIndex => $entry): ?>
+                            <li class="flex items-center gap-3 py-3 motion-safe:animate-fade-in-up" style="animation-delay: <?= $activityIndex * 50 ?>ms">
                                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-csc-navy-600/10 dark:bg-csc-navy-600/15 text-csc-navy-600 dark:text-csc-navy-300">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="<?= e(activity_icon_path($entry['action'])) ?>" /></svg>
                                 </span>

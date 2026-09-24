@@ -1,3 +1,66 @@
+// Sequenced for every visitor (not just admins), so it lives in its own
+// listener rather than inside the admin-only one below.
+document.addEventListener('DOMContentLoaded', function () {
+    var countEl = document.getElementById('upload-activity-count');
+    if (!countEl) {
+        return;
+    }
+
+    var target = parseInt(countEl.dataset.countTo, 10) || 0;
+
+    // Draws the line left-to-right (stroke-dashoffset from its full length down
+    // to 0, in the same left-to-right point order the polyline was built in)
+    // while the clip-path rect behind the shaded area grows in step, so the
+    // fill is only ever revealed up to wherever the line currently is. Runs
+    // once, right after the PDF count finishes — never loops.
+    function drawChartLine() {
+        var line = document.getElementById('upload-activity-line');
+        var clipRect = document.getElementById('upload-activity-clip-rect');
+        if (!line) {
+            return;
+        }
+
+        var lineLength = parseFloat(line.dataset.length) || 0;
+        var targetWidth = clipRect ? parseFloat(clipRect.dataset.targetWidth) || 0 : 0;
+
+        function setProgress(eased) {
+            line.style.strokeDashoffset = String(lineLength * (1 - eased));
+            if (clipRect) {
+                clipRect.setAttribute('width', String(targetWidth * eased));
+            }
+        }
+
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            setProgress(1);
+            return;
+        }
+
+        var duration = 1200;
+        var startTime = null;
+
+        function step(timestamp) {
+            if (startTime === null) {
+                startTime = timestamp;
+            }
+            var progress = Math.min((timestamp - startTime) / duration, 1);
+            setProgress(1 - Math.pow(1 - progress, 3));
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            }
+        }
+
+        requestAnimationFrame(step);
+    }
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        countEl.textContent = formatCount(target);
+        drawChartLine();
+        return;
+    }
+
+    animateCountUp(countEl, target, 1000, drawChartLine);
+});
+
 document.addEventListener('DOMContentLoaded', function () {
     var config = window.HGE_DASHBOARD;
     if (!config) {

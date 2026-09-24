@@ -75,6 +75,13 @@ module.exports = {
           '0%, 100%': { backgroundColor: 'rgb(239 68 68 / 0.08)' },
           '50%': { backgroundColor: 'rgb(239 68 68 / 0.24)' },
         },
+        // Grows a bar from nothing up to its data value — the target height is
+        // supplied per-element via the --bar-height custom property (see the
+        // LATIN HONORS BY TYPE chart on admin/dashboard.php).
+        growBar: {
+          '0%': { height: '0%' },
+          '100%': { height: 'var(--bar-height)' },
+        },
       },
       animation: {
         'float-a': 'floatA 22s ease-in-out infinite',
@@ -87,6 +94,7 @@ module.exports = {
         'progress-indeterminate': 'progressIndeterminate 1.1s ease-in-out infinite',
         'pending-critical-pulse': 'pendingCriticalPulse 2s ease-in-out infinite',
         'pending-critical-pulse-dark': 'pendingCriticalPulseDark 2s ease-in-out infinite',
+        'grow-bar': 'growBar 0.8s ease-out both',
       },
     },
   },
