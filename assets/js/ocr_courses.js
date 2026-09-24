@@ -15,12 +15,8 @@ document.addEventListener('DOMContentLoaded', function () {
             formData.set(key, data[key]);
         });
         return fetch(url, { method: 'POST', body: formData }).then(function (r) {
-            return { ok: r.ok, status: r.status, data: r.json() };
+            return r.json();
         });
-    }
-
-    function handleStepUpExpired() {
-        window.location.href = config.apiBase + '/admin/verify_identity.php?next=ocr_courses';
     }
 
     function enforceUppercase(el) {
@@ -52,20 +48,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 csrf_token: config.csrfToken,
                 keyword: keyword,
             })
-                .then(function (result) {
-                    if (result.status === 403) {
-                        handleStepUpExpired();
-                        return;
+                .then(function (data) {
+                    addBtn.disabled = false;
+                    if (data.status === 'success') {
+                        showToast('success', data.message);
+                        window.location.reload();
+                    } else {
+                        showToast('error', data.message);
                     }
-                    result.data.then(function (data) {
-                        addBtn.disabled = false;
-                        if (data.status === 'success') {
-                            showToast('success', data.message);
-                            window.location.reload();
-                        } else {
-                            showToast('error', data.message);
-                        }
-                    });
                 })
                 .catch(function () {
                     addBtn.disabled = false;
@@ -97,20 +87,14 @@ document.addEventListener('DOMContentLoaded', function () {
                                 csrf_token: config.csrfToken,
                                 id: keywordId,
                             })
-                                .then(function (result) {
-                                    if (result.status === 403) {
-                                        handleStepUpExpired();
-                                        return;
+                                .then(function (data) {
+                                    modalClose();
+                                    if (data.status === 'success') {
+                                        showToast('success', data.message);
+                                        window.location.reload();
+                                    } else {
+                                        showToast('error', data.message);
                                     }
-                                    result.data.then(function (data) {
-                                        modalClose();
-                                        if (data.status === 'success') {
-                                            showToast('success', data.message);
-                                            window.location.reload();
-                                        } else {
-                                            showToast('error', data.message);
-                                        }
-                                    });
                                 })
                                 .catch(function () {
                                     modalClose();

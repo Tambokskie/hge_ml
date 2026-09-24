@@ -15,12 +15,6 @@ if (!csrf_verify($_POST['csrf_token'] ?? null)) {
     exit;
 }
 
-if (!has_step_up('ocr_courses')) {
-    http_response_code(403);
-    echo json_encode(['status' => 'error', 'message' => 'YOUR SECURITY VERIFICATION HAS EXPIRED. PLEASE VERIFY YOUR IDENTITY AGAIN.']);
-    exit;
-}
-
 try {
     $pdo = get_pdo();
     $id = (int) ($_POST['id'] ?? 0);

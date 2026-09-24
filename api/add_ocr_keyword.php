@@ -15,15 +15,6 @@ if (!csrf_verify($_POST['csrf_token'] ?? null)) {
     exit;
 }
 
-// Belt-and-suspenders: even with the page-load gate on admin/ocr_courses.php,
-// this endpoint is reachable directly, so it re-checks the same step-up
-// grant rather than trusting that the request came from the gated page.
-if (!has_step_up('ocr_courses')) {
-    http_response_code(403);
-    echo json_encode(['status' => 'error', 'message' => 'YOUR SECURITY VERIFICATION HAS EXPIRED. PLEASE VERIFY YOUR IDENTITY AGAIN.']);
-    exit;
-}
-
 try {
     $pdo = get_pdo();
     $keyword = trim((string) ($_POST['keyword'] ?? ''));

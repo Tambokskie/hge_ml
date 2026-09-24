@@ -6,7 +6,6 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/ocr_keywords.php';
 
 require_role('administrator');
-require_step_up('ocr_courses', 'ocr_courses');
 
 $pdo = get_pdo();
 $keywords = get_ocr_course_keywords($pdo);
