@@ -184,6 +184,22 @@ function daysSince(datetime) {
     return Math.floor((Date.now() - timestamp) / 86400000);
 }
 
+// Recombines the Review page's separate Last/Given/Middle Name fields back
+// into the single "LAST, GIVEN MIDDLE" string the rest of the app expects
+// (mirrors includes/functions.php's combine_graduate_name() — the split
+// itself, split_graduate_name(), only runs server-side since it's needed
+// for the initial page render).
+function combineGraduateName(lastName, givenName, middleName) {
+    lastName = String(lastName || '').trim();
+    var firstAndMiddle = (String(givenName || '').trim() + ' ' + String(middleName || '').trim()).replace(/\s+/g, ' ').trim();
+
+    if (lastName === '') {
+        return firstAndMiddle;
+    }
+
+    return firstAndMiddle === '' ? lastName : lastName + ', ' + firstAndMiddle;
+}
+
 // Shared footer button styles for form-style modals (showModal() with a `subtitle`).
 var MODAL_BTN = {
     secondary: 'inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors',

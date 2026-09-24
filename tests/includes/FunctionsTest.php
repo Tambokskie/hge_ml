@@ -154,4 +154,72 @@ class FunctionsTest extends TestCase
     {
         $this->assertFalse(validate_removal_reason('12345')['ok']);
     }
+
+    public function testSplitGraduateNameHandlesCommaFormat(): void
+    {
+        $this->assertSame(
+            ['last_name' => 'Dela Cruz', 'given_name' => 'Juan', 'middle_name' => 'Santos'],
+            split_graduate_name('Dela Cruz, Juan Santos')
+        );
+    }
+
+    public function testSplitGraduateNameHandlesCommaFormatWithNoMiddleName(): void
+    {
+        $this->assertSame(
+            ['last_name' => 'Reyes', 'given_name' => 'Maria', 'middle_name' => ''],
+            split_graduate_name('Reyes, Maria')
+        );
+    }
+
+    public function testSplitGraduateNameGuessesSurnameBoundaryWithoutComma(): void
+    {
+        // No comma: first word is assumed to be the surname, last word the
+        // middle name — a best-effort guess a human reviews, not a
+        // guarantee (see the function's own docblock).
+        $this->assertSame(
+            ['last_name' => 'ABAJON', 'given_name' => 'JEANY MAE', 'middle_name' => 'LUCANAS'],
+            split_graduate_name('ABAJON JEANY MAE LUCANAS')
+        );
+    }
+
+    public function testSplitGraduateNameKeepsMultiWordSurnamePrefixTogether(): void
+    {
+        // "DELA" alone is a recognized surname-prefix word, so it must stay
+        // glued to "CRUZ" rather than being treated as the whole surname.
+        $this->assertSame(
+            ['last_name' => 'DELA CRUZ', 'given_name' => 'JUAN', 'middle_name' => 'SANTOS'],
+            split_graduate_name('DELA CRUZ JUAN SANTOS')
+        );
+    }
+
+    public function testSplitGraduateNameHandlesSingleWordRemainder(): void
+    {
+        $this->assertSame(
+            ['last_name' => 'SANTOS', 'given_name' => 'PEDRO', 'middle_name' => ''],
+            split_graduate_name('SANTOS PEDRO')
+        );
+    }
+
+    public function testSplitGraduateNameHandlesEmptyInput(): void
+    {
+        $this->assertSame(
+            ['last_name' => '', 'given_name' => '', 'middle_name' => ''],
+            split_graduate_name('')
+        );
+    }
+
+    public function testCombineGraduateNameIsTheInverseOfSplit(): void
+    {
+        $this->assertSame('Dela Cruz, Juan Santos', combine_graduate_name('Dela Cruz', 'Juan', 'Santos'));
+    }
+
+    public function testCombineGraduateNameOmitsCommaWhenMiddleNameIsBlank(): void
+    {
+        $this->assertSame('Reyes, Maria', combine_graduate_name('Reyes', 'Maria', ''));
+    }
+
+    public function testCombineGraduateNameHandlesBlankLastName(): void
+    {
+        $this->assertSame('Maria', combine_graduate_name('', 'Maria', ''));
+    }
 }
