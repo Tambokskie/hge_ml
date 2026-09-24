@@ -117,6 +117,11 @@ document.addEventListener('DOMContentLoaded', function () {
                   'data-date="' + escapeHtml(row.graduation_date || '') + '" ' +
                   'data-year="' + escapeHtml(String(row.graduation_year)) + '">' + actionIcon('pen') + '</button>'
                 : '';
+            var deleteBtnHtml = config.isAdmin
+                ? '<button type="button" class="delete-graduate-btn rounded-lg bg-csc-red-600/10 hover:bg-csc-red-600/20 text-csc-red-600 dark:text-csc-red-400 p-1.5" title="Delete record" ' +
+                  'data-id="' + escapeHtml(String(row.id)) + '" ' +
+                  'data-name="' + escapeHtml(row.graduate_name) + '">' + actionIcon('trash') + '</button>'
+                : '';
             var applyBtnHtml = parseInt(row.has_applied, 10) === 1
                 ? ''
                 : '<button type="button" class="apply-graduate-btn rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5" title="Mark as applied" ' +
@@ -142,6 +147,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 'data-uploaded-at="' + escapeHtml(displayUploadedAt) + '">' + actionIcon('eye') + '</button>' +
                 applyBtnHtml +
                 editBtnHtml +
+                deleteBtnHtml +
                 '</div></td>' +
                 '</tr>';
         }).join('');
@@ -278,6 +284,40 @@ document.addEventListener('DOMContentLoaded', function () {
                             })
                             .catch(function () {
                                 showToast('error', 'THE RECORD COULD NOT BE SAVED. PLEASE TRY AGAIN.');
+                            });
+                    },
+                },
+            ],
+        });
+    }
+
+    function openDeleteModal(defaults) {
+        showModal({
+            icon: modalHeaderIcon('trash'),
+            iconClassName: 'bg-csc-red-600/10 text-csc-red-600 dark:text-csc-red-400',
+            title: 'DELETE HONOR GRADUATE RECORD',
+            bodyHtml: '<p>PERMANENTLY DELETE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(defaults.name) + '</span>? THIS CANNOT BE UNDONE.</p>',
+            buttons: [
+                { label: 'CANCEL', className: MODAL_BTN.secondary },
+                {
+                    label: 'DELETE',
+                    className: MODAL_BTN.danger,
+                    onClick: function (modalClose) {
+                        postJson(config.apiBase + '/api/delete_saved_graduate.php', {
+                            csrf_token: config.csrfToken,
+                            id: defaults.id,
+                        })
+                            .then(function (data) {
+                                if (data.status === 'success') {
+                                    showToast('success', data.message);
+                                    modalClose();
+                                    performSearch(currentParams(currentPageFromUrl()), false);
+                                } else {
+                                    showToast('error', data.message);
+                                }
+                            })
+                            .catch(function () {
+                                showToast('error', 'THE RECORD COULD NOT BE DELETED. PLEASE TRY AGAIN.');
                             });
                     },
                 },
@@ -559,6 +599,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 honor: editBtn.dataset.honor,
                 date: editBtn.dataset.date,
                 year: editBtn.dataset.year,
+            });
+            return;
+        }
+
+        var deleteBtn = event.target.closest('.delete-graduate-btn');
+        if (deleteBtn) {
+            openDeleteModal({
+                id: deleteBtn.dataset.id,
+                name: deleteBtn.dataset.name,
             });
             return;
         }

@@ -321,4 +321,59 @@ class GraduateSearchTest extends TestCase
 
         $this->assertSame('error', $result['status']);
     }
+
+    public function testGetGraduatesForUploadReturnsRowsShapedForReviewWithIds(): void
+    {
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025, 'BS Computer Science');
+        $firstId = (int) TestDb::pdo()->lastInsertId();
+        $this->insertGraduate(1, 1, 'Ana Reyes', 'MAGNA CUM LAUDE', null, 2025);
+        $this->insertGraduate(2, 2, 'Other School Grad', 'CUM LAUDE', null, 2024);
+
+        $rows = get_graduates_for_upload(TestDb::pdo(), 1);
+
+        $this->assertCount(2, $rows);
+        $this->assertSame($firstId, $rows[1]['id']);
+        $this->assertSame('Juan Dela Cruz', $rows[1]['graduate_name']);
+        $this->assertSame('BS Computer Science', $rows[1]['course']);
+        $this->assertSame(2025, $rows[1]['graduation_year']);
+        $this->assertSame('Ana Reyes', $rows[0]['graduate_name']);
+    }
+
+    public function testGetGraduatesForUploadReturnsEmptyArrayForUploadWithNoRecords(): void
+    {
+        $this->assertSame([], get_graduates_for_upload(TestDb::pdo(), 1));
+    }
+
+    public function testDeleteGraduateRemovesTheRowAndDecrementsUploadCount(): void
+    {
+        TestDb::pdo()->exec('UPDATE latin_honor_uploads SET records_extracted = 2 WHERE id = 1');
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025);
+        $id = (int) TestDb::pdo()->lastInsertId();
+
+        $result = delete_graduate(TestDb::pdo(), $id);
+
+        $this->assertTrue($result['ok']);
+        $this->assertNull(get_graduate_by_id(TestDb::pdo(), $id));
+        $recordsExtracted = (int) TestDb::pdo()->query('SELECT records_extracted FROM latin_honor_uploads WHERE id = 1')->fetchColumn();
+        $this->assertSame(1, $recordsExtracted);
+    }
+
+    public function testDeleteGraduateFailsWhenNotFound(): void
+    {
+        $result = delete_graduate(TestDb::pdo(), 999999);
+
+        $this->assertFalse($result['ok']);
+    }
+
+    public function testDeleteGraduateBlocksWhenAnApplicationHasBeenFiled(): void
+    {
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025);
+        $id = (int) TestDb::pdo()->lastInsertId();
+        file_application(TestDb::pdo(), $id, 1, '2026-09-17');
+
+        $result = delete_graduate(TestDb::pdo(), $id);
+
+        $this->assertFalse($result['ok']);
+        $this->assertNotNull(get_graduate_by_id(TestDb::pdo(), $id));
+    }
 }

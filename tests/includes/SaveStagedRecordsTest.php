@@ -96,6 +96,80 @@ class SaveStagedRecordsTest extends TestCase
         $this->assertSame(0, $count);
     }
 
+    public function testReSavingWithAnIdUpdatesTheExistingRowInsteadOfInserting(): void
+    {
+        $pdo = TestDb::pdo();
+        save_staged_records($pdo, 1, 1, $this->validRows());
+        $existingId = (int) $pdo->query("SELECT id FROM latin_honor_graduates WHERE graduate_name = 'Juan Dela Cruz'")->fetchColumn();
+
+        $rows = $this->validRows();
+        $rows[0]['id'] = $existingId;
+        $rows[0]['graduate_name'] = 'Juan D. Cruz';
+
+        $result = save_staged_records($pdo, 1, 1, $rows);
+
+        $this->assertSame('success', $result['status']);
+        $count = (int) $pdo->query('SELECT COUNT(*) FROM latin_honor_graduates WHERE upload_id = 1')->fetchColumn();
+        $this->assertSame(2, $count, 'editing an existing row must not insert a duplicate');
+        $name = $pdo->query("SELECT graduate_name FROM latin_honor_graduates WHERE id = {$existingId}")->fetchColumn();
+        $this->assertSame('Juan D. Cruz', $name);
+    }
+
+    public function testReSavingWithAnAddedRowInsertsOnlyTheNewOne(): void
+    {
+        $pdo = TestDb::pdo();
+        save_staged_records($pdo, 1, 1, $this->validRows());
+        $existingRows = $pdo->query('SELECT id FROM latin_honor_graduates WHERE upload_id = 1')->fetchAll(\PDO::FETCH_COLUMN);
+
+        $rows = $this->validRows();
+        $rows[0]['id'] = (int) $existingRows[0];
+        $rows[1]['id'] = (int) $existingRows[1];
+        $rows[] = ['graduate_name' => 'Pedro Reyes', 'course' => '', 'latin_honor' => 'SUMMA CUM LAUDE', 'graduation_date' => null, 'graduation_year' => 2025];
+
+        $result = save_staged_records($pdo, 1, 1, $rows);
+
+        $this->assertSame('success', $result['status']);
+        $count = (int) $pdo->query('SELECT COUNT(*) FROM latin_honor_graduates WHERE upload_id = 1')->fetchColumn();
+        $this->assertSame(3, $count);
+    }
+
+    public function testReSavingWithoutARowDeletesItFromTheDatabase(): void
+    {
+        $pdo = TestDb::pdo();
+        save_staged_records($pdo, 1, 1, $this->validRows());
+        $existingRows = $pdo->query('SELECT id FROM latin_honor_graduates WHERE upload_id = 1')->fetchAll(\PDO::FETCH_COLUMN);
+
+        $rows = [$this->validRows()[0]];
+        $rows[0]['id'] = (int) $existingRows[0];
+
+        $result = save_staged_records($pdo, 1, 1, $rows);
+
+        $this->assertSame('success', $result['status']);
+        $count = (int) $pdo->query('SELECT COUNT(*) FROM latin_honor_graduates WHERE upload_id = 1')->fetchColumn();
+        $this->assertSame(1, $count);
+        $this->assertSame(1, (int) $pdo->query('SELECT records_extracted FROM latin_honor_uploads WHERE id = 1')->fetchColumn());
+    }
+
+    public function testReSavingBlocksRemovingARowWithAFiledApplicationAndLeavesEverythingUnchanged(): void
+    {
+        $pdo = TestDb::pdo();
+        save_staged_records($pdo, 1, 1, $this->validRows());
+        $existingRows = $pdo->query('SELECT id FROM latin_honor_graduates WHERE upload_id = 1')->fetchAll(\PDO::FETCH_COLUMN);
+        $pdo->prepare('INSERT INTO graduate_applications (graduate_id, applied_by, application_date) VALUES (:id, 1, "2026-09-17")')
+            ->execute(['id' => $existingRows[0]]);
+
+        // Drops the applied-for row from the resubmitted set, simulating an
+        // admin removing it during a re-review.
+        $rows = [$this->validRows()[1]];
+        $rows[0]['id'] = (int) $existingRows[1];
+
+        $result = save_staged_records($pdo, 1, 1, $rows);
+
+        $this->assertSame('error', $result['status']);
+        $count = (int) $pdo->query('SELECT COUNT(*) FROM latin_honor_graduates WHERE upload_id = 1')->fetchColumn();
+        $this->assertSame(2, $count, 'the failed reconciliation must roll back, leaving both original rows intact');
+    }
+
     public function testRollsBackAllRowsOnDatabaseFailureAndLeavesUploadUnchanged(): void
     {
         $pdo = TestDb::pdo();

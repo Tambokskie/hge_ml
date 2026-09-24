@@ -108,6 +108,68 @@ function file_application(PDO $pdo, int $graduateId, int $appliedBy, string $app
     return ['ok' => true];
 }
 
+/**
+ * Existing saved records for one upload, shaped like a staged review row
+ * (plus the DB id) so they can be dropped straight into an extraction
+ * review session — this is what lets an already-reviewed upload be
+ * reopened in the review screen to add a missed entry or fix a mistake.
+ */
+function get_graduates_for_upload(PDO $pdo, int $uploadId): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT id, graduate_name, course, latin_honor, graduation_date, graduation_year
+         FROM latin_honor_graduates WHERE upload_id = :upload_id ORDER BY graduate_name ASC'
+    );
+    $stmt->execute(['upload_id' => $uploadId]);
+
+    return array_map(static function (array $row): array {
+        $row['id'] = (int) $row['id'];
+        $row['graduation_year'] = (int) $row['graduation_year'];
+
+        return $row;
+    }, $stmt->fetchAll());
+}
+
+/**
+ * @return array{ok: bool, error?: string}
+ */
+function delete_graduate(PDO $pdo, int $id): array
+{
+    try {
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare('SELECT upload_id FROM latin_honor_graduates WHERE id = :id');
+        $stmt->execute(['id' => $id]);
+        $uploadId = $stmt->fetchColumn();
+
+        if ($uploadId === false) {
+            $pdo->rollBack();
+            return ['ok' => false, 'error' => 'GRADUATE RECORD NOT FOUND.'];
+        }
+
+        $pdo->prepare('DELETE FROM latin_honor_graduates WHERE id = :id')->execute(['id' => $id]);
+        $pdo->prepare('UPDATE latin_honor_uploads SET records_extracted = GREATEST(records_extracted - 1, 0) WHERE id = :upload_id')
+            ->execute(['upload_id' => $uploadId]);
+
+        $pdo->commit();
+    } catch (\Throwable $e) {
+        try {
+            $pdo->rollBack();
+        } catch (\Throwable $rollbackError) {
+            error_log('delete_graduate rollback failed: ' . $rollbackError->getMessage());
+        }
+
+        if ($e instanceof \PDOException && (int) $e->getCode() === 23000) {
+            return ['ok' => false, 'error' => 'THIS GRADUATE HAS A FILED APPLICATION AND CANNOT BE DELETED.'];
+        }
+
+        error_log('delete_graduate failed: ' . $e->getMessage());
+        return ['ok' => false, 'error' => 'THE RECORD COULD NOT BE DELETED. PLEASE TRY AGAIN.'];
+    }
+
+    return ['ok' => true];
+}
+
 function get_graduation_years_for_school(PDO $pdo, int $schoolId): array
 {
     $stmt = $pdo->prepare(

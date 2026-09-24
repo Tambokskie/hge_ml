@@ -152,4 +152,67 @@ class UploadQueriesTest extends TestCase
     {
         $this->assertNull(get_upload_by_id(TestDb::pdo(), 999));
     }
+
+    private function insertUpload(int $schoolId, string $schoolYear, string $file, string $status = 'pending', int $recordsExtracted = 0): int
+    {
+        $pdo = TestDb::pdo();
+        $stmt = $pdo->prepare(
+            'INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, upload_number, extraction_status, records_extracted)
+             VALUES (:school_id, :school_year, :file, :file, :file, 10, SHA2(:file, 256), 1, 1, :status, :records)'
+        );
+        $stmt->execute([
+            'school_id' => $schoolId,
+            'school_year' => $schoolYear,
+            'file' => $file,
+            'status' => $status,
+            'records' => $recordsExtracted,
+        ]);
+
+        return (int) $pdo->lastInsertId();
+    }
+
+    public function testSearchUploadsFiltersBySchoolAndYear(): void
+    {
+        $this->insertUpload(1, '2025', 'a.pdf');
+        $this->insertUpload(2, '2024', 'b.pdf');
+        $this->insertUpload(1, '2024', 'c.pdf');
+
+        $result = search_uploads(TestDb::pdo(), ['school_id' => 1, 'school_year' => '2024'], 1);
+
+        $this->assertCount(1, $result['rows']);
+        $this->assertSame('c.pdf', $result['rows'][0]['original_filename']);
+    }
+
+    public function testSearchUploadsReturnsAllUploadsWhenNoFiltersGiven(): void
+    {
+        $this->insertUpload(1, '2025', 'a.pdf');
+        $this->insertUpload(2, '2024', 'b.pdf');
+
+        $result = search_uploads(TestDb::pdo(), [], 1);
+
+        $this->assertSame(2, $result['pagination']['total_rows']);
+    }
+
+    public function testSearchUploadsPaginatesResults(): void
+    {
+        for ($i = 1; $i <= 3; $i++) {
+            $this->insertUpload(1, "202{$i}", "a{$i}.pdf");
+        }
+
+        $page1 = search_uploads(TestDb::pdo(), [], 1, 2);
+        $page2 = search_uploads(TestDb::pdo(), [], 2, 2);
+
+        $this->assertCount(2, $page1['rows']);
+        $this->assertCount(1, $page2['rows']);
+        $this->assertSame(3, $page1['pagination']['total_rows']);
+    }
+
+    public function testGetDistinctUploadSchoolYearsReturnsUniqueYearsDescending(): void
+    {
+        $this->insertUpload(1, '2023', 'a.pdf');
+        $this->insertUpload(2, '2025', 'b.pdf');
+        $this->insertUpload(1, '2025', 'c.pdf');
+
+        $this->assertSame(['2025', '2023'], get_distinct_upload_school_years(TestDb::pdo()));
+    }
 }

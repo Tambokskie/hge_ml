@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/functions.php';
+
 function find_existing_upload(PDO $pdo, int $schoolId, string $schoolYear): ?array
 {
     $stmt = $pdo->prepare(
@@ -78,6 +80,61 @@ function get_recent_uploads(PDO $pdo, int $limit = 5): array
     $stmt->execute();
 
     return $stmt->fetchAll();
+}
+
+/**
+ * Filterable, paginated upload listing for the SCHOOL RECORDS page — the
+ * same shape of query as search_graduates() in includes/graduates.php, but
+ * grouped at the upload/PDF level instead of the individual-graduate level
+ * so an admin can find and reopen the PDF a record actually lives in.
+ */
+function search_uploads(PDO $pdo, array $filters, int $page, int $perPage = 20): array
+{
+    $conditions = [];
+    $params = [];
+
+    if (!empty($filters['school_id'])) {
+        $conditions[] = 'u.school_id = :school_id';
+        $params['school_id'] = (int) $filters['school_id'];
+    }
+
+    if (!empty($filters['school_year'])) {
+        $conditions[] = 'u.school_year = :school_year';
+        $params['school_year'] = (string) $filters['school_year'];
+    }
+
+    $whereSql = empty($conditions) ? '' : ('WHERE ' . implode(' AND ', $conditions));
+
+    $countStmt = $pdo->prepare("SELECT COUNT(*) FROM latin_honor_uploads u JOIN schools s ON s.id = u.school_id {$whereSql}");
+    $countStmt->execute($params);
+    $totalRows = (int) $countStmt->fetchColumn();
+
+    $pagination = paginate($totalRows, $page, $perPage);
+
+    $sql = "SELECT u.id, u.school_year, u.original_filename, u.uploaded_at, u.records_extracted,
+                   u.extraction_status, s.school_name, s.campus
+            FROM latin_honor_uploads u
+            JOIN schools s ON s.id = u.school_id
+            {$whereSql}
+            ORDER BY u.uploaded_at DESC, u.id DESC
+            LIMIT :limit OFFSET :offset";
+
+    $stmt = $pdo->prepare($sql);
+    foreach ($params as $key => $value) {
+        $stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+    }
+    $stmt->bindValue('limit', $pagination['per_page'], PDO::PARAM_INT);
+    $stmt->bindValue('offset', $pagination['offset'], PDO::PARAM_INT);
+    $stmt->execute();
+
+    return ['rows' => $stmt->fetchAll(), 'pagination' => $pagination];
+}
+
+function get_distinct_upload_school_years(PDO $pdo): array
+{
+    $stmt = $pdo->query('SELECT DISTINCT school_year FROM latin_honor_uploads ORDER BY school_year DESC');
+
+    return $stmt->fetchAll(PDO::FETCH_COLUMN);
 }
 
 function get_upload_by_id(PDO $pdo, int $id): ?array

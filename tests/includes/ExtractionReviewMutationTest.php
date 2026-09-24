@@ -63,6 +63,39 @@ class ExtractionReviewMutationTest extends TestCase
         $this->assertSame('', $rows[0]['course']);
     }
 
+    public function testSetStagedRowPreservesIdOfRowSeededFromSavedRecords(): void
+    {
+        start_extraction_review(1, [
+            ['id' => 42, 'graduate_name' => 'Juan Dela Cruz', 'course' => '', 'latin_honor' => 'CUM LAUDE', 'graduation_date' => null, 'graduation_year' => 2026],
+        ]);
+
+        $result = set_staged_row(1, 0, [
+            'graduate_name' => 'Juan D. Cruz',
+            'latin_honor' => 'CUM LAUDE',
+            'graduation_date' => null,
+            'graduation_year' => 2026,
+        ]);
+
+        $this->assertTrue($result['ok']);
+        $rows = get_extraction_review(1)['rows'];
+        $this->assertSame(42, $rows[0]['id']);
+        $this->assertSame('Juan D. Cruz', $rows[0]['graduate_name']);
+    }
+
+    public function testSetStagedRowNeverAddsIdToANewlyAddedRow(): void
+    {
+        $result = set_staged_row(1, null, [
+            'graduate_name' => 'Pedro Reyes',
+            'latin_honor' => 'CUM LAUDE',
+            'graduation_date' => null,
+            'graduation_year' => 2026,
+        ]);
+
+        $this->assertTrue($result['ok']);
+        $rows = get_extraction_review(1)['rows'];
+        $this->assertArrayNotHasKey('id', $rows[count($rows) - 1]);
+    }
+
     public function testSetStagedRowAppendsNewRowWhenIndexIsNull(): void
     {
         $result = set_staged_row(1, null, [

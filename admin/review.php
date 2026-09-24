@@ -5,6 +5,7 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/uploads.php';
 require_once __DIR__ . '/../includes/extraction_review.php';
+require_once __DIR__ . '/../includes/graduates.php';
 
 require_role('administrator');
 
@@ -35,6 +36,16 @@ if ($review === null) {
         $review = get_extraction_review($uploadId);
         $resumedDraftAt = $draft['updated_at'];
     }
+}
+
+// Editing an already-reviewed upload: there is no leftover staged session or
+// draft to resume, so seed one from what is actually saved in the database.
+// save_staged_records() recognizes the 'id' on each of these rows and
+// reconciles the DB against them (update/insert/delete) instead of blindly
+// re-inserting everything on the next SAVE RECORDS.
+if ($review === null && $upload['extraction_status'] === 'reviewed') {
+    start_extraction_review($uploadId, get_graduates_for_upload($pdo, $uploadId));
+    $review = get_extraction_review($uploadId);
 }
 
 if ($review === null) {

@@ -87,6 +87,13 @@ function set_staged_row(int $uploadId, ?int $rowIndex, array $data): array
 
     $rows = $review['rows'];
     if ($rowIndex !== null && array_key_exists($rowIndex, $rows)) {
+        // Carries the DB id forward when editing a row that was seeded from
+        // an already-saved upload (see get_graduates_for_upload()), so
+        // save_staged_records() can UPDATE it in place instead of inserting
+        // a duplicate. Newly added rows never get an id.
+        if (isset($rows[$rowIndex]['id'])) {
+            $row['id'] = $rows[$rowIndex]['id'];
+        }
         $rows[$rowIndex] = $row;
     } else {
         $rows[] = $row;
@@ -177,6 +184,15 @@ function mass_update_staged_graduation_date(int $uploadId, string $date): array
     return ['ok' => true, 'updated' => count($rows)];
 }
 
+/**
+ * Saves the reviewed rows for an upload. Rows carrying an 'id' (seeded from
+ * get_graduates_for_upload() when re-opening an already-reviewed upload for
+ * editing) are UPDATEd in place; rows without one are INSERTed as new. Any
+ * existing DB row for this upload whose id no longer appears in $rows is
+ * DELETEd, so removing a row during a re-review actually removes it. This
+ * makes the function safe for both a first-time save (no existing rows, so
+ * every row inserts exactly as before) and a later edit of saved records.
+ */
 function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows): array
 {
     if (empty($rows)) {
@@ -200,21 +216,45 @@ function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows
     try {
         $pdo->beginTransaction();
 
-        $stmt = $pdo->prepare(
+        $existingIdsStmt = $pdo->prepare('SELECT id FROM latin_honor_graduates WHERE upload_id = :upload_id');
+        $existingIdsStmt->execute(['upload_id' => $uploadId]);
+        $existingIds = array_map('intval', $existingIdsStmt->fetchAll(PDO::FETCH_COLUMN));
+
+        $insertStmt = $pdo->prepare(
             'INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, course, latin_honor, graduation_date, graduation_year)
              VALUES (:upload_id, :school_id, :graduate_name, :course, :latin_honor, :graduation_date, :graduation_year)'
         );
+        $updateStmt = $pdo->prepare(
+            'UPDATE latin_honor_graduates
+             SET graduate_name = :graduate_name, course = :course, latin_honor = :latin_honor,
+                 graduation_date = :graduation_date, graduation_year = :graduation_year
+             WHERE id = :id AND upload_id = :upload_id'
+        );
 
+        $keptIds = [];
         foreach ($rows as $row) {
-            $stmt->execute([
-                'upload_id' => $uploadId,
-                'school_id' => $schoolId,
+            $fields = [
                 'graduate_name' => $row['graduate_name'],
                 'course' => $row['course'] ?? '',
                 'latin_honor' => $row['latin_honor'],
                 'graduation_date' => $row['graduation_date'],
                 'graduation_year' => $row['graduation_year'],
-            ]);
+            ];
+
+            $rowId = isset($row['id']) ? (int) $row['id'] : 0;
+            if ($rowId > 0 && in_array($rowId, $existingIds, true)) {
+                $updateStmt->execute($fields + ['id' => $rowId, 'upload_id' => $uploadId]);
+                $keptIds[] = $rowId;
+            } else {
+                $insertStmt->execute($fields + ['upload_id' => $uploadId, 'school_id' => $schoolId]);
+                $keptIds[] = (int) $pdo->lastInsertId();
+            }
+        }
+
+        $removedIds = array_diff($existingIds, $keptIds);
+        if (!empty($removedIds)) {
+            $placeholders = implode(',', array_fill(0, count($removedIds), '?'));
+            $pdo->prepare("DELETE FROM latin_honor_graduates WHERE id IN ({$placeholders})")->execute(array_values($removedIds));
         }
 
         update_upload_extraction_status($pdo, $uploadId, 'reviewed', count($rows));
@@ -228,6 +268,14 @@ function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows
             error_log('save_staged_records rollback failed: ' . $rollbackError->getMessage());
         }
         error_log('save_staged_records failed: ' . $e->getMessage());
+
+        if ($e instanceof \PDOException && (int) $e->getCode() === 23000) {
+            return [
+                'status' => 'error',
+                'message' => 'ONE OR MORE REMOVED RECORDS ALREADY HAVE A FILED APPLICATION AND CANNOT BE DELETED THIS WAY.',
+            ];
+        }
+
         return ['status' => 'error', 'message' => 'THE RECORDS COULD NOT BE SAVED. PLEASE TRY AGAIN.'];
     }
 
