@@ -127,8 +127,8 @@ document.addEventListener('DOMContentLoaded', function () {
         var csrfToken = form.querySelector('[name="csrf_token"]').value;
         var viewUploadUrl = form.dataset.viewUploadUrl + '?id=' + uploadId;
 
-        showProgress('EXTRACTING RECORDS FROM PDF... THIS CAN TAKE UP TO A MINUTE FOR SCANNED DOCUMENTS.');
-        setIndeterminateProgress();
+        hideProgress();
+        var closeLoadingModal = showLoadingModal('EXTRACTING DATA', 'PLEASE WAIT WHILE WE GATHER THE LATEST INFORMATION.');
 
         var formData = new FormData();
         formData.set('csrf_token', csrfToken);
@@ -143,11 +143,9 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .then(function (data) {
                 if (data.status === 'success') {
-                    setProgressLabel('DONE. REDIRECTING...');
-                    setDeterminateProgress(100);
                     window.location.href = data.redirect_url;
                 } else if (data.status === 'ocr_tools_missing') {
-                    hideProgress();
+                    closeLoadingModal();
                     promptOcrToolsInstall({
                         missing: data.missing,
                         csrfToken: csrfToken,
@@ -168,13 +166,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         },
                     });
                 } else {
-                    hideProgress();
+                    closeLoadingModal();
                     showToast('error', data.message);
                     window.location.href = viewUploadUrl;
                 }
             })
             .catch(function () {
-                hideProgress();
+                closeLoadingModal();
                 showToast('error', 'THE FILE WAS UPLOADED BUT COULD NOT BE PROCESSED AUTOMATICALLY. PLEASE EXTRACT IT MANUALLY.');
                 window.location.href = viewUploadUrl;
             });

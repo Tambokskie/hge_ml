@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function extract() {
         setBusy('EXTRACTING...');
+        var closeLoadingModal = showLoadingModal('EXTRACTING DATA', 'PLEASE WAIT WHILE WE GATHER THE LATEST INFORMATION.');
 
         var formData = new FormData();
         formData.set('csrf_token', config.csrfToken);
@@ -94,6 +95,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (data.status === 'success') {
                     window.location.href = data.redirect_url;
                 } else if (data.status === 'ocr_tools_missing') {
+                    closeLoadingModal();
                     clearBusy();
                     promptOcrToolsInstall({
                         missing: data.missing,
@@ -107,11 +109,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         onCancelled: clearBusy,
                     });
                 } else {
+                    closeLoadingModal();
                     clearBusy();
                     showToast('error', data.message);
                 }
             })
             .catch(function () {
+                closeLoadingModal();
                 clearBusy();
                 showToast('error', 'EXTRACTION COULD NOT BE STARTED. PLEASE TRY AGAIN.');
             });
@@ -135,7 +139,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-csc-navy-600 hover:bg-csc-navy-500 text-white transition-colors',
                     onClick: function (close) {
                         close();
-                        extract();
+                        // Let this modal's own fade-out transition finish
+                        // before the loading modal fades in, so the two
+                        // never visibly overlap mid-crossfade.
+                        setTimeout(extract, 200);
                     },
                 },
             ],

@@ -142,3 +142,22 @@ function showModal(config) {
 
     return close;
 }
+
+// A blocking "please wait" modal for long-running operations (PDF/OCR
+// extraction, re-extraction) — showModal()'s icon+title+body layout with a
+// spinning icon instead of a static one, and no buttons, so the only way to
+// dismiss it is calling the returned close() once the operation settles.
+function showLoadingModal(title, subtitle) {
+    var spinnerIcon = '<svg class="h-10 w-10 animate-spin" fill="none" viewBox="0 0 24 24">'
+        + '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>'
+        + '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>'
+        + '</svg>';
+
+    return showModal({
+        icon: spinnerIcon,
+        iconClassName: 'text-csc-navy-600 dark:text-csc-navy-300',
+        title: title,
+        bodyHtml: '<p>' + escapeHtml(subtitle) + '</p>',
+        buttons: [],
+    });
+}
