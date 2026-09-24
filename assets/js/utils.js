@@ -102,6 +102,31 @@ function honorPillClass(honor) {
     return 'bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400';
 }
 
+// Label + Tailwind classes for an upload's extraction_status pill (mirrors
+// includes/functions.php's upload_status_pill() for the AJAX-rendered table
+// on admin/school_records.php).
+var UPLOAD_STATUS_PILLS = {
+    pending: { label: 'PENDING EXTRACTION', className: 'bg-gray-500/15 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400' },
+    extracted: { label: 'EXTRACTED', className: 'bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300' },
+    draft: { label: 'DRAFT', className: 'bg-yellow-500/15 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400' },
+    reviewed: { label: 'REVIEWED', className: 'bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400' },
+    failed: { label: 'EXTRACTION FAILED', className: 'bg-yellow-500/15 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400' },
+};
+
+function uploadStatusPill(status) {
+    return UPLOAD_STATUS_PILLS[status] || { label: String(status || '').toUpperCase(), className: 'bg-gray-500/15 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400' };
+}
+
+// Whole days elapsed since an ISO-ish "YYYY-MM-DD HH:MM:SS" datetime string
+// (mirrors includes/functions.php's days_since()).
+function daysSince(datetime) {
+    var timestamp = new Date(String(datetime).replace(' ', 'T')).getTime();
+    if (isNaN(timestamp)) {
+        return 0;
+    }
+    return Math.floor((Date.now() - timestamp) / 86400000);
+}
+
 // Shared footer button styles for form-style modals (showModal() with a `subtitle`).
 var MODAL_BTN = {
     secondary: 'inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors',

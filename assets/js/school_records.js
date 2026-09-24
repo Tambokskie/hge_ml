@@ -122,9 +122,21 @@ document.addEventListener('DOMContentLoaded', function () {
                   'data-year="' + escapeHtml(String(upload.school_year)) + '">' + actionIcon('trash') + '</button>'
                 : '';
 
+            var pill = uploadStatusPill(upload.extraction_status);
+            var pendingInfoHtml = upload.extraction_status !== 'reviewed'
+                ? '<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-1">' +
+                  daysSince(upload.uploaded_at) + ' DAY' + (daysSince(upload.uploaded_at) === 1 ? '' : 'S') + ' SINCE UPLOAD<br>' +
+                  'LAST CHECKED ' + escapeHtml(formatUploadedAt(upload.updated_at)) +
+                  '</p>'
+                : '';
+            var statusHtml =
+                '<span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + pill.className + '">' + escapeHtml(pill.label) + '</span>' +
+                pendingInfoHtml;
+
             return '<tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">' +
                 '<td class="px-4 py-3">' + escapeHtml(formatSchoolDisplayName(upload.school_name, upload.campus).toUpperCase()) + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(String(upload.school_year)) + '</td>' +
+                '<td class="px-4 py-3">' + statusHtml + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(String(upload.records_extracted)) + ' RECORDS</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(formatUploadedAt(upload.uploaded_at)) + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(upload.original_filename) + '</td>' +
@@ -158,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function () {
         resultsContainer.innerHTML =
             '<div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto"><table class="w-full text-sm text-left">' +
             '<thead><tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">' +
-            '<th class="px-4 py-3">SCHOOL</th><th class="px-4 py-3">YEAR</th><th class="px-4 py-3">RECORDS EXTRACTED</th>' +
+            '<th class="px-4 py-3">SCHOOL</th><th class="px-4 py-3">YEAR</th><th class="px-4 py-3">STATUS</th><th class="px-4 py-3">RECORDS EXTRACTED</th>' +
             '<th class="px-4 py-3">DATE UPLOADED</th><th class="px-4 py-3">FILE NAME</th><th class="px-4 py-3 text-right">ACTION</th></tr></thead>' +
             '<tbody id="school-records-tbody">' + rowsHtml + '</tbody></table></div>' + paginationHtml;
 

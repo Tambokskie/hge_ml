@@ -80,6 +80,20 @@ function pending_upload_age_class(array $upload): string
     return '';
 }
 
+/**
+ * Whole days elapsed since a datetime, for the SCHOOL RECORDS page's
+ * "X DAYS SINCE UPLOAD" line on pending (not-yet-reviewed) uploads.
+ */
+function days_since(string $datetime): int
+{
+    $timestamp = strtotime($datetime);
+    if ($timestamp === false) {
+        return 0;
+    }
+
+    return (int) floor((time() - $timestamp) / 86400);
+}
+
 function format_date_display(?string $date): string
 {
     if (empty($date)) {
@@ -257,6 +271,22 @@ function sidebar_nav_class(string $currentPage, string $navPage): string
     }
 
     return 'text-white/70 dark:text-gray-400 hover:bg-white/10 dark:hover:bg-white/5 hover:text-white dark:hover:text-white hover:translate-x-0.5 border-l-2 border-transparent transition-all duration-200 ease-out active:scale-[0.98]';
+}
+
+/**
+ * Tailwind classes + label for an upload's extraction_status pill, shared
+ * between admin/view_upload.php and admin/school_records.php (mirrored in
+ * assets/js/school_records.js's uploadStatusPill() for the AJAX-rendered rows).
+ */
+function upload_status_pill(string $status): array
+{
+    return [
+        'pending' => ['label' => 'PENDING EXTRACTION', 'class' => 'bg-gray-500/15 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400'],
+        'extracted' => ['label' => 'EXTRACTED', 'class' => 'bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300'],
+        'draft' => ['label' => 'DRAFT', 'class' => 'bg-yellow-500/15 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400'],
+        'reviewed' => ['label' => 'REVIEWED', 'class' => 'bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400'],
+        'failed' => ['label' => 'EXTRACTION FAILED', 'class' => 'bg-yellow-500/15 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400'],
+    ][$status] ?? ['label' => mb_strtoupper($status), 'class' => 'bg-gray-500/15 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400'];
 }
 
 function get_distinct_graduation_years(PDO $pdo): array

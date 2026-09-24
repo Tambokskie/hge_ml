@@ -27,6 +27,8 @@ try {
     $searchFailed = true;
 }
 
+$actionSummary = get_upload_action_summary($pdo);
+
 $currentUser = current_user();
 $currentPage = 'school_records';
 $csrfToken = csrf_token();
@@ -43,6 +45,28 @@ include __DIR__ . '/../includes/sidebar.php';
             <div>
                 <h1 class="text-2xl font-bold text-csc-navy-600 dark:text-white">SCHOOL RECORDS</h1>
                 <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">BROWSE UPLOADED LATIN HONOR LISTS AND EDIT THEIR SAVED RECORDS.</p>
+            </div>
+        </div>
+
+        <h2 class="text-xs font-bold tracking-wide text-gray-500 dark:text-gray-500 mb-3">ACTIONS SUMMARY</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div class="flex items-center gap-4 rounded-2xl border border-gray-100 dark:border-white/5 bg-white dark:bg-surface-900 p-5 hge-shadow">
+                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-500/10 text-green-600 dark:text-green-400">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </span>
+                <div>
+                    <p class="text-xs text-gray-600 dark:text-gray-500">COMPLETED</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white"><?= (int) $actionSummary['completed'] ?></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4 rounded-2xl border border-gray-100 dark:border-white/5 bg-white dark:bg-surface-900 p-5 hge-shadow">
+                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </span>
+                <div>
+                    <p class="text-xs text-gray-600 dark:text-gray-500">PENDING ACTION</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white"><?= (int) $actionSummary['pending'] ?></p>
+                </div>
             </div>
         </div>
 
@@ -110,6 +134,7 @@ include __DIR__ . '/../includes/sidebar.php';
                             <tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">
                                 <th class="px-4 py-3">SCHOOL</th>
                                 <th class="px-4 py-3">YEAR</th>
+                                <th class="px-4 py-3">STATUS</th>
                                 <th class="px-4 py-3">RECORDS EXTRACTED</th>
                                 <th class="px-4 py-3">DATE UPLOADED</th>
                                 <th class="px-4 py-3">FILE NAME</th>
@@ -117,10 +142,19 @@ include __DIR__ . '/../includes/sidebar.php';
                             </tr>
                         </thead>
                         <tbody id="school-records-tbody">
-                            <?php foreach ($searchResult['rows'] as $upload): $agingClass = pending_upload_age_class($upload); ?>
+                            <?php foreach ($searchResult['rows'] as $upload): $agingClass = pending_upload_age_class($upload); $statusPill = upload_status_pill($upload['extraction_status']); ?>
                                 <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5<?= $agingClass !== '' ? ' ' . $agingClass : '' ?>">
                                     <td class="px-4 py-3"><?= e_upper(format_school_display_name($upload['school_name'], $upload['campus'])) ?></td>
                                     <td class="px-4 py-3"><?= e($upload['school_year']) ?></td>
+                                    <td class="px-4 py-3">
+                                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold <?= $statusPill['class'] ?>"><?= e($statusPill['label']) ?></span>
+                                        <?php if ($upload['extraction_status'] !== 'reviewed'): ?>
+                                            <p class="text-[11px] text-gray-400 dark:text-gray-600 mt-1">
+                                                <?= days_since($upload['uploaded_at']) ?> DAY<?= days_since($upload['uploaded_at']) === 1 ? '' : 'S' ?> SINCE UPLOAD<br>
+                                                LAST CHECKED <?= e_upper(date('F j, Y', strtotime($upload['updated_at']))) ?>
+                                            </p>
+                                        <?php endif; ?>
+                                    </td>
                                     <td class="px-4 py-3"><?= (int) $upload['records_extracted'] ?> RECORDS</td>
                                     <td class="px-4 py-3"><?= e_upper(date('F j, Y', strtotime($upload['uploaded_at']))) ?></td>
                                     <td class="px-4 py-3"><?= e($upload['original_filename']) ?></td>

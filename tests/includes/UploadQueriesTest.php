@@ -215,4 +215,35 @@ class UploadQueriesTest extends TestCase
 
         $this->assertSame(['2025', '2023'], get_distinct_upload_school_years(TestDb::pdo()));
     }
+
+    public function testGetUploadActionSummaryCountsReviewedAsCompletedAndRestAsPending(): void
+    {
+        $this->insertUpload(1, '2025', 'a.pdf', 'reviewed', 10);
+        $this->insertUpload(1, '2024', 'b.pdf', 'pending');
+        $this->insertUpload(2, '2025', 'c.pdf', 'extracted');
+        $this->insertUpload(2, '2024', 'd.pdf', 'draft');
+        $this->insertUpload(1, '2023', 'e.pdf', 'failed');
+
+        $summary = get_upload_action_summary(TestDb::pdo());
+
+        $this->assertSame(1, $summary['completed']);
+        $this->assertSame(4, $summary['pending']);
+    }
+
+    public function testGetUploadActionSummaryHandlesNoUploads(): void
+    {
+        $summary = get_upload_action_summary(TestDb::pdo());
+
+        $this->assertSame(0, $summary['completed']);
+        $this->assertSame(0, $summary['pending']);
+    }
+
+    public function testSearchUploadsIncludesUpdatedAtForDaysSinceAndLastChecked(): void
+    {
+        $this->insertUpload(1, '2025', 'a.pdf');
+
+        $result = search_uploads(TestDb::pdo(), [], 1);
+
+        $this->assertArrayHasKey('updated_at', $result['rows'][0]);
+    }
 }

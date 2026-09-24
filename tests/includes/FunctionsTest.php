@@ -30,6 +30,33 @@ class FunctionsTest extends TestCase
         $this->assertSame('—', format_date_display('not-a-date'));
     }
 
+    public function testDaysSinceComputesWholeDaysElapsed(): void
+    {
+        $this->assertSame(0, days_since(date('Y-m-d H:i:s')));
+        $this->assertSame(3, days_since(date('Y-m-d H:i:s', strtotime('-3 days'))));
+    }
+
+    public function testDaysSinceReturnsZeroForInvalidDatetime(): void
+    {
+        $this->assertSame(0, days_since('not-a-date'));
+    }
+
+    public function testUploadStatusPillReturnsKnownLabelsAndClasses(): void
+    {
+        $reviewed = upload_status_pill('reviewed');
+        $this->assertSame('REVIEWED', $reviewed['label']);
+        $this->assertStringContainsString('green', $reviewed['class']);
+
+        $pending = upload_status_pill('pending');
+        $this->assertSame('PENDING EXTRACTION', $pending['label']);
+    }
+
+    public function testUploadStatusPillFallsBackForUnknownStatus(): void
+    {
+        $pill = upload_status_pill('something_else');
+        $this->assertSame('SOMETHING_ELSE', $pill['label']);
+    }
+
     public function testFormatSchoolDisplayNameAppendsCampusWhenPresent(): void
     {
         $this->assertSame('ABC UNIVERSITY-MAIN CAMPUS', format_school_display_name('ABC UNIVERSITY', 'MAIN CAMPUS'));

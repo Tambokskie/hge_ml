@@ -111,7 +111,7 @@ function search_uploads(PDO $pdo, array $filters, int $page, int $perPage = 20):
 
     $pagination = paginate($totalRows, $page, $perPage);
 
-    $sql = "SELECT u.id, u.school_year, u.original_filename, u.uploaded_at, u.records_extracted,
+    $sql = "SELECT u.id, u.school_year, u.original_filename, u.uploaded_at, u.updated_at, u.records_extracted,
                    u.extraction_status, s.school_name, s.campus
             FROM latin_honor_uploads u
             JOIN schools s ON s.id = u.school_id
@@ -135,6 +135,20 @@ function get_distinct_upload_school_years(PDO $pdo): array
     $stmt = $pdo->query('SELECT DISTINCT school_year FROM latin_honor_uploads ORDER BY school_year DESC');
 
     return $stmt->fetchAll(PDO::FETCH_COLUMN);
+}
+
+/**
+ * Counts every upload as either "completed" (reviewed — its records are
+ * saved and official) or "pending" (anything still needing admin action:
+ * pending, extracted, draft, or failed), for the SCHOOL RECORDS page's
+ * Actions summary.
+ */
+function get_upload_action_summary(PDO $pdo): array
+{
+    $completed = (int) $pdo->query("SELECT COUNT(*) FROM latin_honor_uploads WHERE extraction_status = 'reviewed'")->fetchColumn();
+    $pending = (int) $pdo->query("SELECT COUNT(*) FROM latin_honor_uploads WHERE extraction_status != 'reviewed'")->fetchColumn();
+
+    return ['completed' => $completed, 'pending' => $pending];
 }
 
 function get_upload_by_id(PDO $pdo, int $id): ?array

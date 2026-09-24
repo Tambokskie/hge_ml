@@ -30,13 +30,7 @@ $isAdmin = user_has_role($currentUser, 'administrator');
 
 if ($upload !== null) {
     $status = $upload['extraction_status'];
-    $statusPill = [
-        'pending' => ['label' => 'PENDING EXTRACTION', 'class' => 'bg-gray-500/15 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400'],
-        'extracted' => ['label' => 'EXTRACTED', 'class' => 'bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300'],
-        'draft' => ['label' => 'DRAFT', 'class' => 'bg-yellow-500/15 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400'],
-        'reviewed' => ['label' => 'REVIEWED', 'class' => 'bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400'],
-        'failed' => ['label' => 'EXTRACTION FAILED', 'class' => 'bg-yellow-500/15 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400'],
-    ][$status] ?? ['label' => e_upper($status), 'class' => 'bg-gray-500/15 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400'];
+    $statusPill = upload_status_pill($status);
 
     $bannerMessage = [
         'pending' => 'YOUR FILE HAS BEEN UPLOADED AND IS READY FOR EXTRACTION.',
