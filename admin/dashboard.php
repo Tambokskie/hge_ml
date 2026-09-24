@@ -110,7 +110,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     </div>
                 <?php endif; ?>
             </div>
-            <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 hge-shadow">
+            <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 400ms">
                 <?php
                 $uploadCounts = array_column($uploadActivity, 'count');
                 $uploadTotal = array_sum($uploadCounts);
