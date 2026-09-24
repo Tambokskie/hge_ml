@@ -87,6 +87,11 @@ function get_recent_uploads(PDO $pdo, int $limit = 5): array
  * same shape of query as search_graduates() in includes/graduates.php, but
  * grouped at the upload/PDF level instead of the individual-graduate level
  * so an admin can find and reopen the PDF a record actually lives in.
+ *
+ * Sort mirrors get_recent_uploads()'s pending-first tiering: not-yet-reviewed
+ * uploads (the ones the STATUS column shows an "AGING" line for) surface
+ * above reviewed ones, oldest-uploaded (highest aging) first within that
+ * group, so the most neglected pending item is always the very first row.
  */
 function search_uploads(PDO $pdo, array $filters, int $page, int $perPage = 20): array
 {
@@ -116,7 +121,9 @@ function search_uploads(PDO $pdo, array $filters, int $page, int $perPage = 20):
             FROM latin_honor_uploads u
             JOIN schools s ON s.id = u.school_id
             {$whereSql}
-            ORDER BY u.uploaded_at DESC, u.id DESC
+            ORDER BY (u.extraction_status != 'reviewed') DESC,
+                     CASE WHEN u.extraction_status != 'reviewed' THEN u.uploaded_at END ASC,
+                     u.uploaded_at DESC, u.id DESC
             LIMIT :limit OFFSET :offset";
 
     $stmt = $pdo->prepare($sql);

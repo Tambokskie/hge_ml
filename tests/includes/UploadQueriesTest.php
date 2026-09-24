@@ -207,6 +207,28 @@ class UploadQueriesTest extends TestCase
         $this->assertSame(3, $page1['pagination']['total_rows']);
     }
 
+    public function testSearchUploadsSortsPendingFirstByHighestAging(): void
+    {
+        $pdo = TestDb::pdo();
+        $recentPendingId = $this->insertUpload(1, '2025', 'recent-pending.pdf', 'pending');
+        $oldPendingId = $this->insertUpload(1, '2024', 'old-pending.pdf', 'draft');
+        $reviewedId = $this->insertUpload(1, '2023', 'reviewed.pdf', 'reviewed', 5);
+
+        $pdo->prepare('UPDATE latin_honor_uploads SET uploaded_at = :date WHERE id = :id')
+            ->execute(['date' => date('Y-m-d H:i:s', strtotime('-1 day')), 'id' => $recentPendingId]);
+        $pdo->prepare('UPDATE latin_honor_uploads SET uploaded_at = :date WHERE id = :id')
+            ->execute(['date' => date('Y-m-d H:i:s', strtotime('-10 days')), 'id' => $oldPendingId]);
+        $pdo->prepare('UPDATE latin_honor_uploads SET uploaded_at = :date WHERE id = :id')
+            ->execute(['date' => date('Y-m-d H:i:s', strtotime('-30 days')), 'id' => $reviewedId]);
+
+        $result = search_uploads($pdo, [], 1);
+
+        $this->assertSame(
+            ['old-pending.pdf', 'recent-pending.pdf', 'reviewed.pdf'],
+            array_column($result['rows'], 'original_filename')
+        );
+    }
+
     public function testGetDistinctUploadSchoolYearsReturnsUniqueYearsDescending(): void
     {
         $this->insertUpload(1, '2023', 'a.pdf');
