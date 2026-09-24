@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function reload() {
+        allowNavigation();
         window.location.reload();
     }
 
@@ -29,6 +30,72 @@ document.addEventListener('DOMContentLoaded', function () {
     var filterCourseSelect = document.getElementById('review-filter-course');
     var filterEmptyMessage = document.getElementById('review-filter-empty');
     var rowsTbody = document.getElementById('review-rows-tbody');
+
+    // Warns before leaving this page while there is staged review data that
+    // has not gone through SAVE RECORDS or SAVE AS DRAFT yet — those are the
+    // only writes to the official/draft tables; everything else lives only
+    // in $_SESSION['extraction_review'] until then. allowNavigation() is
+    // called right before our own intentional navigations (reload() after a
+    // successful edit, the SAVE RECORDS / SAVE AS DRAFT redirects, and the
+    // CANCEL form submit) so those never trigger the prompt they'd otherwise
+    // cause as ordinary navigations.
+    var navigationGuardEnabled = !!(rowsTbody && rowsTbody.querySelector('tr[data-filter-name]'));
+
+    function allowNavigation() {
+        navigationGuardEnabled = false;
+    }
+
+    window.addEventListener('beforeunload', function (event) {
+        if (!navigationGuardEnabled) {
+            return;
+        }
+        event.preventDefault();
+        event.returnValue = '';
+    });
+
+    document.addEventListener('click', function (event) {
+        if (!navigationGuardEnabled) {
+            return;
+        }
+
+        var link = event.target.closest('a[href]');
+        if (!link || link.target === '_blank' || link.hasAttribute('download')) {
+            return;
+        }
+
+        var href = link.getAttribute('href') || '';
+        if (href === '' || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) {
+            return;
+        }
+
+        event.preventDefault();
+        showModal({
+            icon: modalHeaderIcon('warning'),
+            iconClassName: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
+            title: 'LEAVE WITHOUT SAVING?',
+            bodyHtml: '<p>YOU ARE STILL REVIEWING THIS UPLOAD\'S EXTRACTED RECORDS. IF YOU LEAVE NOW WITHOUT CLICKING SAVE RECORDS OR SAVE AS DRAFT, YOUR CHANGES WILL NOT BE SAVED.</p>',
+            buttons: [
+                { label: 'NO, STAY ON THIS PAGE', className: 'flex-1 rounded-full border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors' },
+                {
+                    label: 'YES, LEAVE',
+                    className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-csc-red-600 hover:bg-csc-red-500 text-white transition-colors',
+                    onClick: function (close) {
+                        close();
+                        allowNavigation();
+                        window.location.href = link.href;
+                    },
+                },
+            ],
+        });
+    });
+
+    var cancelForm = document.querySelector('form input[name="cancel"]');
+    cancelForm = cancelForm ? cancelForm.closest('form') : null;
+    if (cancelForm) {
+        cancelForm.addEventListener('submit', function () {
+            allowNavigation();
+        });
+    }
 
     function applyRowFilter() {
         if (!rowsTbody) {
@@ -357,6 +424,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             })
                                 .then(function (data) {
                                     if (data.status === 'success') {
+                                        allowNavigation();
                                         showToast('success', data.message);
                                         window.location.href = config.viewUploadUrl;
                                     } else {
@@ -383,6 +451,7 @@ document.addEventListener('DOMContentLoaded', function () {
             })
                 .then(function (data) {
                     if (data.status === 'success') {
+                        allowNavigation();
                         showToast('success', data.message);
                         window.location.href = data.redirect_url || config.viewUploadUrl;
                     } else {
