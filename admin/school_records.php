@@ -147,13 +147,15 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <td class="px-4 py-3"><?= e_upper(format_school_display_name($upload['school_name'], $upload['campus'])) ?></td>
                                     <td class="px-4 py-3"><?= e($upload['school_year']) ?></td>
                                     <td class="px-4 py-3">
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold <?= $statusPill['class'] ?>"><?= e($statusPill['label']) ?></span>
-                                        <?php if ($upload['extraction_status'] !== 'reviewed'): ?>
-                                            <p class="text-[11px] text-gray-400 dark:text-gray-600 mt-1">
-                                                <?= days_since($upload['uploaded_at']) ?> DAY<?= days_since($upload['uploaded_at']) === 1 ? '' : 'S' ?> SINCE UPLOAD<br>
-                                                LAST CHECKED <?= e_upper(date('F j, Y', strtotime($upload['updated_at']))) ?>
-                                            </p>
-                                        <?php endif; ?>
+                                        <div class="flex items-center gap-3">
+                                            <span class="inline-flex min-w-[140px] items-center justify-center rounded-full px-2.5 py-1 text-xs font-semibold <?= $statusPill['class'] ?>"><?= e($statusPill['label']) ?></span>
+                                            <?php if ($upload['extraction_status'] !== 'reviewed'): ?>
+                                                <div class="border-l border-gray-200 dark:border-white/10 pl-3 leading-tight">
+                                                    <p class="text-[11px] text-gray-500 dark:text-gray-400">AGING: <?= days_since($upload['uploaded_at']) ?> DAY<?= days_since($upload['uploaded_at']) === 1 ? '' : 'S' ?></p>
+                                                    <p class="text-[11px] text-gray-400 dark:text-gray-600">LAST CHECKED: <?= e_upper(date('F j, Y', strtotime($upload['updated_at']))) ?></p>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                     <td class="px-4 py-3"><?= (int) $upload['records_extracted'] ?> RECORDS</td>
                                     <td class="px-4 py-3"><?= e_upper(date('F j, Y', strtotime($upload['uploaded_at']))) ?></td>

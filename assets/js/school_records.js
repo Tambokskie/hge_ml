@@ -124,14 +124,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
             var pill = uploadStatusPill(upload.extraction_status);
             var pendingInfoHtml = upload.extraction_status !== 'reviewed'
-                ? '<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-1">' +
-                  daysSince(upload.uploaded_at) + ' DAY' + (daysSince(upload.uploaded_at) === 1 ? '' : 'S') + ' SINCE UPLOAD<br>' +
-                  'LAST CHECKED ' + escapeHtml(formatUploadedAt(upload.updated_at)) +
-                  '</p>'
+                ? '<div class="border-l border-gray-200 dark:border-white/10 pl-3 leading-tight">' +
+                  '<p class="text-[11px] text-gray-500 dark:text-gray-400">AGING: ' + daysSince(upload.uploaded_at) + ' DAY' + (daysSince(upload.uploaded_at) === 1 ? '' : 'S') + '</p>' +
+                  '<p class="text-[11px] text-gray-400 dark:text-gray-600">LAST CHECKED: ' + escapeHtml(formatUploadedAt(upload.updated_at)) + '</p>' +
+                  '</div>'
                 : '';
             var statusHtml =
-                '<span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + pill.className + '">' + escapeHtml(pill.label) + '</span>' +
-                pendingInfoHtml;
+                '<div class="flex items-center gap-3">' +
+                '<span class="inline-flex min-w-[140px] items-center justify-center rounded-full px-2.5 py-1 text-xs font-semibold ' + pill.className + '">' + escapeHtml(pill.label) + '</span>' +
+                pendingInfoHtml +
+                '</div>';
 
             return '<tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">' +
                 '<td class="px-4 py-3">' + escapeHtml(formatSchoolDisplayName(upload.school_name, upload.campus).toUpperCase()) + '</td>' +
