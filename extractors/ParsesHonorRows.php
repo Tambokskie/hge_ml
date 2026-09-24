@@ -207,24 +207,43 @@ trait ParsesHonorRows
         }
         $honor = $honorMatch['honor'];
         $honorPosition = $honorMatch['position'];
+        $honorEnd = $honorMatch['end'];
 
         // A degree abbreviation is short enough to coincidentally collide
         // with something inside the name (e.g. "MA." as in "JUAN MA. DELA
         // CRUZ", a common Filipino name element, not "Master of Arts").
         // The real course token is always the one immediately preceding
         // the Latin Honor, so take the rightmost match before it rather
-        // than the first one in the line.
+        // than the first one in the line. Also tracks the first course
+        // keyword AFTER the honor, for the "name-honor-course" layout below
+        // (some lists put Latin Honor before the course column instead of
+        // after it).
         $bachelorPosition = null;
+        $afterHonorCoursePosition = null;
         if (preg_match_all($this->courseKeywordPattern(), $trimmed, $courseMatches, PREG_OFFSET_CAPTURE)) {
             foreach ($courseMatches[0] as $match) {
                 if ($match[1] < $honorPosition) {
                     $bachelorPosition = $match[1];
+                } elseif ($afterHonorCoursePosition === null && $match[1] >= $honorEnd) {
+                    $afterHonorCoursePosition = $match[1];
                 }
             }
         }
 
         if ($bachelorPosition !== null && trim(substr($trimmed, 0, $bachelorPosition)) === '') {
             return $this->parseCourseFirstLine($trimmed, $line, $bachelorPosition, $honorPosition, $honor);
+        }
+
+        // No course keyword precedes the honor at all, but one follows it:
+        // this line uses "NAME [GENDER] HONOR COURSE DATE" column order
+        // rather than "NAME COURSE HONOR DATE" — e.g. Visayas State
+        // University's list ("ABAJON JEANY MAE LUCANAS F CUM LAUDE Bachelor
+        // of Physical Education July 24, 2025"). Without this branch the
+        // line falls through to the name-first logic below, which finds no
+        // course boundary at all and swallows the entire row into
+        // graduate_name with an empty course.
+        if ($bachelorPosition === null && $afterHonorCoursePosition !== null) {
+            return $this->parseHonorFirstLine($trimmed, $line, $honorPosition, $honorEnd, $honor);
         }
 
         $name = null;
@@ -320,6 +339,40 @@ trait ParsesHonorRows
     }
 
     /**
+     * Handles "NAME [GENDER] HONOR COURSE DATE" column order — the Latin
+     * Honor sits between the name and the course, rather than after both
+     * (the layout parseLine()'s default branch and parseCourseFirstLine()
+     * both assume). Everything before the honor is the name; a lone
+     * trailing "M"/"F" token right before it is the GENDER column, not part
+     * of the name, so it's stripped. Everything after the honor is the
+     * course, up to wherever the date starts (so the date text itself
+     * doesn't get glued onto the end of the course string).
+     */
+    private function parseHonorFirstLine(string $trimmed, string $rawLine, int $honorPosition, int $honorEnd, string $honor): ?array
+    {
+        $name = $this->cleanGraduateName(substr($trimmed, 0, $honorPosition));
+        $name = trim(preg_replace('/\s+[MF]$/u', '', $name) ?? $name);
+        if ($name === '') {
+            return null;
+        }
+
+        $afterHonor = substr($trimmed, $honorEnd);
+        $courseEnd = strlen($afterHonor);
+        if (preg_match('/\b(\d{1,2}\s+[A-Za-z]{3,9}\.?\s+\d{4}|[A-Za-z]{3,9}\.?\s+\d{1,2},?\s+\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4})\b/', $afterHonor, $dateMatch, PREG_OFFSET_CAPTURE)) {
+            $courseEnd = $dateMatch[0][1];
+        }
+
+        $course = $this->sanitizeExtractedText(substr($afterHonor, 0, $courseEnd));
+
+        return [
+            'graduate_name' => $name,
+            'course' => $course,
+            'latin_honor' => $honor,
+            'graduation_date' => $this->extractDate($rawLine),
+        ];
+    }
+
+    /**
      * Handles a row whose Honor Received cell is a ditto mark rather than a
      * spelled-out honor — matchHonor() already failed, so there's no honor
      * phrase to anchor name/course extraction on.
@@ -388,17 +441,21 @@ trait ParsesHonorRows
     /**
      * Shared cleanup for the name and course columns: drops table-formatting
      * symbols that occasionally survive OCR ('{', '}', '[', ']', '|', '~',
-     * curly/smart quotes) and any standalone number — a row/roll number or
-     * a GWA figure like "1.75" — since none of that is ever part of a
-     * graduate's name or course. Only whole, whitespace-delimited numeric
-     * tokens are removed, so genuinely alphanumeric OCR garbage (e.g.
-     * "1G5") is left alone rather than guessed at. Straight quotes/
-     * apostrophes are deliberately left untouched — those can be genuine
-     * name punctuation (e.g. "O'Brien-Smith").
+     * '_', curly/smart quotes) and any standalone number — a row/roll number
+     * or a GWA figure like "1.75" — since none of that is ever part of a
+     * graduate's name or course. A lone underscore (or a run of them) is a
+     * common OCR misread of a checkbox/table-border cell that sits right
+     * after the Latin Honor on a "name-honor-course" layout (e.g. "MAGNA
+     * CUM LAUDE _ Bachelor of Science..."), same root cause as the pipe
+     * case. Only whole, whitespace-delimited numeric tokens are removed, so
+     * genuinely alphanumeric OCR garbage (e.g. "1G5") is left alone rather
+     * than guessed at. Straight quotes/apostrophes are deliberately left
+     * untouched — those can be genuine name punctuation (e.g.
+     * "O'Brien-Smith").
      */
     private function sanitizeExtractedText(string $text): string
     {
-        $text = preg_replace('/[{}\[\]|~‘’“”]/u', '', $text) ?? $text;
+        $text = preg_replace('/[{}\[\]|~_‘’“”]/u', '', $text) ?? $text;
         $text = preg_replace('/(?<!\S)\d+\.\d+(?!\S)/u', '', $text) ?? $text;
         $text = preg_replace('/(?<!\S)\d+(?!\S)/u', '', $text) ?? $text;
         $text = preg_replace('/\s{2,}/', ' ', $text) ?? $text;
@@ -425,7 +482,7 @@ trait ParsesHonorRows
 
         foreach ($patterns as $honor => $pattern) {
             if (preg_match($pattern, $text, $m, PREG_OFFSET_CAPTURE)) {
-                return ['honor' => $honor, 'position' => $m[0][1]];
+                return ['honor' => $honor, 'position' => $m[0][1], 'end' => $m[0][1] + strlen($m[0][0])];
             }
         }
 

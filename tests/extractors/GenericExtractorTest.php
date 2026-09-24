@@ -728,6 +728,54 @@ class GenericExtractorTest extends TestCase
         $this->assertSame('BSCRIM', $rows[0]['course']);
     }
 
+    public function testHandlesNameHonorCourseLayoutWithHonorBeforeCourse(): void
+    {
+        // tests/fixtures/vsu-honor-first-ocr-output.txt is a verbatim excerpt
+        // of real Tesseract output from Visayas State University-Main's list,
+        // whose columns run NAME GENDER HONOR COURSE DATE — the Latin Honor
+        // sits between the name and the course, unlike every other layout
+        // this parser already handled (course always comes right before the
+        // honor). Before parseHonorFirstLine() existed, no course keyword was
+        // ever found ahead of the honor, so the row fell through to the
+        // generic "\s{2,}" column-split fallback, which found no gap either
+        // (OCR collapses table gaps to single spaces) and swallowed the
+        // entire line into graduate_name with an empty course.
+        $text = file_get_contents(__DIR__ . '/../fixtures/vsu-honor-first-ocr-output.txt');
+        $extractor = new \GenericExtractor();
+        $rows = $this->callParseRows($extractor, $text);
+
+        $this->assertCount(6, $rows);
+
+        $byName = [];
+        foreach ($rows as $row) {
+            $byName[$row['graduate_name']] = $row;
+        }
+
+        // The GENDER column ("F"/"M") sits directly before the honor and
+        // must be stripped, not left dangling on the end of the name.
+        $this->assertArrayHasKey('ABAJON JEANY MAE LUCANAS', $byName);
+        $abajon = $byName['ABAJON JEANY MAE LUCANAS'];
+        $this->assertSame('Bachelor of Physical Education', $abajon['course']);
+        $this->assertSame('CUM LAUDE', $abajon['latin_honor']);
+        $this->assertSame('2025-07-24', $abajon['graduation_date']);
+
+        // A row missing the gender column entirely must still parse cleanly.
+        $this->assertArrayHasKey('ANUTA JULIAN MAE SUAREZ', $byName);
+        $this->assertSame('Bachelor of Science in Hospitality Management', $byName['ANUTA JULIAN MAE SUAREZ']['course']);
+
+        // MAGNA CUM LAUDE tier, plus a stray "_ |" table-border artifact
+        // immediately after the honor that must not leak into the course.
+        $abejero = $byName['ABEJERO CHRISTINE SUAN'];
+        $this->assertSame('MAGNA CUM LAUDE', $abejero['latin_honor']);
+        $this->assertSame('Bachelor of Science in Economics Business Economics', $abejero['course']);
+
+        // "duly 24, 2025" (OCR misread of "July") isn't a real month name —
+        // consistent with the rest of the parser, an unrecognized date
+        // resolves to null rather than a wrong guess or a thrown error.
+        $this->assertNull($byName['ALIPAR DANNAH MAE CARBON']['graduation_date']);
+        $this->assertSame('Bachelor of Elementary Education General Education', $byName['ALIPAR DANNAH MAE CARBON']['course']);
+    }
+
     private function callParseRows(\GenericExtractor $extractor, string $text): array
     {
         $reflection = new \ReflectionMethod($extractor, 'parseRows');
