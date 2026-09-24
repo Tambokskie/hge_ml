@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             }
                             var reason = document.getElementById('modal-remove-reason').value;
                             if (!isValidRemovalReason(reason)) {
-                                showToast('error', 'PLEASE ENTER A VALID REASON FOR REMOVAL (PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS).');
+                                showToast('error', 'PLEASE ENTER A VALID REASON FOR REMOVAL.', 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.');
                                 return;
                             }
                             submitting = true;
@@ -303,7 +303,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             }
                             var reason = document.getElementById('modal-bulk-remove-reason').value;
                             if (!isValidRemovalReason(reason)) {
-                                showToast('error', 'PLEASE ENTER A VALID REASON FOR REMOVAL (PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS).');
+                                showToast('error', 'PLEASE ENTER A VALID REASON FOR REMOVAL.', 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.');
                                 return;
                             }
                             submitting = true;
