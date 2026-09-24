@@ -265,6 +265,29 @@ function get_distinct_graduation_years(PDO $pdo): array
     return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
 }
 
+/**
+ * A destructive-action reason must be actual free text, not a placeholder
+ * like "N/A" or "-" — enforced by requiring letters/digits/spaces only
+ * (so a punctuation-only answer like "-" or "N/A" already fails on the
+ * "/" or "-") plus at least one letter, so a reason of only digits isn't
+ * accepted either. Mirrored in assets/js/lookup.js's isValidRemovalReason()
+ * for instant feedback before the request round-trip.
+ */
+function validate_removal_reason(string $reason): array
+{
+    $reason = trim($reason);
+
+    if ($reason === '') {
+        return ['ok' => false, 'error' => 'PLEASE PROVIDE A REASON FOR REMOVAL.'];
+    }
+
+    if (!preg_match('/^[A-Za-z0-9 ]+$/', $reason) || !preg_match('/[A-Za-z]/', $reason)) {
+        return ['ok' => false, 'error' => 'REASON FOR REMOVAL MUST BE PLAIN TEXT (LETTERS/NUMBERS ONLY) — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.'];
+    }
+
+    return ['ok' => true];
+}
+
 function log_activity(PDO $pdo, ?int $userId, string $action, ?string $details = null): void
 {
     $stmt = $pdo->prepare('INSERT INTO activity_log (user_id, action, details) VALUES (:user_id, :action, :details)');

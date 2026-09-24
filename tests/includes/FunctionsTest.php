@@ -93,4 +93,38 @@ class FunctionsTest extends TestCase
         $this->assertSame(5, $result['total_pages']);
         $this->assertSame(50, $result['offset']);
     }
+
+    public function testValidateRemovalReasonAcceptsPlainText(): void
+    {
+        $result = validate_removal_reason('Duplicate entry');
+        $this->assertTrue($result['ok']);
+    }
+
+    public function testValidateRemovalReasonRejectsEmptyString(): void
+    {
+        $this->assertFalse(validate_removal_reason('')['ok']);
+        $this->assertFalse(validate_removal_reason('   ')['ok']);
+    }
+
+    public function testValidateRemovalReasonRejectsNotApplicablePlaceholder(): void
+    {
+        $this->assertFalse(validate_removal_reason('N/A')['ok']);
+        $this->assertFalse(validate_removal_reason('n/a')['ok']);
+    }
+
+    public function testValidateRemovalReasonRejectsBareDash(): void
+    {
+        $this->assertFalse(validate_removal_reason('-')['ok']);
+    }
+
+    public function testValidateRemovalReasonRejectsSpecialCharacters(): void
+    {
+        $this->assertFalse(validate_removal_reason('Duplicate!!!')['ok']);
+        $this->assertFalse(validate_removal_reason('@#$%')['ok']);
+    }
+
+    public function testValidateRemovalReasonRejectsDigitsOnly(): void
+    {
+        $this->assertFalse(validate_removal_reason('12345')['ok']);
+    }
 }

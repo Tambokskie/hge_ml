@@ -16,6 +16,13 @@ if (!csrf_verify($_POST['csrf_token'] ?? null)) {
 }
 
 $id = (int) ($_POST['id'] ?? 0);
+$reason = trim((string) ($_POST['reason'] ?? ''));
+
+$reasonValidation = validate_removal_reason($reason);
+if (!$reasonValidation['ok']) {
+    echo json_encode(['status' => 'error', 'message' => $reasonValidation['error']]);
+    exit;
+}
 
 try {
     $pdo = get_pdo();
@@ -34,7 +41,7 @@ try {
     }
 
     $currentUser = current_user();
-    log_activity($pdo, $currentUser['id'] ?? null, 'record_removed', 'graduate_name=' . $graduate['graduate_name']);
+    log_activity($pdo, $currentUser['id'] ?? null, 'record_removed', 'graduate_name=' . $graduate['graduate_name'] . ', reason=' . $reason);
 } catch (\Throwable $e) {
     error_log('delete_saved_graduate failed: ' . $e->getMessage());
     http_response_code(500);

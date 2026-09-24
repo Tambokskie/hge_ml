@@ -291,21 +291,49 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Mirrors includes/functions.php's validate_removal_reason(): letters/digits/
+    // spaces only (so a punctuation-only answer like "-" or "N/A" already fails
+    // on the "/" or "-") plus at least one letter, for instant feedback before
+    // the request round-trip. The server re-validates authoritatively.
+    function isValidRemovalReason(value) {
+        var trimmed = String(value || '').trim();
+        return trimmed !== '' && /^[A-Za-z0-9 ]+$/.test(trimmed) && /[A-Za-z]/.test(trimmed);
+    }
+
     function openDeleteModal(defaults) {
+        var submitting = false;
+        var bodyHtml =
+            '<div class="space-y-4">' +
+            '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">PERMANENTLY DELETE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(defaults.name) + '</span>? THIS CANNOT BE UNDONE.</p>' +
+            modalField({ id: 'modal-delete-reason', label: 'REASON FOR REMOVAL', required: true, icon: 'pen', placeholder: 'E.G. DUPLICATE ENTRY', note: 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.' }) +
+            '</div>';
+
         showModal({
             icon: modalHeaderIcon('trash'),
             iconClassName: 'bg-csc-red-600/10 text-csc-red-600 dark:text-csc-red-400',
             title: 'DELETE HONOR GRADUATE RECORD',
-            bodyHtml: '<p>PERMANENTLY DELETE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(defaults.name) + '</span>? THIS CANNOT BE UNDONE.</p>',
+            subtitle: 'State why this record is being removed. This will be recorded in the activity log.',
+            bodyHtml: bodyHtml,
             buttons: [
                 { label: 'CANCEL', className: MODAL_BTN.secondary },
                 {
                     label: 'DELETE',
+                    icon: modalButtonIcon('trash'),
                     className: MODAL_BTN.danger,
                     onClick: function (modalClose) {
+                        if (submitting) {
+                            return;
+                        }
+                        var reason = document.getElementById('modal-delete-reason').value;
+                        if (!isValidRemovalReason(reason)) {
+                            showToast('error', 'PLEASE ENTER A VALID REASON FOR REMOVAL (PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS).');
+                            return;
+                        }
+                        submitting = true;
                         postJson(config.apiBase + '/api/delete_saved_graduate.php', {
                             csrf_token: config.csrfToken,
                             id: defaults.id,
+                            reason: reason.trim(),
                         })
                             .then(function (data) {
                                 if (data.status === 'success') {
@@ -313,10 +341,12 @@ document.addEventListener('DOMContentLoaded', function () {
                                     modalClose();
                                     performSearch(currentParams(currentPageFromUrl()), false);
                                 } else {
+                                    submitting = false;
                                     showToast('error', data.message);
                                 }
                             })
                             .catch(function () {
+                                submitting = false;
                                 showToast('error', 'THE RECORD COULD NOT BE DELETED. PLEASE TRY AGAIN.');
                             });
                     },
