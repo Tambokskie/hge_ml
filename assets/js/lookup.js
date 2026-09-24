@@ -296,7 +296,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var bodyHtml =
             '<div class="space-y-4">' +
             '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">PERMANENTLY DELETE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(defaults.name) + '</span>? THIS CANNOT BE UNDONE.</p>' +
-            modalField({ id: 'modal-delete-reason', label: 'REASON FOR REMOVAL', required: true, icon: 'pen', placeholder: 'E.G. DUPLICATE ENTRY', note: 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.' }) +
+            modalField({ id: 'modal-delete-reason', label: 'REASON FOR REMOVAL', required: true, icon: 'pen', placeholder: 'E.G. DUPLICATE ENTRY', uppercase: true, note: 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.' }) +
             '</div>';
 
         showModal({

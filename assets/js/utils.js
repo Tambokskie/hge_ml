@@ -110,7 +110,8 @@ var MODAL_BTN = {
 
 // Builds one labeled form field for a modal body: `opts` supports
 // { id, label, type ('text'|'password'|'email'|'date'|'select'|'static'), value, placeholder,
-//   required, optional, icon (an ICON_PATHS key), optionsHtml (for type 'select'), attrs, note }.
+//   required, optional, icon (an ICON_PATHS key), optionsHtml (for type 'select'), attrs, note,
+//   uppercase (visually displays typed text in caps, matching the app's all-caps UI copy) }.
 function modalField(opts) {
     opts = opts || {};
     var requiredMark = opts.required ? ' <span class="text-csc-red-600">*</span>' : '';
@@ -129,7 +130,8 @@ function modalField(opts) {
         ? '<span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400 dark:text-gray-500">' + modalFieldIcon(opts.icon) + '</span>'
         : '';
     var controlClass = 'w-full rounded-xl bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2.5 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-csc-navy-500 focus:ring-2 focus:ring-csc-navy-500/20 focus:outline-none disabled:opacity-60'
-        + (opts.icon ? ' pl-10' : '');
+        + (opts.icon ? ' pl-10' : '')
+        + (opts.uppercase ? ' uppercase placeholder:normal-case dark:placeholder:normal-case' : '');
 
     var controlHtml;
     if (opts.type === 'select') {

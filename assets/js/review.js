@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var bodyHtml =
                 '<div class="space-y-4">' +
                 '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">PERMANENTLY REMOVE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(btn.dataset.name) + '</span>? THIS CANNOT BE UNDONE.</p>' +
-                modalField({ id: 'modal-remove-reason', label: 'REASON FOR REMOVAL', required: true, icon: 'pen', placeholder: 'E.G. DUPLICATE ENTRY', note: 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.' }) +
+                modalField({ id: 'modal-remove-reason', label: 'REASON FOR REMOVAL', required: true, icon: 'pen', placeholder: 'E.G. DUPLICATE ENTRY', uppercase: true, note: 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.' }) +
                 '</div>';
 
             showModal({
@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var bodyHtml =
                 '<div class="space-y-4">' +
                 '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">THIS WILL PERMANENTLY REMOVE THE ' + rowIndexes.length + ' SELECTED RECORD(S) FROM THIS REVIEW. THIS CANNOT BE UNDONE.</p>' +
-                modalField({ id: 'modal-bulk-remove-reason', label: 'REASON FOR REMOVAL', required: true, icon: 'pen', placeholder: 'E.G. DUPLICATE ENTRIES', note: 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.' }) +
+                modalField({ id: 'modal-bulk-remove-reason', label: 'REASON FOR REMOVAL', required: true, icon: 'pen', placeholder: 'E.G. DUPLICATE ENTRIES', uppercase: true, note: 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.' }) +
                 '</div>';
 
             showModal({
