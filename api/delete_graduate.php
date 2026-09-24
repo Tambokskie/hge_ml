@@ -17,6 +17,13 @@ if (!csrf_verify($_POST['csrf_token'] ?? null)) {
 
 $uploadId = (int) ($_POST['upload_id'] ?? 0);
 $rowIndex = (int) ($_POST['row_index'] ?? -1);
+$reason = trim((string) ($_POST['reason'] ?? ''));
+
+$reasonValidation = validate_removal_reason($reason);
+if (!$reasonValidation['ok']) {
+    echo json_encode(['status' => 'error', 'message' => $reasonValidation['error']]);
+    exit;
+}
 
 $result = remove_staged_row($uploadId, $rowIndex);
 

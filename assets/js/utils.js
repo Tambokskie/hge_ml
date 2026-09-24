@@ -79,6 +79,15 @@ function paginationWindow(page, totalPages, windowSize) {
     return pages;
 }
 
+// Mirrors includes/functions.php's validate_removal_reason(): letters/digits/
+// spaces only (so a punctuation-only answer like "-" or "N/A" already fails
+// on the "/" or "-") plus at least one letter, for instant feedback before
+// the request round-trip. The server re-validates authoritatively.
+function isValidRemovalReason(value) {
+    var trimmed = String(value || '').trim();
+    return trimmed !== '' && /^[A-Za-z0-9 ]+$/.test(trimmed) && /[A-Za-z]/.test(trimmed);
+}
+
 // Tailwind classes for a Latin Honor pill badge, color-coded by tier
 // (mirrors includes/functions.php's latin_honor_pill_class() for the server-rendered table).
 function honorPillClass(honor) {

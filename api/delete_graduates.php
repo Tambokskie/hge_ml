@@ -27,6 +27,14 @@ if (empty($rowIndexes)) {
     exit;
 }
 
+$reason = trim((string) ($_POST['reason'] ?? ''));
+
+$reasonValidation = validate_removal_reason($reason);
+if (!$reasonValidation['ok']) {
+    echo json_encode(['status' => 'error', 'message' => $reasonValidation['error']]);
+    exit;
+}
+
 $result = remove_staged_rows($uploadId, $rowIndexes);
 
 if (!$result['ok']) {
