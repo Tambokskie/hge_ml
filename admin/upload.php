@@ -30,7 +30,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
             <div class="lg:col-span-2 space-y-6">
                 <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-6 sm:p-8 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
                     <div class="flex items-start gap-3 mb-6">
@@ -157,7 +157,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
 
-            <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-6 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
+            <div class="flex flex-col bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-6 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
                 <div class="flex items-start justify-between gap-3">
                     <div class="flex items-center gap-2.5">
                         <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
@@ -181,7 +181,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 <?php if (empty($uploadedSchools)): ?>
                     <p class="text-sm text-gray-600 dark:text-gray-500 text-center py-6">NO SCHOOLS UPLOADED YET.</p>
                 <?php else: ?>
-                    <ul id="uploaded-schools-list" class="mt-3 divide-y divide-gray-100 dark:divide-white/5 max-h-[560px] overflow-y-auto">
+                    <ul id="uploaded-schools-list" class="mt-3 flex-1 min-h-0 divide-y divide-gray-100 dark:divide-white/5 overflow-y-auto">
                         <?php foreach ($uploadedSchools as $school): ?>
                             <?php $displayName = format_school_display_name($school['school_name'], $school['campus']); ?>
                             <li class="uploaded-school-item" data-search="<?= e_upper($displayName . ' ' . $school['address']) ?>">
