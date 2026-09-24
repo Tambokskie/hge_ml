@@ -134,9 +134,9 @@ include __DIR__ . '/../includes/sidebar.php';
                             <tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">
                                 <th class="px-4 py-3">SCHOOL</th>
                                 <th class="px-4 py-3">YEAR</th>
-                                <th class="px-4 py-3">STATUS</th>
                                 <th class="px-4 py-3">RECORDS EXTRACTED</th>
                                 <th class="px-4 py-3">DATE UPLOADED</th>
+                                <th class="px-4 py-3">STATUS</th>
                                 <th class="px-4 py-3">FILE NAME</th>
                                 <th class="px-4 py-3 text-right">ACTION</th>
                             </tr>
@@ -146,19 +146,19 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5<?= $agingClass !== '' ? ' ' . $agingClass : '' ?>">
                                     <td class="px-4 py-3"><?= e_upper(format_school_display_name($upload['school_name'], $upload['campus'])) ?></td>
                                     <td class="px-4 py-3"><?= e($upload['school_year']) ?></td>
+                                    <td class="px-4 py-3"><?= (int) $upload['records_extracted'] ?> RECORDS</td>
+                                    <td class="px-4 py-3"><?= e_upper(date('F j, Y', strtotime($upload['uploaded_at']))) ?></td>
                                     <td class="px-4 py-3">
                                         <div class="flex items-center gap-3">
                                             <span class="inline-flex min-w-[140px] items-center justify-center rounded-full px-2.5 py-1 text-xs font-semibold <?= $statusPill['class'] ?>"><?= e($statusPill['label']) ?></span>
                                             <?php if ($upload['extraction_status'] !== 'reviewed'): ?>
                                                 <div class="border-l border-gray-200 dark:border-white/10 pl-3 leading-tight">
                                                     <p class="text-[11px] text-gray-500 dark:text-gray-400">AGING: <?= days_since($upload['uploaded_at']) ?> DAY<?= days_since($upload['uploaded_at']) === 1 ? '' : 'S' ?></p>
-                                                    <p class="text-[11px] text-gray-400 dark:text-gray-600">LAST CHECKED: <?= e_upper(date('F j, Y', strtotime($upload['updated_at']))) ?></p>
+                                                    <p class="text-[11px] text-gray-400 dark:text-gray-600">LAST CHECKED: <?= e_upper(date('d M Y', strtotime($upload['updated_at']))) ?></p>
                                                 </div>
                                             <?php endif; ?>
                                         </div>
                                     </td>
-                                    <td class="px-4 py-3"><?= (int) $upload['records_extracted'] ?> RECORDS</td>
-                                    <td class="px-4 py-3"><?= e_upper(date('F j, Y', strtotime($upload['uploaded_at']))) ?></td>
                                     <td class="px-4 py-3"><?= e($upload['original_filename']) ?></td>
                                     <td class="px-4 py-3 text-right">
                                         <div class="flex items-center justify-end gap-1.5">

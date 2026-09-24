@@ -20,6 +20,17 @@ document.addEventListener('DOMContentLoaded', function () {
         return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
     }
 
+    // "dd MMM YYYY" (e.g. "23 SEP 2026") for the STATUS column's LAST CHECKED line.
+    function formatShortDate(dateStr) {
+        var d = new Date(String(dateStr).replace(' ', 'T'));
+        if (isNaN(d.getTime())) {
+            return '—';
+        }
+        var monthsShort = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        var day = String(d.getDate()).padStart(2, '0');
+        return day + ' ' + monthsShort[d.getMonth()] + ' ' + d.getFullYear();
+    }
+
     function currentParams(page) {
         return {
             school_id: document.getElementById('filter-school').value,
@@ -126,7 +137,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var pendingInfoHtml = upload.extraction_status !== 'reviewed'
                 ? '<div class="border-l border-gray-200 dark:border-white/10 pl-3 leading-tight">' +
                   '<p class="text-[11px] text-gray-500 dark:text-gray-400">AGING: ' + daysSince(upload.uploaded_at) + ' DAY' + (daysSince(upload.uploaded_at) === 1 ? '' : 'S') + '</p>' +
-                  '<p class="text-[11px] text-gray-400 dark:text-gray-600">LAST CHECKED: ' + escapeHtml(formatUploadedAt(upload.updated_at)) + '</p>' +
+                  '<p class="text-[11px] text-gray-400 dark:text-gray-600">LAST CHECKED: ' + escapeHtml(formatShortDate(upload.updated_at)) + '</p>' +
                   '</div>'
                 : '';
             var statusHtml =
@@ -138,9 +149,9 @@ document.addEventListener('DOMContentLoaded', function () {
             return '<tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">' +
                 '<td class="px-4 py-3">' + escapeHtml(formatSchoolDisplayName(upload.school_name, upload.campus).toUpperCase()) + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(String(upload.school_year)) + '</td>' +
-                '<td class="px-4 py-3">' + statusHtml + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(String(upload.records_extracted)) + ' RECORDS</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(formatUploadedAt(upload.uploaded_at)) + '</td>' +
+                '<td class="px-4 py-3">' + statusHtml + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(upload.original_filename) + '</td>' +
                 '<td class="px-4 py-3 text-right"><div class="flex items-center justify-end gap-1.5">' +
                 '<a href="' + config.viewUploadUrl + '?id=' + encodeURIComponent(upload.id) + '" class="rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5" title="View upload">' + actionIcon('eye') + '</a>' +
@@ -172,8 +183,8 @@ document.addEventListener('DOMContentLoaded', function () {
         resultsContainer.innerHTML =
             '<div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto"><table class="w-full text-sm text-left">' +
             '<thead><tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">' +
-            '<th class="px-4 py-3">SCHOOL</th><th class="px-4 py-3">YEAR</th><th class="px-4 py-3">STATUS</th><th class="px-4 py-3">RECORDS EXTRACTED</th>' +
-            '<th class="px-4 py-3">DATE UPLOADED</th><th class="px-4 py-3">FILE NAME</th><th class="px-4 py-3 text-right">ACTION</th></tr></thead>' +
+            '<th class="px-4 py-3">SCHOOL</th><th class="px-4 py-3">YEAR</th><th class="px-4 py-3">RECORDS EXTRACTED</th>' +
+            '<th class="px-4 py-3">DATE UPLOADED</th><th class="px-4 py-3">STATUS</th><th class="px-4 py-3">FILE NAME</th><th class="px-4 py-3 text-right">ACTION</th></tr></thead>' +
             '<tbody id="school-records-tbody">' + rowsHtml + '</tbody></table></div>' + paginationHtml;
 
         bindDeleteButtons();
