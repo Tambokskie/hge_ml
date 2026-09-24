@@ -56,12 +56,8 @@ class HandleTemplateUploadRequestTest extends TestCase
         $header = array_merge([
             'school_name' => 'VISAYAS STATE UNIVERSITY',
             'campus' => 'MAIN CAMPUS',
-            'date' => '2025-07-24',
+            'date' => '24/07/2025',
             'year' => '2025',
-            'school_name_label' => '[SCHOOL NAME]',
-            'campus_label' => '[CAMPUS]',
-            'date_label' => '[DATE OF GRADUATION]',
-            'year_label' => '[YEAR]',
         ], $header);
 
         if (empty($dataRows)) {
@@ -71,10 +67,10 @@ class HandleTemplateUploadRequestTest extends TestCase
         }
 
         $rows = [
-            1 => [1 => ['value' => $header['school_name_label'], 'style' => 1], 2 => ['value' => $header['school_name']]],
-            2 => [1 => ['value' => $header['campus_label'], 'style' => 1], 2 => ['value' => $header['campus']]],
-            3 => [1 => ['value' => $header['date_label'], 'style' => 1], 2 => ['value' => $header['date']]],
-            4 => [1 => ['value' => $header['year_label'], 'style' => 1], 2 => ['value' => $header['year']]],
+            1 => [1 => ['value' => $header['school_name'], 'style' => 1]],
+            2 => [1 => ['value' => $header['campus'], 'style' => 1]],
+            3 => [1 => ['value' => $header['date'], 'style' => 1]],
+            4 => [1 => ['value' => $header['year'], 'style' => 1]],
             6 => [
                 1 => ['value' => 'SEQUENCE', 'style' => 1], 2 => ['value' => 'LAST NAME', 'style' => 1],
                 3 => ['value' => 'GIVEN NAME', 'style' => 1], 4 => ['value' => 'MIDDLE NAME', 'style' => 1],
@@ -180,7 +176,28 @@ class HandleTemplateUploadRequestTest extends TestCase
         $pdo = TestDb::pdo();
         create_school($pdo, 'Visayas State University', 'Main Address', 'Main Campus');
 
-        $file = $this->templateFile(['school_name_label' => '[INSTITUTION NAME]']);
+        // An unrelated spreadsheet: no SEQUENCE/LAST NAME/... column-header
+        // row anywhere, which is the template's one structural fingerprint.
+        $rows = [
+            1 => [1 => ['value' => 'VISAYAS STATE UNIVERSITY', 'style' => 1]],
+            2 => [1 => ['value' => 'MAIN CAMPUS', 'style' => 1]],
+            3 => [1 => ['value' => '24/07/2025', 'style' => 1]],
+            4 => [1 => ['value' => '2025', 'style' => 1]],
+            6 => [1 => ['value' => 'NAME', 'style' => 1], 2 => ['value' => 'DEGREE', 'style' => 1]],
+        ];
+        $bytes = xlsx_zip_parts([
+            '[Content_Types].xml' => xlsx_content_types_xml(),
+            '_rels/.rels' => xlsx_package_rels_xml(),
+            'xl/workbook.xml' => xlsx_workbook_xml('TEMPLATE'),
+            'xl/_rels/workbook.xml.rels' => xlsx_workbook_rels_xml(),
+            'xl/styles.xml' => xlsx_styles_xml(),
+            'xl/worksheets/sheet1.xml' => xlsx_build_sheet_xml($rows),
+        ]);
+        $path = sys_get_temp_dir() . '/hge_wrong_template_test_' . uniqid() . '.xlsx';
+        file_put_contents($path, $bytes);
+        $this->tempFiles[] = $path;
+        $file = ['name' => 'wrong.xlsx', 'type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'tmp_name' => $path, 'error' => UPLOAD_ERR_OK, 'size' => filesize($path)];
+
         $result = handle_template_upload_request($pdo, [], ['excel_file' => $file], 1, $this->storageDir);
 
         $this->assertSame('error', $result['status']);

@@ -187,24 +187,20 @@ function build_latin_honor_template_xlsx(string $schoolName, string $campus): st
 {
     $rows = [
         1 => [
-            1 => ['value' => '[SCHOOL NAME]', 'style' => 1],
-            2 => ['value' => $schoolName],
+            1 => ['value' => $schoolName, 'style' => 1],
             3 => ['value' => '(EXACT NAME ON FILE — DO NOT EDIT)', 'style' => 2],
         ],
         2 => [
-            1 => ['value' => '[CAMPUS]', 'style' => 1],
-            2 => ['value' => $campus],
+            1 => ['value' => $campus, 'style' => 1],
             3 => ['value' => '(EXACT CAMPUS ON FILE — DO NOT EDIT)', 'style' => 2],
         ],
         3 => [
-            1 => ['value' => '[DATE OF GRADUATION]', 'style' => 1],
-            2 => ['value' => ''],
-            3 => ['value' => '(FORMAT: YYYY-MM-DD)', 'style' => 2],
+            1 => ['value' => '[DAY/MONTH/YEAR]', 'style' => 1],
+            3 => ['value' => '(DATE OF GRADUATION, e.g. 24/07/2025)', 'style' => 2],
         ],
         4 => [
             1 => ['value' => '[YEAR]', 'style' => 1],
-            2 => ['value' => ''],
-            3 => ['value' => '(4-DIGIT YEAR, e.g. 2025)', 'style' => 2],
+            3 => ['value' => '(4-DIGIT SCHOOL YEAR, e.g. 2025)', 'style' => 2],
         ],
         6 => [
             1 => ['value' => 'SEQUENCE', 'style' => 1],
@@ -220,7 +216,7 @@ function build_latin_honor_template_xlsx(string $schoolName, string $campus): st
         $rows[7 + $i][1] = ['value' => (string) ($i + 1), 'type' => 'n'];
     }
 
-    $sheetXml = xlsx_build_sheet_xml($rows, [1 => 12, 2 => 26, 3 => 34, 4 => 20, 5 => 18, 6 => 30]);
+    $sheetXml = xlsx_build_sheet_xml($rows, [1 => 32, 2 => 20, 3 => 34, 4 => 20, 5 => 18, 6 => 30]);
 
     return xlsx_zip_parts([
         '[Content_Types].xml' => xlsx_content_types_xml(),

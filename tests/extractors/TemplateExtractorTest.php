@@ -25,10 +25,10 @@ class TemplateExtractorTest extends TestCase
     private function filledTemplateFile(): string
     {
         $rows = [
-            1 => [1 => ['value' => '[SCHOOL NAME]', 'style' => 1], 2 => ['value' => 'VISAYAS STATE UNIVERSITY']],
-            2 => [1 => ['value' => '[CAMPUS]', 'style' => 1], 2 => ['value' => 'MAIN CAMPUS']],
-            3 => [1 => ['value' => '[DATE OF GRADUATION]', 'style' => 1], 2 => ['value' => '2025-07-24']],
-            4 => [1 => ['value' => '[YEAR]', 'style' => 1], 2 => ['value' => '2025']],
+            1 => [1 => ['value' => 'VISAYAS STATE UNIVERSITY', 'style' => 1]],
+            2 => [1 => ['value' => 'MAIN CAMPUS', 'style' => 1]],
+            3 => [1 => ['value' => '24/07/2025', 'style' => 1]],
+            4 => [1 => ['value' => '2025', 'style' => 1]],
             6 => [
                 1 => ['value' => 'SEQUENCE', 'style' => 1], 2 => ['value' => 'LAST NAME', 'style' => 1],
                 3 => ['value' => 'GIVEN NAME', 'style' => 1], 4 => ['value' => 'MIDDLE NAME', 'style' => 1],

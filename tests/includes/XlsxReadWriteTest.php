@@ -39,11 +39,9 @@ class XlsxReadWriteTest extends TestCase
 
         $this->assertTrue($result['ok']);
         $rows = $result['rows'];
-        $this->assertSame('[SCHOOL NAME]', $rows[1][1]);
-        $this->assertSame('VISAYAS STATE UNIVERSITY', $rows[1][2]);
-        $this->assertSame('[CAMPUS]', $rows[2][1]);
-        $this->assertSame('MAIN CAMPUS', $rows[2][2]);
-        $this->assertSame('[DATE OF GRADUATION]', $rows[3][1]);
+        $this->assertSame('VISAYAS STATE UNIVERSITY', $rows[1][1]);
+        $this->assertSame('MAIN CAMPUS', $rows[2][1]);
+        $this->assertSame('[DAY/MONTH/YEAR]', $rows[3][1]);
         $this->assertSame('[YEAR]', $rows[4][1]);
         $this->assertSame(
             ['SEQUENCE', 'LAST NAME', 'GIVEN NAME', 'MIDDLE NAME', 'LATIN HONOR', 'COURSE'],

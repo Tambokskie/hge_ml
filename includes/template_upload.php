@@ -8,14 +8,6 @@ require_once __DIR__ . '/extraction_review.php';
 require_once __DIR__ . '/xlsx_reader.php';
 
 /**
- * The four header-block labels the template puts in column A, rows 1-4 (see
- * build_latin_honor_template_xlsx() in xlsx_writer.php). Matched with the
- * surrounding brackets stripped, case-insensitively, so re-saving the file
- * in Excel/LibreOffice (which never touches the text itself) can't break it.
- */
-const TEMPLATE_HEADER_LABELS = ['SCHOOL NAME', 'CAMPUS', 'DATE OF GRADUATION', 'YEAR'];
-
-/**
  * The data table's column header row (see build_latin_honor_template_xlsx()).
  * Column order is significant: it is how a row's cells are mapped to fields.
  */
@@ -35,16 +27,33 @@ function normalize_template_label(string $value): string
 }
 
 /**
- * Accepts "2025-07-24", human dates like "July 24, 2025" (strtotime), and a
- * raw Excel serial day-count — the form a date cell actually lands in if
- * someone typed a date into DATE OF GRADUATION and Excel auto-formatted it
- * as a real date, since our reader intentionally returns numeric cells as
- * their raw <v> string rather than guessing their format.
+ * The template's canonical date format is DAY/MONTH/YEAR (e.g. "24/07/2025"
+ * — see build_latin_honor_template_xlsx()'s "[DAY/MONTH/YEAR]" placeholder),
+ * checked first and matched exactly so it's never ambiguous with a US-style
+ * MM/DD/YYYY reading. Falls back to ISO "2025-07-24", human dates like
+ * "July 24, 2025" (strtotime), and a raw Excel serial day-count — the form a
+ * date cell actually lands in if Excel auto-formatted a typed-in date as a
+ * real date, since our reader intentionally returns numeric cells as their
+ * raw <v> string rather than guessing their format.
  */
 function parse_template_date_value(string $raw): ?string
 {
     $raw = trim($raw);
-    if ($raw === '') {
+    if ($raw === '' || normalize_template_label($raw) === 'DAY/MONTH/YEAR') {
+        return null;
+    }
+
+    $dt = DateTime::createFromFormat('d/m/Y', $raw);
+    if ($dt && $dt->format('d/m/Y') === $raw) {
+        return $dt->format('Y-m-d');
+    }
+
+    // A slash-delimited value that didn't match DAY/MONTH/YEAR exactly is a
+    // malformed date, not a hint to try a different (ambiguous) order —
+    // never fall through to strtotime()'s US-centric MONTH/DAY/YEAR reading
+    // for these, or "07/13/2025" would silently become July 13 instead of
+    // being rejected as the invalid 13th month it is under this format.
+    if (strpos($raw, '/') !== false) {
         return null;
     }
 
@@ -96,28 +105,27 @@ function xlsx_row_is_blank(array $sheetRows, int $row, int $fromCol, int $toCol)
  */
 function parse_latin_honor_template(array $sheetRows): array
 {
-    for ($row = 1; $row <= 4; $row++) {
-        $label = normalize_template_label(xlsx_cell_value($sheetRows, $row, 1));
-        if ($label !== TEMPLATE_HEADER_LABELS[$row - 1]) {
-            return [
-                'status' => 'error',
-                'message' => 'THIS DOES NOT LOOK LIKE THE LATIN HONOR TEMPLATE. PLEASE DOWNLOAD A FRESH COPY AND DO NOT EDIT COLUMN A OF THE HEADER ROWS.',
-            ];
-        }
+    $schoolName = xlsx_cell_value($sheetRows, 1, 1);
+    $campus = xlsx_cell_value($sheetRows, 2, 1);
+    $dateRaw = xlsx_cell_value($sheetRows, 3, 1);
+    $yearRaw = xlsx_cell_value($sheetRows, 4, 1);
+
+    // Leftover placeholder text (an old-style template, or a school row
+    // that was never filled in) reads the same as blank.
+    if (normalize_template_label($schoolName) === 'SCHOOL NAME') {
+        $schoolName = '';
+    }
+    if (normalize_template_label($campus) === 'CAMPUS') {
+        $campus = '';
     }
 
-    $schoolName = xlsx_cell_value($sheetRows, 1, 2);
-    $campus = xlsx_cell_value($sheetRows, 2, 2);
-    $dateRaw = xlsx_cell_value($sheetRows, 3, 2);
-    $yearRaw = xlsx_cell_value($sheetRows, 4, 2);
-
     if ($schoolName === '') {
-        return ['status' => 'error', 'message' => 'THE TEMPLATE IS MISSING THE SCHOOL NAME. PLEASE DOWNLOAD THE TEMPLATE FOR THE CORRECT SCHOOL.'];
+        return ['status' => 'error', 'message' => 'THE TEMPLATE IS MISSING THE SCHOOL NAME IN CELL A1. DOWNLOAD THE TEMPLATE FOR THE CORRECT SCHOOL FIRST.'];
     }
 
     $graduationDate = parse_template_date_value($dateRaw);
-    if ($dateRaw !== '' && $graduationDate === null) {
-        return ['status' => 'error', 'message' => 'DATE OF GRADUATION IN THE TEMPLATE IS NOT A VALID DATE.'];
+    if ($dateRaw !== '' && normalize_template_label($dateRaw) !== 'DAY/MONTH/YEAR' && $graduationDate === null) {
+        return ['status' => 'error', 'message' => 'DATE OF GRADUATION IN THE TEMPLATE IS NOT A VALID DATE. USE THE FORMAT DAY/MONTH/YEAR (e.g. 24/07/2025).'];
     }
 
     $year = null;
