@@ -123,24 +123,27 @@ function xlsx_workbook_rels_xml(): string
 
 /**
  * Style index 0 = normal, 1 = bold, 2 = small italic gray (used for the
- * non-validated hint text next to the template's header fields).
+ * non-validated hint text next to the template's header fields), 3 = size
+ * 11 / explicit black (used for the fill-in cells under GIVEN NAME).
  */
 function xlsx_styles_xml(): string
 {
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         . '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-        . '<fonts count="3">'
+        . '<fonts count="4">'
         . '<font><sz val="11"/><name val="Calibri"/></font>'
         . '<font><b/><sz val="11"/><name val="Calibri"/></font>'
         . '<font><i/><sz val="9"/><color rgb="FF808080"/><name val="Calibri"/></font>'
+        . '<font><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/></font>'
         . '</fonts>'
         . '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>'
         . '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
         . '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-        . '<cellXfs count="3">'
+        . '<cellXfs count="4">'
         . '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
         . '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
         . '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
+        . '<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
         . '</cellXfs>'
         . '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
         . '</styleSheet>';
@@ -214,6 +217,10 @@ function build_latin_honor_template_xlsx(string $schoolName, string $campus): st
 
     for ($i = 0; $i < 50; $i++) {
         $rows[7 + $i][1] = ['value' => (string) ($i + 1), 'type' => 'n'];
+        // Explicit size 11 / black formatting for the fill-in cells under
+        // GIVEN NAME, so typed-in names always render consistently
+        // regardless of Excel's own default cell style.
+        $rows[7 + $i][3] = ['value' => '', 'style' => 3];
     }
 
     $sheetXml = xlsx_build_sheet_xml($rows, [1 => 32, 2 => 20, 3 => 34, 4 => 20, 5 => 18, 6 => 30]);

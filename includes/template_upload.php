@@ -183,7 +183,11 @@ function parse_latin_honor_template(array $sheetRows): array
             continue;
         }
 
-        $graduateName = mb_strtoupper(trim(preg_replace('/\s+/', ' ', "{$lastName} {$givenName} {$middleName}") ?? ''));
+        // "LAST NAME, GIVEN NAME MIDDLE NAME" — comma after the surname,
+        // matching the template's Last Name / Given Name / Middle Name
+        // column order.
+        $firstAndMiddle = trim(preg_replace('/\s+/', ' ', "{$givenName} {$middleName}") ?? '');
+        $graduateName = mb_strtoupper(trim("{$lastName}, {$firstAndMiddle}"));
 
         $rows[] = [
             'graduate_name' => $graduateName,

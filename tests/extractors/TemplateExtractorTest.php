@@ -62,7 +62,7 @@ class TemplateExtractorTest extends TestCase
 
         $this->assertSame('ok', $result['status']);
         $this->assertCount(1, $result['rows']);
-        $this->assertSame('DELA CRUZ JUAN', $result['rows'][0]['graduate_name']);
+        $this->assertSame('DELA CRUZ, JUAN', $result['rows'][0]['graduate_name']);
         $this->assertSame('CUM LAUDE', $result['rows'][0]['latin_honor']);
         $this->assertSame('2025-07-24', $result['rows'][0]['graduation_date']);
     }

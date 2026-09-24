@@ -64,14 +64,14 @@ class TemplateParsingTest extends TestCase
         $this->assertSame('2025-07-24', $result['graduation_date']);
         $this->assertCount(2, $result['rows']);
 
-        $this->assertSame('DELA CRUZ JUAN SANTOS', $result['rows'][0]['graduate_name']);
+        $this->assertSame('DELA CRUZ, JUAN SANTOS', $result['rows'][0]['graduate_name']);
         $this->assertSame('BS COMPUTER SCIENCE', $result['rows'][0]['course']);
         $this->assertSame('CUM LAUDE', $result['rows'][0]['latin_honor']);
         $this->assertSame('2025-07-24', $result['rows'][0]['graduation_date']);
         $this->assertSame(2025, $result['rows'][0]['graduation_year']);
 
         // No middle name: no stray double space.
-        $this->assertSame('REYES MARIA', $result['rows'][1]['graduate_name']);
+        $this->assertSame('REYES, MARIA', $result['rows'][1]['graduate_name']);
         $this->assertSame('MAGNA CUM LAUDE', $result['rows'][1]['latin_honor']);
     }
 

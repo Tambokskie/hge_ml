@@ -130,7 +130,7 @@ class HandleTemplateUploadRequestTest extends TestCase
         $review = get_extraction_review($result['upload']['id']);
         $this->assertNotNull($review);
         $this->assertCount(1, $review['rows']);
-        $this->assertSame('DELA CRUZ JUAN SANTOS', $review['rows'][0]['graduate_name']);
+        $this->assertSame('DELA CRUZ, JUAN SANTOS', $review['rows'][0]['graduate_name']);
         $this->assertSame('CUM LAUDE', $review['rows'][0]['latin_honor']);
     }
 
