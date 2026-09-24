@@ -1,45 +1,4 @@
 document.addEventListener('DOMContentLoaded', function () {
-    var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    function formatCount(value) {
-        return Math.round(value).toLocaleString('en-US');
-    }
-
-    function animateCountUp(el, target, duration) {
-        var startTime = null;
-
-        function step(timestamp) {
-            if (startTime === null) {
-                startTime = timestamp;
-            }
-            var progress = Math.min((timestamp - startTime) / duration, 1);
-            var eased = 1 - Math.pow(1 - progress, 3);
-            el.textContent = formatCount(target * eased);
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            } else {
-                el.textContent = formatCount(target);
-            }
-        }
-
-        requestAnimationFrame(step);
-    }
-
-    document.querySelectorAll('.dashboard-stat-number').forEach(function (el, index) {
-        var target = parseInt(el.dataset.countTo, 10) || 0;
-
-        if (prefersReducedMotion) {
-            el.textContent = formatCount(target);
-            el.classList.add('is-visible');
-            return;
-        }
-
-        setTimeout(function () {
-            el.classList.add('is-visible');
-            animateCountUp(el, target, 1200);
-        }, index * 120);
-    });
-
     var config = window.HGE_DASHBOARD;
     if (!config) {
         return;

@@ -50,23 +50,23 @@ include __DIR__ . '/../includes/sidebar.php';
 
         <h2 class="text-xs font-bold tracking-wide text-gray-500 dark:text-gray-500 mb-3">ACTIONS SUMMARY</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            <div class="flex items-center gap-4 rounded-2xl border border-gray-100 dark:border-white/5 bg-white dark:bg-surface-900 p-5 hge-shadow">
-                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-500/10 text-green-600 dark:text-green-400">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                </span>
-                <div>
+            <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
+                <div class="flex items-center gap-3 min-w-0">
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-500/10 text-green-600 dark:text-green-400">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </span>
                     <p class="text-xs text-gray-600 dark:text-gray-500">COMPLETED</p>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white"><?= (int) $actionSummary['completed'] ?></p>
                 </div>
+                <p class="dashboard-stat-number" data-count-to="<?= (int) $actionSummary['completed'] ?>">0</p>
             </div>
-            <div class="flex items-center gap-4 rounded-2xl border border-gray-100 dark:border-white/5 bg-white dark:bg-surface-900 p-5 hge-shadow">
-                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                </span>
-                <div>
+            <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 150ms">
+                <div class="flex items-center gap-3 min-w-0">
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </span>
                     <p class="text-xs text-gray-600 dark:text-gray-500">PENDING ACTION</p>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white"><?= (int) $actionSummary['pending'] ?></p>
                 </div>
+                <p class="dashboard-stat-number" data-count-to="<?= (int) $actionSummary['pending'] ?>">0</p>
             </div>
         </div>
 
