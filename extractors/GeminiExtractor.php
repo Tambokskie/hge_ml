@@ -34,6 +34,22 @@ class RetryableGeminiApiException extends \RuntimeException
  */
 class GeminiExtractor implements ExtractorInterface
 {
+    /**
+     * Shared flag (all keys/every admin, not per-session) recording the last
+     * time every configured key came back quota-exhausted (429) — read by
+     * admin/upload.php to show a "free AI extraction is currently
+     * unavailable" notice. Lives under storage/ (already .htaccess-denied to
+     * direct web access, same as storage/pdfs and storage/templates) rather
+     * than the database, since it's disposable, ephemeral cache state, not a
+     * record worth a schema change.
+     */
+    public const QUOTA_STATUS_FILE = __DIR__ . '/../storage/cache/gemini_quota_status.json';
+
+    /** How long a "quota exhausted" flag is treated as still meaningful — the
+     * free tier's daily quota resets roughly every 24h, so beyond that the
+     * flag is stale rather than proof anything is still wrong. */
+    private const QUOTA_STATUS_FRESH_SECONDS = 86400;
+
     /** @var string[] */
     private array $apiKeys;
     private string $model;
@@ -78,8 +94,16 @@ class GeminiExtractor implements ExtractorInterface
             $decoded = $this->callGeminiApi($payload);
         } catch (\Throwable $e) {
             error_log('GeminiExtractor: API call failed: ' . $e->getMessage());
+            // Only a 429 on the last key tried means every configured key is
+            // genuinely out of quota — a 503 or transport error says nothing
+            // about quota, so it must not trigger this notice.
+            if ($e instanceof RetryableGeminiApiException && $e->httpCode === 429) {
+                self::markQuotaExhausted();
+            }
             return ['status' => 'failed', 'rows' => []];
         }
+
+        self::clearQuotaExhausted();
 
         $rows = self::parseGeminiResponseRows($decoded);
 
@@ -184,7 +208,10 @@ class GeminiExtractor implements ExtractorInterface
             }
         }
 
-        throw new \RuntimeException($lastError->getMessage());
+        // Re-thrown as-is (not wrapped) so extract() can see whether the very
+        // last failure was specifically a 429 — the only signal worth
+        // recording as "quota exhausted" for the admin/upload.php notice.
+        throw $lastError;
     }
 
     /**
@@ -226,6 +253,50 @@ class GeminiExtractor implements ExtractorInterface
         }
 
         return $decoded;
+    }
+
+    /**
+     * Read by admin/upload.php to decide whether to show a "free AI
+     * extraction is currently unavailable" notice. A missing, unreadable, or
+     * corrupt status file is treated the same as "not exhausted" — this is
+     * an optional convenience notice, never something that should itself
+     * break the upload page.
+     */
+    public static function isQuotaExhausted(): bool
+    {
+        $raw = @file_get_contents(self::QUOTA_STATUS_FILE);
+        if ($raw === false) {
+            return false;
+        }
+
+        $data = json_decode($raw, true);
+        $exhaustedAt = is_array($data) ? ($data['exhausted_at'] ?? null) : null;
+        if (!is_string($exhaustedAt)) {
+            return false;
+        }
+
+        $timestamp = strtotime($exhaustedAt);
+        if ($timestamp === false) {
+            return false;
+        }
+
+        return (time() - $timestamp) < self::QUOTA_STATUS_FRESH_SECONDS;
+    }
+
+    private static function markQuotaExhausted(): void
+    {
+        $dir = dirname(self::QUOTA_STATUS_FILE);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        @file_put_contents(self::QUOTA_STATUS_FILE, json_encode(['exhausted_at' => date('Y-m-d H:i:s')]), LOCK_EX);
+    }
+
+    private static function clearQuotaExhausted(): void
+    {
+        if (file_exists(self::QUOTA_STATUS_FILE)) {
+            @unlink(self::QUOTA_STATUS_FILE);
+        }
     }
 
     private static function extractionPrompt(): string

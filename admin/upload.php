@@ -4,6 +4,8 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/schools.php';
+require_once __DIR__ . '/../extractors/ExtractorInterface.php';
+require_once __DIR__ . '/../extractors/GeminiExtractor.php';
 
 require_role('administrator');
 
@@ -13,6 +15,7 @@ $uploadedSchools = get_schools_with_uploads($pdo);
 $currentUser = current_user();
 $currentPage = 'upload';
 $csrfToken = csrf_token();
+$aiQuotaExhausted = GeminiExtractor::isQuotaExhausted();
 
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
@@ -29,6 +32,12 @@ include __DIR__ . '/../includes/sidebar.php';
                     <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">IMPORT AND EXTRACT LATIN HONOR GRADUATE RECORDS FROM A SCHOOL'S PDF LIST.</p>
                 </div>
             </div>
+
+            <?php if ($aiQuotaExhausted): ?>
+                <div class="mb-6 rounded-lg border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 text-sm px-4 py-3">
+                    FREE AI-ASSISTED EXTRACTION HAS REACHED TODAY'S USAGE LIMIT. UPLOADS WILL BE PROCESSED USING STANDARD TEXT/OCR EXTRACTION INSTEAD UNTIL IT RESETS.
+                </div>
+            <?php endif; ?>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
             <div class="lg:col-span-2 space-y-6">

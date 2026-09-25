@@ -9,6 +9,57 @@ require_once __DIR__ . '/../../extractors/GeminiExtractor.php';
 
 class GeminiExtractorTest extends TestCase
 {
+    protected function tearDown(): void
+    {
+        if (file_exists(\GeminiExtractor::QUOTA_STATUS_FILE)) {
+            unlink(\GeminiExtractor::QUOTA_STATUS_FILE);
+        }
+    }
+
+    // --- isQuotaExhausted() / the admin/upload.php notification signal ---
+
+    public function testIsQuotaExhaustedIsFalseWhenNoStatusFileExists(): void
+    {
+        $this->assertFalse(\GeminiExtractor::isQuotaExhausted());
+    }
+
+    public function testIsQuotaExhaustedIsTrueRightAfterBeingMarked(): void
+    {
+        $this->writeQuotaStatus(date('Y-m-d H:i:s'));
+
+        $this->assertTrue(\GeminiExtractor::isQuotaExhausted());
+    }
+
+    public function testIsQuotaExhaustedIsFalseOnceTheFlagIsStale(): void
+    {
+        // Older than the 24h free-tier-daily-reset assumption -> treated as
+        // no longer meaningful, so a page load doesn't show a permanently
+        // stuck "AI unavailable" notice long after quota would have reset.
+        $this->writeQuotaStatus(date('Y-m-d H:i:s', time() - 90000));
+
+        $this->assertFalse(\GeminiExtractor::isQuotaExhausted());
+    }
+
+    public function testIsQuotaExhaustedIsFalseOnCorruptStatusFile(): void
+    {
+        $dir = dirname(\GeminiExtractor::QUOTA_STATUS_FILE);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        file_put_contents(\GeminiExtractor::QUOTA_STATUS_FILE, 'not json');
+
+        $this->assertFalse(\GeminiExtractor::isQuotaExhausted());
+    }
+
+    private function writeQuotaStatus(string $exhaustedAt): void
+    {
+        $dir = dirname(\GeminiExtractor::QUOTA_STATUS_FILE);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        file_put_contents(\GeminiExtractor::QUOTA_STATUS_FILE, json_encode(['exhausted_at' => $exhaustedAt]));
+    }
+
     // --- buildGeminiRequestPayload() ---
 
     public function testBuildRequestPayloadEmbedsThePdfAsInlineBase64Data(): void
