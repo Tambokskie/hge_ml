@@ -2,9 +2,20 @@
 
 require_once __DIR__ . '/ExtractorInterface.php';
 
-/** Internal signal that a Gemini API failure is worth a short retry (429/503). */
+/**
+ * Internal signal that a Gemini API failure is worth a short retry (429/503).
+ * Carries the HTTP status so the caller can tell "this specific key is out of
+ * quota, try the next one" (429) apart from "the model is overloaded right
+ * now, wait a moment and try the same key again" (503, shared infrastructure
+ * — a second key doesn't route around it, but is tried as a last resort
+ * after this key's own retries are exhausted).
+ */
 class RetryableGeminiApiException extends \RuntimeException
 {
+    public function __construct(string $message, public readonly int $httpCode)
+    {
+        parent::__construct($message);
+    }
 }
 
 /**
@@ -23,18 +34,36 @@ class RetryableGeminiApiException extends \RuntimeException
  */
 class GeminiExtractor implements ExtractorInterface
 {
-    private string $apiKey;
+    /** @var string[] */
+    private array $apiKeys;
     private string $model;
 
-    public function __construct(?string $apiKey = null, ?string $model = null)
+    /**
+     * @param string[]|string|null $apiKeys One key, several (tried in order —
+     *     a second free-tier key from a separate Google account roughly
+     *     doubles the effective daily quota), or null to read
+     *     GEMINI_API_KEY/GEMINI_API_KEY_2 from config/gemini.php. Empty
+     *     values are dropped, so an unconfigured second key is simply not
+     *     tried rather than causing an error.
+     */
+    public function __construct($apiKeys = null, ?string $model = null)
     {
-        $this->apiKey = $apiKey ?? (defined('GEMINI_API_KEY') ? GEMINI_API_KEY : '');
+        if ($apiKeys === null) {
+            $apiKeys = [
+                defined('GEMINI_API_KEY') ? GEMINI_API_KEY : '',
+                defined('GEMINI_API_KEY_2') ? GEMINI_API_KEY_2 : '',
+            ];
+        } elseif (is_string($apiKeys)) {
+            $apiKeys = [$apiKeys];
+        }
+
+        $this->apiKeys = array_values(array_filter($apiKeys, static fn (string $key): bool => $key !== ''));
         $this->model = $model ?? (defined('GEMINI_MODEL') ? GEMINI_MODEL : 'gemini-flash-latest');
     }
 
     public function extract(string $filePath): array
     {
-        if ($this->apiKey === '') {
+        if (empty($this->apiKeys)) {
             return ['status' => 'failed', 'rows' => []];
         }
 
@@ -122,28 +151,35 @@ class GeminiExtractor implements ExtractorInterface
     }
 
     /**
-     * Retries a couple of times on 429 (rate limited) / 503 (temporarily
-     * overloaded) specifically — both observed in practice on the free tier
-     * under load — since the whole point of this being the *primary* path is
-     * that a transient blip on Google's side shouldn't hand every upload
-     * straight to the OCR fallback. Anything else (bad request, auth
-     * failure, malformed response) fails immediately; retrying those would
-     * just waste time before the fallback that's actually going to work.
+     * Tries each configured key in turn. Within one key: a 503 (model
+     * temporarily overloaded — shared infrastructure, not this key's fault)
+     * gets a couple of short-backoff retries on that same key, since a
+     * different key wouldn't route around it anyway. A 429 (this key's own
+     * quota is exhausted) skips straight to the next key with no wasted
+     * wait — that's the entire point of having a second key. Only after
+     * every key has been tried does this give up; anything else (bad
+     * request, malformed response) fails immediately without burning
+     * another key on a problem no key can fix.
      *
      * @throws \RuntimeException on any transport/response failure
      */
     private function callGeminiApi(array $payload): array
     {
-        $maxAttempts = 3;
+        $maxAttemptsPerKey = 3;
         $lastError = null;
 
-        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
-            try {
-                return $this->requestOnce($payload);
-            } catch (RetryableGeminiApiException $e) {
-                $lastError = $e;
-                if ($attempt < $maxAttempts) {
-                    usleep(500000 * $attempt); // 0.5s, then 1s
+        foreach ($this->apiKeys as $apiKey) {
+            for ($attempt = 1; $attempt <= $maxAttemptsPerKey; $attempt++) {
+                try {
+                    return $this->requestOnce($payload, $apiKey);
+                } catch (RetryableGeminiApiException $e) {
+                    $lastError = $e;
+                    if ($e->httpCode === 429) {
+                        continue 2; // this key is out of quota — next key, no wait
+                    }
+                    if ($attempt < $maxAttemptsPerKey) {
+                        usleep(500000 * $attempt); // 503: 0.5s, then 1s, same key
+                    }
                 }
             }
         }
@@ -152,13 +188,13 @@ class GeminiExtractor implements ExtractorInterface
     }
 
     /**
-     * @throws RetryableGeminiApiException on 429/503 (caller retries)
+     * @throws RetryableGeminiApiException on 429/503 (caller retries/rotates keys)
      * @throws \RuntimeException on any other transport/response failure
      */
-    private function requestOnce(array $payload): array
+    private function requestOnce(array $payload, string $apiKey): array
     {
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/'
-            . rawurlencode($this->model) . ':generateContent?key=' . rawurlencode($this->apiKey);
+            . rawurlencode($this->model) . ':generateContent?key=' . rawurlencode($apiKey);
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -178,7 +214,7 @@ class GeminiExtractor implements ExtractorInterface
             throw new \RuntimeException("curl error ({$curlErrno}): {$curlError}");
         }
         if ($httpCode === 429 || $httpCode === 503) {
-            throw new RetryableGeminiApiException("Gemini API returned HTTP {$httpCode}: " . substr((string) $response, 0, 500));
+            throw new RetryableGeminiApiException("Gemini API returned HTTP {$httpCode}: " . substr((string) $response, 0, 500), $httpCode);
         }
         if ($httpCode !== 200) {
             throw new \RuntimeException("Gemini API returned HTTP {$httpCode}: " . substr((string) $response, 0, 500));

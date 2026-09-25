@@ -140,6 +140,32 @@ class GeminiExtractorTest extends TestCase
         $this->assertSame([], $result['rows']);
     }
 
+    public function testExtractFailsImmediatelyWhenAllKeysInAnArrayAreEmpty(): void
+    {
+        // A configured-but-blank second key (GEMINI_API_KEY_2 left unset)
+        // must not itself count as "a key to try" once filtered.
+        $extractor = new \GeminiExtractor(['', ''], 'gemini-flash-latest');
+
+        $result = $extractor->extract(__FILE__);
+
+        $this->assertSame('failed', $result['status']);
+        $this->assertSame([], $result['rows']);
+    }
+
+    public function testExtractAcceptsAnArrayOfKeysWithoutErroring(): void
+    {
+        // Two real-looking keys, no network reachable in this test (the file
+        // doesn't exist, so extract() fails before any key is ever used) —
+        // this only proves the array-of-keys constructor path doesn't throw
+        // a type error; live key rotation is verified against the real API.
+        $extractor = new \GeminiExtractor(['key-one', 'key-two'], 'gemini-flash-latest');
+
+        $result = $extractor->extract('/no/such/file.pdf');
+
+        $this->assertSame('failed', $result['status']);
+        $this->assertSame([], $result['rows']);
+    }
+
     public function testExtractFailsWhenFileDoesNotExist(): void
     {
         $extractor = new \GeminiExtractor('fake-key', 'gemini-flash-latest');
