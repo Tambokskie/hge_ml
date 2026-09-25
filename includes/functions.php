@@ -381,6 +381,26 @@ function upload_status_pill(string $status): array
     ][$status] ?? ['label' => mb_strtoupper($status), 'class' => 'bg-gray-500/15 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400'];
 }
 
+/**
+ * Color/label tier for the free AI extraction usage gauge on
+ * admin/upload.php, by percent of today's assumed request cap used
+ * (GeminiExtractor::getUsageStats()): green under 50%, yellow from 50%,
+ * orange from 75%, red at 100%.
+ */
+function ai_quota_gauge_tier(int $percent): array
+{
+    if ($percent >= 100) {
+        return ['label' => 'LIMIT REACHED', 'bar_class' => 'bg-csc-red-600', 'text_class' => 'text-csc-red-600 dark:text-csc-red-400'];
+    }
+    if ($percent >= 75) {
+        return ['label' => 'NEARING LIMIT', 'bar_class' => 'bg-orange-500', 'text_class' => 'text-orange-600 dark:text-orange-400'];
+    }
+    if ($percent >= 50) {
+        return ['label' => 'MODERATE USAGE', 'bar_class' => 'bg-yellow-400', 'text_class' => 'text-yellow-600 dark:text-yellow-400'];
+    }
+    return ['label' => 'AVAILABLE', 'bar_class' => 'bg-green-500', 'text_class' => 'text-green-600 dark:text-green-400'];
+}
+
 function get_distinct_graduation_years(PDO $pdo): array
 {
     $stmt = $pdo->query('SELECT DISTINCT graduation_year FROM latin_honor_graduates ORDER BY graduation_year DESC');

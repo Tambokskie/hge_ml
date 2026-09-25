@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/gemini.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/schools.php';
@@ -15,7 +16,8 @@ $uploadedSchools = get_schools_with_uploads($pdo);
 $currentUser = current_user();
 $currentPage = 'upload';
 $csrfToken = csrf_token();
-$aiQuotaExhausted = GeminiExtractor::isQuotaExhausted();
+$aiUsage = GeminiExtractor::getUsageStats();
+$aiQuotaTier = ai_quota_gauge_tier($aiUsage['percent']);
 
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
@@ -33,9 +35,18 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
 
-            <?php if ($aiQuotaExhausted): ?>
-                <div class="mb-6 rounded-lg border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 text-sm px-4 py-3">
-                    FREE AI-ASSISTED EXTRACTION HAS REACHED TODAY'S USAGE LIMIT. UPLOADS WILL BE PROCESSED USING STANDARD TEXT/OCR EXTRACTION INSTEAD UNTIL IT RESETS.
+            <?php if ($aiUsage['configured']): ?>
+                <div class="mb-6 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 hge-shadow px-4 py-3 sm:px-5 sm:py-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <p class="text-xs font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">FREE AI EXTRACTION USAGE TODAY</p>
+                        <span class="text-xs font-semibold <?= $aiQuotaTier['text_class'] ?>"><?= (int) $aiUsage['percent'] ?>% &middot; <?= e($aiQuotaTier['label']) ?></span>
+                    </div>
+                    <div class="relative h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
+                        <div class="absolute inset-y-0 left-0 h-full rounded-full <?= $aiQuotaTier['bar_class'] ?> transition-[width] duration-300 ease-out" style="width: <?= (int) $aiUsage['percent'] ?>%"></div>
+                    </div>
+                    <?php if ($aiUsage['percent'] >= 100): ?>
+                        <p class="mt-2 text-xs <?= $aiQuotaTier['text_class'] ?>">TODAY'S FREE AI LIMIT HAS BEEN REACHED. UPLOADS WILL BE PROCESSED USING STANDARD TEXT/OCR EXTRACTION INSTEAD UNTIL IT RESETS.</p>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
 

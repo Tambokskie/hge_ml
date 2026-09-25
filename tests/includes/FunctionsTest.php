@@ -57,6 +57,28 @@ class FunctionsTest extends TestCase
         $this->assertSame('SOMETHING_ELSE', $pill['label']);
     }
 
+    /** @dataProvider aiQuotaGaugeTierCases */
+    public function testAiQuotaGaugeTierMatchesPercentThresholds(int $percent, string $expectedLabel, string $colorFragment): void
+    {
+        $tier = ai_quota_gauge_tier($percent);
+
+        $this->assertSame($expectedLabel, $tier['label']);
+        $this->assertStringContainsString($colorFragment, $tier['bar_class']);
+    }
+
+    public static function aiQuotaGaugeTierCases(): array
+    {
+        return [
+            'zero is green' => [0, 'AVAILABLE', 'green'],
+            'just under half is still green' => [49, 'AVAILABLE', 'green'],
+            'half is yellow' => [50, 'MODERATE USAGE', 'yellow'],
+            'just under three-quarters is still yellow' => [74, 'MODERATE USAGE', 'yellow'],
+            'three-quarters is orange' => [75, 'NEARING LIMIT', 'orange'],
+            'just under full is still orange' => [99, 'NEARING LIMIT', 'orange'],
+            'full is red' => [100, 'LIMIT REACHED', 'red'],
+        ];
+    }
+
     public function testFormatSchoolDisplayNameAppendsCampusWhenPresent(): void
     {
         $this->assertSame('ABC UNIVERSITY-MAIN CAMPUS', format_school_display_name('ABC UNIVERSITY', 'MAIN CAMPUS'));

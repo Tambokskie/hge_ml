@@ -60,6 +60,75 @@ class GeminiExtractorTest extends TestCase
         file_put_contents(\GeminiExtractor::QUOTA_STATUS_FILE, json_encode(['exhausted_at' => $exhaustedAt]));
     }
 
+    // --- getUsageStats() — the admin/upload.php usage gauge ---
+
+    public function testGetUsageStatsReportsNotConfiguredWithZeroKeys(): void
+    {
+        $stats = \GeminiExtractor::getUsageStats(0);
+
+        $this->assertFalse($stats['configured']);
+        $this->assertSame(0, $stats['percent']);
+    }
+
+    public function testGetUsageStatsIsZeroPercentWithNoRecordedCallsToday(): void
+    {
+        $stats = \GeminiExtractor::getUsageStats(1);
+
+        $this->assertTrue($stats['configured']);
+        $this->assertSame(0, $stats['count']);
+        $this->assertSame(0, $stats['percent']);
+        $this->assertSame(20, $stats['limit']);
+    }
+
+    public function testGetUsageStatsComputesPercentAgainstOneKeysLimit(): void
+    {
+        $this->writeRequestCount(date('Y-m-d'), 10); // 10 of 20 = 50%
+
+        $stats = \GeminiExtractor::getUsageStats(1);
+
+        $this->assertSame(10, $stats['count']);
+        $this->assertSame(20, $stats['limit']);
+        $this->assertSame(50, $stats['percent']);
+    }
+
+    public function testGetUsageStatsDoublesTheLimitWithTwoConfiguredKeys(): void
+    {
+        $this->writeRequestCount(date('Y-m-d'), 20); // 20 of 40 = 50%, not 100%
+
+        $stats = \GeminiExtractor::getUsageStats(2);
+
+        $this->assertSame(40, $stats['limit']);
+        $this->assertSame(50, $stats['percent']);
+    }
+
+    public function testGetUsageStatsIgnoresYesterdaysCount(): void
+    {
+        $this->writeRequestCount(date('Y-m-d', strtotime('-1 day')), 15);
+
+        $stats = \GeminiExtractor::getUsageStats(1);
+
+        $this->assertSame(0, $stats['count']);
+        $this->assertSame(0, $stats['percent']);
+    }
+
+    public function testGetUsageStatsCapsAtOneHundredPercentEvenIfOverLimit(): void
+    {
+        $this->writeRequestCount(date('Y-m-d'), 25); // over the 20-per-key limit
+
+        $stats = \GeminiExtractor::getUsageStats(1);
+
+        $this->assertSame(100, $stats['percent']);
+    }
+
+    private function writeRequestCount(string $date, int $count): void
+    {
+        $dir = dirname(\GeminiExtractor::QUOTA_STATUS_FILE);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        file_put_contents(\GeminiExtractor::QUOTA_STATUS_FILE, json_encode(['date' => $date, 'count' => $count]));
+    }
+
     // --- buildGeminiRequestPayload() ---
 
     public function testBuildRequestPayloadEmbedsThePdfAsInlineBase64Data(): void

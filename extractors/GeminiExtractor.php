@@ -50,6 +50,15 @@ class GeminiExtractor implements ExtractorInterface
      * flag is stale rather than proof anything is still wrong. */
     private const QUOTA_STATUS_FRESH_SECONDS = 86400;
 
+    /**
+     * Approximate free-tier daily request cap per key, inferred from Google's
+     * own 429 response text ("limit: 20") during real testing — not
+     * documented as a stable guarantee, so this is a best-effort usage
+     * estimate for the admin/upload.php gauge, not a precise remaining-quota
+     * figure from Google itself (no such endpoint exists on the free tier).
+     */
+    private const PER_KEY_DAILY_LIMIT = 20;
+
     /** @var string[] */
     private array $apiKeys;
     private string $model;
@@ -240,6 +249,13 @@ class GeminiExtractor implements ExtractorInterface
         if ($curlErrno !== 0 || $response === false) {
             throw new \RuntimeException("curl error ({$curlErrno}): {$curlError}");
         }
+
+        // Counted here, not earlier: a curl-level failure above never
+        // reached Google at all, so it shouldn't count against the day's
+        // cap — but any response code from here on (200, 429, 503, ...)
+        // means the request round-tripped and so used up a request.
+        self::recordApiCallAttempt();
+
         if ($httpCode === 429 || $httpCode === 503) {
             throw new RetryableGeminiApiException("Gemini API returned HTTP {$httpCode}: " . substr((string) $response, 0, 500), $httpCode);
         }
@@ -264,13 +280,7 @@ class GeminiExtractor implements ExtractorInterface
      */
     public static function isQuotaExhausted(): bool
     {
-        $raw = @file_get_contents(self::QUOTA_STATUS_FILE);
-        if ($raw === false) {
-            return false;
-        }
-
-        $data = json_decode($raw, true);
-        $exhaustedAt = is_array($data) ? ($data['exhausted_at'] ?? null) : null;
+        $exhaustedAt = self::readStatusFile()['exhausted_at'] ?? null;
         if (!is_string($exhaustedAt)) {
             return false;
         }
@@ -283,20 +293,92 @@ class GeminiExtractor implements ExtractorInterface
         return (time() - $timestamp) < self::QUOTA_STATUS_FRESH_SECONDS;
     }
 
+    /**
+     * Usage gauge for admin/upload.php (green/yellow/orange/red by percent).
+     * This is this app's own count of calls it has sent since the stored
+     * date last changed, against an assumed per-key daily cap — an estimate
+     * for a visual indicator, not a live "remaining quota" figure read back
+     * from Google (the free tier exposes no such endpoint).
+     *
+     * @param int|null $configuredKeyCount Pass explicitly to test against a
+     *     specific key count; null (the real call site) reads how many of
+     *     GEMINI_API_KEY/GEMINI_API_KEY_2 are actually set.
+     * @return array{configured: bool, percent: int, count: int, limit: int}
+     */
+    public static function getUsageStats(?int $configuredKeyCount = null): array
+    {
+        if ($configuredKeyCount === null) {
+            $configuredKeyCount = count(array_filter([
+                defined('GEMINI_API_KEY') ? GEMINI_API_KEY : '',
+                defined('GEMINI_API_KEY_2') ? GEMINI_API_KEY_2 : '',
+            ], static fn (string $key): bool => $key !== ''));
+        }
+
+        if ($configuredKeyCount <= 0) {
+            return ['configured' => false, 'percent' => 0, 'count' => 0, 'limit' => 0];
+        }
+
+        $limit = $configuredKeyCount * self::PER_KEY_DAILY_LIMIT;
+        $count = self::todaysRequestCount();
+        $percent = (int) min(100, round(($count / $limit) * 100));
+
+        return ['configured' => true, 'percent' => $percent, 'count' => $count, 'limit' => $limit];
+    }
+
     private static function markQuotaExhausted(): void
+    {
+        $data = self::readStatusFile();
+        $data['exhausted_at'] = date('Y-m-d H:i:s');
+        self::writeStatusFile($data);
+    }
+
+    private static function clearQuotaExhausted(): void
+    {
+        $data = self::readStatusFile();
+        if (array_key_exists('exhausted_at', $data)) {
+            unset($data['exhausted_at']);
+            self::writeStatusFile($data);
+        }
+    }
+
+    /** Counts one real HTTP call to Gemini, regardless of outcome — a 429 or
+     * 503 response still consumed a request against the day's cap, same as
+     * a 200 would have. Rolls over to 1 the first time a new calendar date
+     * (Asia/Manila, per config/database.php) is seen. */
+    private static function recordApiCallAttempt(): void
+    {
+        $data = self::readStatusFile();
+        $today = date('Y-m-d');
+        $count = (($data['date'] ?? null) === $today) ? ((int) ($data['count'] ?? 0) + 1) : 1;
+        $data['date'] = $today;
+        $data['count'] = $count;
+        self::writeStatusFile($data);
+    }
+
+    private static function todaysRequestCount(): int
+    {
+        $data = self::readStatusFile();
+        return (($data['date'] ?? null) === date('Y-m-d')) ? (int) ($data['count'] ?? 0) : 0;
+    }
+
+    private static function readStatusFile(): array
+    {
+        $raw = @file_get_contents(self::QUOTA_STATUS_FILE);
+        if ($raw === false) {
+            return [];
+        }
+
+        $data = json_decode($raw, true);
+        return is_array($data) ? $data : [];
+    }
+
+    private static function writeStatusFile(array $data): void
     {
         $dir = dirname(self::QUOTA_STATUS_FILE);
         if (!is_dir($dir)) {
             @mkdir($dir, 0755, true);
         }
-        @file_put_contents(self::QUOTA_STATUS_FILE, json_encode(['exhausted_at' => date('Y-m-d H:i:s')]), LOCK_EX);
-    }
-
-    private static function clearQuotaExhausted(): void
-    {
-        if (file_exists(self::QUOTA_STATUS_FILE)) {
-            @unlink(self::QUOTA_STATUS_FILE);
-        }
+        @file_put_contents(self::QUOTA_STATUS_FILE, json_encode($data), LOCK_EX);
     }
 
     private static function extractionPrompt(): string
