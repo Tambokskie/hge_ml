@@ -56,6 +56,18 @@ class DatabaseTest extends TestCase
         ]);
     }
 
+    public function testConnectPdoPinsSessionTimeZoneToPhilippineOffset(): void
+    {
+        $pdo = connect_pdo([
+            'host' => '127.0.0.1',
+            'name' => 'hge_masterlist_test',
+            'user' => 'root',
+            'pass' => '',
+        ]);
+
+        $this->assertSame('+08:00', $pdo->query('SELECT @@session.time_zone')->fetchColumn());
+    }
+
     public function testGetPdoReturnsTheSameInstanceAcrossCalls(): void
     {
         putenv('DB_NAME=hge_masterlist_test');
