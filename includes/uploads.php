@@ -313,12 +313,19 @@ function delete_upload(PDO $pdo, int $uploadId): array
 
 function update_upload_extraction_status(PDO $pdo, int $uploadId, string $status, int $recordsExtracted): void
 {
+    // updated_at is set explicitly rather than left to the column's
+    // ON UPDATE CURRENT_TIMESTAMP: MySQL only fires that when some column's
+    // value actually changes, so re-saving a draft that is already
+    // status='draft'/records=0 (exactly what save-as-draft always writes)
+    // would otherwise leave "last checked" frozen at whenever the status
+    // FIRST became 'draft', no matter how many times it's saved again.
     $stmt = $pdo->prepare(
-        'UPDATE latin_honor_uploads SET extraction_status = :status, records_extracted = :records WHERE id = :id'
+        'UPDATE latin_honor_uploads SET extraction_status = :status, records_extracted = :records, updated_at = :updated_at WHERE id = :id'
     );
     $stmt->execute([
         'status' => $status,
         'records' => $recordsExtracted,
+        'updated_at' => date('Y-m-d H:i:s'),
         'id' => $uploadId,
     ]);
 }

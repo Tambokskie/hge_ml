@@ -31,4 +31,21 @@ class UpdateExtractionStatusTest extends TestCase
         $this->assertSame('extracted', $row['extraction_status']);
         $this->assertSame(12, (int) $row['records_extracted']);
     }
+
+    public function testBumpsUpdatedAtEvenWhenStatusAndCountDoNotChange(): void
+    {
+        $pdo = TestDb::pdo();
+
+        // MySQL does not fire a column's ON UPDATE CURRENT_TIMESTAMP unless some
+        // other column in the row actually changes value — so re-saving a draft
+        // that is already status='draft'/records=0 (the exact values save-as-draft
+        // always writes) must not silently freeze "last checked" at whatever it
+        // was after the FIRST draft save.
+        $pdo->exec("UPDATE latin_honor_uploads SET extraction_status = 'draft', records_extracted = 0, updated_at = '2020-01-01 00:00:00' WHERE id = 1");
+
+        update_upload_extraction_status($pdo, 1, 'draft', 0);
+
+        $updatedAt = $pdo->query('SELECT updated_at FROM latin_honor_uploads WHERE id = 1')->fetchColumn();
+        $this->assertGreaterThan('2020-01-01 00:00:00', $updatedAt);
+    }
 }
