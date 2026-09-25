@@ -412,11 +412,17 @@ function validate_removal_reason(string $reason): array
 
 function log_activity(PDO $pdo, ?int $userId, string $action, ?string $details = null): void
 {
-    $stmt = $pdo->prepare('INSERT INTO activity_log (user_id, action, details) VALUES (:user_id, :action, :details)');
+    // created_at is stamped from PHP's own clock (pinned to Asia/Manila in
+    // config/database.php) rather than left to the database's CURRENT_TIMESTAMP
+    // default, since that default follows whatever time zone the MySQL server
+    // itself happens to be configured with — which can silently drift from local
+    // time depending on the host.
+    $stmt = $pdo->prepare('INSERT INTO activity_log (user_id, action, details, created_at) VALUES (:user_id, :action, :details, :created_at)');
     $stmt->execute([
         'user_id' => $userId,
         'action' => $action,
         'details' => $details,
+        'created_at' => date('Y-m-d H:i:s'),
     ]);
 
     $pdo->exec('DELETE FROM activity_log WHERE created_at < (NOW() - INTERVAL 6 MONTH)');

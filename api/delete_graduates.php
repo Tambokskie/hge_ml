@@ -42,4 +42,12 @@ if (!$result['ok']) {
     exit;
 }
 
+$currentUser = current_user();
+log_activity(
+    get_pdo(),
+    $currentUser['id'] ?? null,
+    'record_removed',
+    $result['removed'] . ' RECORD(S) REMOVED FROM upload_id=' . $uploadId . ', reason=' . $reason . ' (STAGED, PENDING REVIEW)'
+);
+
 echo json_encode(['status' => 'success', 'message' => $result['removed'] . ' RECORD(S) REMOVED.']);

@@ -30,4 +30,12 @@ if (!$result['ok']) {
     exit;
 }
 
+$currentUser = current_user();
+log_activity(
+    get_pdo(),
+    $currentUser['id'] ?? null,
+    'record_updated',
+    $result['updated'] . ' RECORD(S) DATE OF GRADUATION SET TO ' . $date . ' FOR upload_id=' . $uploadId . ' (STAGED, PENDING REVIEW)'
+);
+
 echo json_encode(['status' => 'success', 'message' => $result['updated'] . ' RECORD(S) UPDATED.']);

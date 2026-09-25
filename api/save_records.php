@@ -37,6 +37,14 @@ try {
 
     if ($result['status'] === 'success') {
         clear_extraction_review();
+
+        $currentUser = current_user();
+        log_activity(
+            $pdo,
+            $currentUser['id'] ?? null,
+            'record_created',
+            'SAVED RECORDS FOR ' . $upload['school_name'] . ' (' . $upload['school_year'] . ') — ' . count($review['rows']) . ' RECORD(S)'
+        );
     }
 
     echo json_encode($result);

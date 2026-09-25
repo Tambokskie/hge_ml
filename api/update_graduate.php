@@ -45,4 +45,12 @@ if (!$result['ok']) {
     exit;
 }
 
+$currentUser = current_user();
+log_activity(
+    get_pdo(),
+    $currentUser['id'] ?? null,
+    $rowIndex === null ? 'record_created' : 'record_updated',
+    'graduate_name=' . $data['graduate_name'] . ', upload_id=' . $uploadId . ' (STAGED, PENDING REVIEW)'
+);
+
 echo json_encode(['status' => 'success', 'message' => $rowIndex === null ? 'RECORD ADDED.' : 'RECORD UPDATED.']);

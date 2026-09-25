@@ -1,5 +1,10 @@
 <?php
 
+// Pinned explicitly so every date()/time() call in the app reflects local
+// Philippine time regardless of the host's php.ini date.timezone setting or
+// the underlying OS/MySQL server's own time zone configuration.
+date_default_timezone_set('Asia/Manila');
+
 if (!defined('APP_BASE_URL')) {
     define('APP_BASE_URL', getenv('APP_BASE_URL') ?: '/hge_masterlist');
 }

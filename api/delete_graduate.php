@@ -25,11 +25,22 @@ if (!$reasonValidation['ok']) {
     exit;
 }
 
+$review = get_extraction_review($uploadId);
+$graduateName = $review['rows'][$rowIndex]['graduate_name'] ?? null;
+
 $result = remove_staged_row($uploadId, $rowIndex);
 
 if (!$result['ok']) {
     echo json_encode(['status' => 'error', 'message' => $result['error']]);
     exit;
 }
+
+$currentUser = current_user();
+log_activity(
+    get_pdo(),
+    $currentUser['id'] ?? null,
+    'record_removed',
+    'graduate_name=' . ($graduateName ?? 'UNKNOWN') . ', upload_id=' . $uploadId . ', reason=' . $reason . ' (STAGED, PENDING REVIEW)'
+);
 
 echo json_encode(['status' => 'success', 'message' => 'RECORD REMOVED.']);

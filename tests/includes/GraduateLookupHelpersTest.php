@@ -78,4 +78,27 @@ class GraduateLookupHelpersTest extends TestCase
         $recentStillExists = (int) $pdo->query("SELECT COUNT(*) FROM activity_log WHERE details = 'recent'")->fetchColumn();
         $this->assertSame(1, $recentStillExists);
     }
+
+    public function testLogActivityRecordsPhpsLocalTimeRegardlessOfDatabaseTimeZone(): void
+    {
+        $pdo = TestDb::pdo();
+
+        // Force PHP onto a timezone (UTC+14) no real database server is configured
+        // for, so this only passes if log_activity() stamps created_at from PHP's
+        // own clock instead of trusting the database's CURRENT_TIMESTAMP default.
+        $originalTimezone = date_default_timezone_get();
+        date_default_timezone_set('Pacific/Kiritimati');
+        try {
+            $before = date('Y-m-d H:i:s');
+            log_activity($pdo, 1, 'search', 'tz-check');
+            $after = date('Y-m-d H:i:s');
+        } finally {
+            date_default_timezone_set($originalTimezone);
+        }
+
+        $createdAt = $pdo->query("SELECT created_at FROM activity_log WHERE details = 'tz-check' ORDER BY id DESC LIMIT 1")->fetchColumn();
+
+        $this->assertGreaterThanOrEqual($before, $createdAt);
+        $this->assertLessThanOrEqual($after, $createdAt);
+    }
 }
