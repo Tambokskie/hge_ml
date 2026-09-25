@@ -99,7 +99,7 @@ include __DIR__ . '/../includes/sidebar.php';
              small screens the stacked card is too tall relative to the
              viewport for sticky to be usable, so it scrolls normally there
              instead. -->
-        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow lg:sticky lg:top-[74px] lg:z-10">
+        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow lg:sticky lg:top-[74px] lg:z-10 motion-safe:animate-fade-in-up">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div class="sm:col-span-2">
                     <label class="mb-1.5 block text-xs font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">SEARCH GRADUATE NAME</label>
@@ -158,7 +158,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto hge-shadow">
+        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto overflow-y-hidden hge-shadow">
             <table class="w-full text-sm text-left">
                 <thead>
                     <tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">
@@ -185,7 +185,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <?php foreach ($rows as $index => $row): ?>
                             <?php $status = staged_row_status($row); ?>
                             <?php $nameParts = split_graduate_name($row['graduate_name']); ?>
-                            <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5"
+                            <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 motion-safe:animate-fade-in-up" style="animation-delay: <?= (int) ($index * 50) ?>ms"
                                 data-filter-name="<?= e(mb_strtoupper($row['graduate_name'])) ?>"
                                 data-filter-course="<?= e($row['course'] ?? '') ?>">
                                 <td class="px-4 py-3">
@@ -209,8 +209,9 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold <?= $status === 'VALID' ? 'bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400' : 'bg-yellow-500/15 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400' ?>"><?= e($status) ?></span>
                                 </td>
                                 <td class="px-4 py-3 text-right">
+                                    <?php $actionBtnIndex = 0; ?>
                                     <div class="flex items-center justify-end gap-1.5">
-                                        <button type="button" class="edit-row-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5" title="Edit row"
+                                        <button type="button" class="edit-row-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($index * 50 + ($actionBtnIndex++) * 70) ?>ms" title="Edit row"
                                             data-row-index="<?= $index ?>"
                                             data-name="<?= e($row['graduate_name']) ?>"
                                             data-last-name="<?= e($nameParts['last_name']) ?>"
@@ -222,7 +223,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                             data-year="<?= e((string) $row['graduation_year']) ?>">
                                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
                                         </button>
-                                        <button type="button" class="remove-row-btn rounded-lg bg-csc-red-600/10 hover:bg-csc-red-600/20 text-csc-red-600 dark:text-csc-red-400 p-1.5" title="Remove row"
+                                        <button type="button" class="remove-row-btn rounded-lg bg-csc-red-600/10 hover:bg-csc-red-600/20 text-csc-red-600 dark:text-csc-red-400 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($index * 50 + ($actionBtnIndex++) * 70) ?>ms" title="Remove row"
                                             data-row-index="<?= $index ?>"
                                             data-name="<?= e($row['graduate_name']) ?>">
                                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>

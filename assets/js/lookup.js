@@ -103,39 +103,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
         updateRecordsFoundPill(data.pagination.total_rows);
 
-        var rowsHtml = data.rows.map(function (row) {
+        var rowsHtml = data.rows.map(function (row, rowIndex) {
+            var rowDelay = 'style="animation-delay: ' + (rowIndex * 50) + 'ms"';
             var displayDate = formatDisplayDate(row.graduation_date);
             var displayUploadedAt = formatDisplayDate(row.uploaded_at);
             var displayApplicationDate = formatDisplayDate(row.application_date);
             var courseDisplay = row.course ? escapeHtml(String(row.course).toUpperCase()) : '—';
-            var editBtnHtml = config.isAdmin
-                ? '<button type="button" class="edit-graduate-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5" title="Edit record" ' +
-                  'data-id="' + escapeHtml(String(row.id)) + '" ' +
-                  'data-name="' + escapeHtml(row.graduate_name) + '" ' +
-                  'data-course="' + escapeHtml(row.course || '') + '" ' +
-                  'data-honor="' + escapeHtml(row.latin_honor) + '" ' +
-                  'data-date="' + escapeHtml(row.graduation_date || '') + '" ' +
-                  'data-year="' + escapeHtml(String(row.graduation_year)) + '">' + actionIcon('pen') + '</button>'
-                : '';
-            var deleteBtnHtml = config.isAdmin
-                ? '<button type="button" class="delete-graduate-btn rounded-lg bg-csc-red-600/10 hover:bg-csc-red-600/20 text-csc-red-600 dark:text-csc-red-400 p-1.5" title="Delete record" ' +
-                  'data-id="' + escapeHtml(String(row.id)) + '" ' +
-                  'data-name="' + escapeHtml(row.graduate_name) + '">' + actionIcon('trash') + '</button>'
-                : '';
-            var applyBtnHtml = parseInt(row.has_applied, 10) === 1
-                ? ''
-                : '<button type="button" class="apply-graduate-btn rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5" title="Mark as applied" ' +
-                  'data-id="' + escapeHtml(String(row.id)) + '" ' +
-                  'data-name="' + escapeHtml(row.graduate_name) + '">' + actionIcon('check') + '</button>';
-            return '<tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">' +
-                '<td class="px-4 py-3">' + escapeHtml(String(row.graduate_name).toUpperCase()) + '</td>' +
-                '<td class="px-4 py-3">' + courseDisplay + '</td>' +
-                '<td class="px-4 py-3">' + escapeHtml(formatSchoolDisplayName(row.school_name, row.campus).toUpperCase()) + '</td>' +
-                '<td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + honorPillClass(row.latin_honor) + '">' + escapeHtml(row.latin_honor) + '</span></td>' +
-                '<td class="px-4 py-3">' + escapeHtml(String(row.graduation_year)) + '</td>' +
-                '<td class="px-4 py-3">' + escapeHtml(displayApplicationDate) + '</td>' +
-                '<td class="px-4 py-3"><div class="flex items-center justify-end gap-1.5">' +
-                '<button type="button" class="view-graduate-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5" title="View record" ' +
+
+            var actionBtnIndex = 0;
+            var actionBtnDelay = function () {
+                return 'style="animation-delay: ' + (rowIndex * 50 + (actionBtnIndex++) * 70) + 'ms"';
+            };
+
+            var viewBtnHtml =
+                '<button type="button" class="view-graduate-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5 motion-safe:animate-drop-in" ' + actionBtnDelay() + ' title="View record" ' +
                 'data-name="' + escapeHtml(row.graduate_name) + '" ' +
                 'data-course="' + escapeHtml(row.course || '') + '" ' +
                 'data-school="' + escapeHtml(formatSchoolDisplayName(row.school_name, row.campus)) + '" ' +
@@ -144,7 +125,38 @@ document.addEventListener('DOMContentLoaded', function () {
                 'data-year="' + escapeHtml(String(row.graduation_year)) + '" ' +
                 'data-upload-id="' + escapeHtml(String(row.upload_id)) + '" ' +
                 'data-filename="' + escapeHtml(row.original_filename) + '" ' +
-                'data-uploaded-at="' + escapeHtml(displayUploadedAt) + '">' + actionIcon('eye') + '</button>' +
+                'data-uploaded-at="' + escapeHtml(displayUploadedAt) + '">' + actionIcon('eye') + '</button>';
+
+            var applyBtnHtml = parseInt(row.has_applied, 10) === 1
+                ? ''
+                : '<button type="button" class="apply-graduate-btn rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5 motion-safe:animate-drop-in" ' + actionBtnDelay() + ' title="Mark as applied" ' +
+                  'data-id="' + escapeHtml(String(row.id)) + '" ' +
+                  'data-name="' + escapeHtml(row.graduate_name) + '">' + actionIcon('check') + '</button>';
+
+            var editBtnHtml = config.isAdmin
+                ? '<button type="button" class="edit-graduate-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5 motion-safe:animate-drop-in" ' + actionBtnDelay() + ' title="Edit record" ' +
+                  'data-id="' + escapeHtml(String(row.id)) + '" ' +
+                  'data-name="' + escapeHtml(row.graduate_name) + '" ' +
+                  'data-course="' + escapeHtml(row.course || '') + '" ' +
+                  'data-honor="' + escapeHtml(row.latin_honor) + '" ' +
+                  'data-date="' + escapeHtml(row.graduation_date || '') + '" ' +
+                  'data-year="' + escapeHtml(String(row.graduation_year)) + '">' + actionIcon('pen') + '</button>'
+                : '';
+            var deleteBtnHtml = config.isAdmin
+                ? '<button type="button" class="delete-graduate-btn rounded-lg bg-csc-red-600/10 hover:bg-csc-red-600/20 text-csc-red-600 dark:text-csc-red-400 p-1.5 motion-safe:animate-drop-in" ' + actionBtnDelay() + ' title="Delete record" ' +
+                  'data-id="' + escapeHtml(String(row.id)) + '" ' +
+                  'data-name="' + escapeHtml(row.graduate_name) + '">' + actionIcon('trash') + '</button>'
+                : '';
+
+            return '<tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 motion-safe:animate-fade-in-up" ' + rowDelay + '>' +
+                '<td class="px-4 py-3">' + escapeHtml(String(row.graduate_name).toUpperCase()) + '</td>' +
+                '<td class="px-4 py-3">' + courseDisplay + '</td>' +
+                '<td class="px-4 py-3">' + escapeHtml(formatSchoolDisplayName(row.school_name, row.campus).toUpperCase()) + '</td>' +
+                '<td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + honorPillClass(row.latin_honor) + '">' + escapeHtml(row.latin_honor) + '</span></td>' +
+                '<td class="px-4 py-3">' + escapeHtml(String(row.graduation_year)) + '</td>' +
+                '<td class="px-4 py-3">' + escapeHtml(displayApplicationDate) + '</td>' +
+                '<td class="px-4 py-3"><div class="flex items-center justify-end gap-1.5">' +
+                viewBtnHtml +
                 applyBtnHtml +
                 editBtnHtml +
                 deleteBtnHtml +
@@ -174,7 +186,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '<div class="flex items-center gap-1.5">' + pageButtonsHtml + '</div></div>';
 
         resultsContainer.innerHTML =
-            '<div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto"><table class="w-full text-sm text-left">' +
+            '<div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto overflow-y-hidden"><table class="w-full text-sm text-left">' +
             '<thead><tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">' +
             '<th class="px-4 py-3">GRADUATE NAME</th><th class="px-4 py-3">DEGREE/COURSE</th><th class="px-4 py-3">SCHOOL</th><th class="px-4 py-3">LATIN HONOR</th>' +
             '<th class="px-4 py-3">GRADUATION YEAR</th><th class="px-4 py-3">APPLIED</th><th class="px-4 py-3 text-right">ACTION</th></tr></thead>' +

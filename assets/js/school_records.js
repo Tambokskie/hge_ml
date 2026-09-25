@@ -80,11 +80,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     icon: modalHeaderIcon('trash'),
                     iconClassName: 'bg-csc-red-600/10 text-csc-red-600 dark:text-csc-red-400',
                     title: 'DELETE UPLOAD',
-                    bodyHtml: '<p>PERMANENTLY DELETE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(label) + '</span> AND ITS SOURCE PDF? THIS CANNOT BE UNDONE.</p>',
+                    subtitle: 'This action permanently deletes the upload and its source PDF. This cannot be undone.',
+                    bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">PERMANENTLY DELETE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(label) + '</span> AND ITS SOURCE PDF?</p>',
                     buttons: [
                         { label: 'CANCEL', className: MODAL_BTN.secondary },
                         {
                             label: 'DELETE',
+                            icon: modalButtonIcon('trash'),
                             className: MODAL_BTN.danger,
                             onClick: function (close) {
                                 close();
@@ -122,12 +124,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
         updateFoundPill(data.pagination.total_rows);
 
-        var rowsHtml = data.rows.map(function (upload) {
+        var rowsHtml = data.rows.map(function (upload, rowIndex) {
+            var actionBtnIndex = 0;
+            var actionBtnDelay = function () {
+                return 'style="animation-delay: ' + (rowIndex * 50 + (actionBtnIndex++) * 70) + 'ms"';
+            };
+
+            var viewBtnHtml = '<a href="' + config.viewUploadUrl + '?id=' + encodeURIComponent(upload.id) + '" class="rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5 motion-safe:animate-drop-in" ' + actionBtnDelay() + ' title="View upload">' + actionIcon('eye') + '</a>';
+
             var editBtnHtml = upload.extraction_status === 'reviewed'
-                ? '<a href="' + config.reviewUrl + '?upload_id=' + encodeURIComponent(upload.id) + '" class="rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5" title="Edit saved records">' + actionIcon('pen') + '</a>'
+                ? '<a href="' + config.reviewUrl + '?upload_id=' + encodeURIComponent(upload.id) + '" class="rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5 motion-safe:animate-drop-in" ' + actionBtnDelay() + ' title="Edit saved records">' + actionIcon('pen') + '</a>'
                 : '';
             var deleteBtnHtml = parseInt(upload.records_extracted, 10) === 0
-                ? '<button type="button" class="delete-upload-btn rounded-lg bg-csc-red-600/10 hover:bg-csc-red-600/20 text-csc-red-600 dark:text-csc-red-400 p-1.5" title="Delete upload" ' +
+                ? '<button type="button" class="delete-upload-btn rounded-lg bg-csc-red-600/10 hover:bg-csc-red-600/20 text-csc-red-600 dark:text-csc-red-400 p-1.5 motion-safe:animate-drop-in" ' + actionBtnDelay() + ' title="Delete upload" ' +
                   'data-upload-id="' + escapeHtml(String(upload.id)) + '" ' +
                   'data-school="' + escapeHtml(formatSchoolDisplayName(upload.school_name, upload.campus)) + '" ' +
                   'data-year="' + escapeHtml(String(upload.school_year)) + '">' + actionIcon('trash') + '</button>'
@@ -146,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 pendingInfoHtml +
                 '</div>';
 
-            return '<tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">' +
+            return '<tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 motion-safe:animate-fade-in-up" style="animation-delay: ' + (rowIndex * 50) + 'ms">' +
                 '<td class="px-4 py-3">' + escapeHtml(formatSchoolDisplayName(upload.school_name, upload.campus).toUpperCase()) + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(String(upload.school_year)) + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(String(upload.records_extracted)) + ' RECORDS</td>' +
@@ -154,8 +163,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<td class="px-4 py-3">' + statusHtml + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(upload.original_filename) + '</td>' +
                 '<td class="px-4 py-3 text-right"><div class="flex items-center justify-end gap-1.5">' +
-                '<a href="' + config.viewUploadUrl + '?id=' + encodeURIComponent(upload.id) + '" class="rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5" title="View upload">' + actionIcon('eye') + '</a>' +
-                editBtnHtml + deleteBtnHtml +
+                viewBtnHtml + editBtnHtml + deleteBtnHtml +
                 '</div></td></tr>';
         }).join('');
 
@@ -181,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '<div class="flex items-center gap-1.5">' + pageButtonsHtml + '</div></div>';
 
         resultsContainer.innerHTML =
-            '<div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto"><table class="w-full text-sm text-left">' +
+            '<div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto overflow-y-hidden"><table class="w-full text-sm text-left">' +
             '<thead><tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">' +
             '<th class="px-4 py-3">SCHOOL</th><th class="px-4 py-3">YEAR</th><th class="px-4 py-3">RECORDS EXTRACTED</th>' +
             '<th class="px-4 py-3">DATE UPLOADED</th><th class="px-4 py-3">STATUS</th><th class="px-4 py-3">FILE NAME</th><th class="px-4 py-3 text-right">ACTION</th></tr></thead>' +

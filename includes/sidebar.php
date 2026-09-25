@@ -1,4 +1,48 @@
+<?php
+// Ambient sidebar background: soft multi-color "parallax" orbs drifting
+// horizontally behind the nav content, blending where they overlap via
+// mix-blend-mode: lighten (see the orb-drift keyframe in tailwind.config.js).
+// Regenerated every page load — 6 to 14 orbs, each with its own size,
+// position, color, and drift duration/delay (bigger orb = slower/further-back,
+// for a real parallax depth cue). PHP only picks the random values once per
+// render; the drift itself is a plain CSS animation with no ongoing JS cost,
+// motion-safe gated, and theme-reactive for free since nothing about the
+// orbs themselves needs to change between light/dark — only the sidebar's
+// own background color does, which is already handled by its dark: class.
+$sidebarOrbColors = [
+    [107, 229, 255], // cyan
+    [255, 51, 61],   // red
+    [255, 222, 0],   // yellow
+];
+$sidebarOrbCount = random_int(6, 14);
+$sidebarOrbs = [];
+for ($i = 0; $i < $sidebarOrbCount; $i++) {
+    $size = random_int(60, 180);
+    $depth = ($size - 60) / (180 - 60); // 0 = smallest/closest/fastest, 1 = largest/furthest/slowest
+    $duration = round(14 + $depth * 22, 1); // 14-36s
+    [$r, $g, $b] = $sidebarOrbColors[array_rand($sidebarOrbColors)];
+    $sidebarOrbs[] = [
+        'size' => $size,
+        'top' => random_int(0, 90),
+        'rgb' => "$r,$g,$b",
+        'duration' => $duration,
+        'delay' => round(mt_rand(0, (int) ($duration * 100)) / 100, 2),
+    ];
+}
+?>
 <aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 -translate-x-full lg:translate-x-0 transition-transform bg-csc-navy-600 dark:bg-surface-900 border-r border-white/10 flex flex-col">
+    <!-- Ambient animated background: drifting multi-color orbs behind the nav content,
+         blending where they overlap via mix-blend-mode. Pure CSS transform, motion-safe gated,
+         -z-10'd behind the (unmodified, z-index:auto) nav content within this aside's own stacking context. -->
+    <div class="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+        <?php foreach ($sidebarOrbs as $orb): ?>
+        <span class="absolute rounded-xl blur mix-blend-lighten motion-safe:animate-orb-drift"
+            style="width:<?= $orb['size'] ?>px; height:<?= $orb['size'] ?>px; top:<?= $orb['top'] ?>%;
+                   background:radial-gradient(circle at 35% 30%, rgba(<?= $orb['rgb'] ?>,0.32) 0%, rgba(<?= $orb['rgb'] ?>,0.08) 60%, rgba(<?= $orb['rgb'] ?>,0) 80%);
+                   animation-duration:<?= $orb['duration'] ?>s; animation-delay:-<?= $orb['delay'] ?>s;"></span>
+        <?php endforeach; ?>
+    </div>
+
     <div class="px-5 py-5 border-b border-white/10 flex flex-col items-center text-center">
         <img src="<?= e(asset_url('assets/images/csclogo.png')) ?>" alt="Civil Service Commission" class="h-10 w-auto mb-2">
         <p class="text-sm font-semibold tracking-wide text-white">CSC-HGE VERIFY</p>
@@ -14,12 +58,12 @@
         <p class="px-3 pt-4 pb-1 text-[11px] font-semibold tracking-wide text-white/40 dark:text-gray-600">GRADUATE RECORDS</p>
         <a href="<?= e(APP_BASE_URL) ?>/admin/lookup.php" class="flex items-center gap-3 rounded-lg px-3 py-2 <?= sidebar_nav_class($currentPage, 'lookup') ?>">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607Z" /></svg>
-            <span>HONOR GRADUATE LOOK-UP</span>
+            <span>HONOR GRAD LOOK-UP</span>
         </a>
         <?php if (user_has_role($currentUser ?? null, 'administrator')): ?>
         <a href="<?= e(APP_BASE_URL) ?>/admin/upload.php" class="flex items-center gap-3 rounded-lg px-3 py-2 <?= sidebar_nav_class($currentPage, 'upload') ?>">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 8.25 12 3.75m0 0L7.5 8.25M12 3.75v12" /></svg>
-            <span>UPLOAD LATIN HONOR LIST</span>
+            <span>UPLOAD HON GRAD LIST</span>
         </a>
         <a href="<?= e(APP_BASE_URL) ?>/admin/school_records.php" class="flex items-center gap-3 rounded-lg px-3 py-2 <?= sidebar_nav_class($currentPage, 'school_records') ?>">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>

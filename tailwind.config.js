@@ -59,6 +59,16 @@ module.exports = {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
         },
+        // A small icon falling from above and settling into place: overshoots
+        // its resting position slightly (55%), rebounds just past it the other
+        // way (80%), then comes to rest — used for the action-button icons on
+        // admin/lookup.php so they read as physically "dropping into" the row.
+        dropIn: {
+          '0%': { opacity: '0', transform: 'translateY(-14px)' },
+          '55%': { opacity: '1', transform: 'translateY(3px)' },
+          '80%': { transform: 'translateY(-1px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
         glowPulse: {
           '0%, 100%': { opacity: '0.45' },
           '50%': { opacity: '0.8' },
@@ -82,6 +92,14 @@ module.exports = {
           '0%': { height: '0%' },
           '100%': { height: 'var(--bar-height)' },
         },
+        // Drifts an element horizontally across its container, starting/ending
+        // fully off-screen on either side — the sidebar's ambient orbs (see
+        // includes/sidebar.php), where each orb sets its own animation-duration
+        // inline (bigger orb = longer duration = slower, a parallax depth cue).
+        orbDrift: {
+          '0%': { transform: 'translateX(-30%)' },
+          '100%': { transform: 'translateX(330%)' },
+        },
       },
       animation: {
         'float-a': 'floatA 22s ease-in-out infinite',
@@ -90,11 +108,13 @@ module.exports = {
         drift: 'driftParticle 9s ease-in-out infinite',
         'fade-in-up': 'fadeInUp 0.7s ease-out 0.15s both',
         'fade-in': 'fadeIn 0.9s ease-out both',
+        'drop-in': 'dropIn 0.5s ease-out both',
         'glow-pulse': 'glowPulse 7s ease-in-out infinite',
         'progress-indeterminate': 'progressIndeterminate 1.1s ease-in-out infinite',
         'pending-critical-pulse': 'pendingCriticalPulse 2s ease-in-out infinite',
         'pending-critical-pulse-dark': 'pendingCriticalPulseDark 2s ease-in-out infinite',
         'grow-bar': 'growBar 0.8s ease-out both',
+        'orb-drift': 'orbDrift 20s linear infinite',
       },
     },
   },

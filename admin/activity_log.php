@@ -53,7 +53,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow">
+        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow motion-safe:animate-fade-in-up">
         <form id="activity-filter-form" method="get" class="grid grid-cols-1 sm:grid-cols-5 gap-3">
             <div>
                 <label class="mb-1.5 block text-xs font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">USER</label>
@@ -120,7 +120,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     <p class="text-sm font-medium text-gray-700 dark:text-gray-300">NO ACTIVITY LOG ENTRIES FOUND.</p>
                 </div>
             <?php else: ?>
-                <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto hge-shadow">
+                <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto overflow-y-hidden hge-shadow">
                     <table class="w-full text-sm text-left">
                         <thead>
                             <tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">
@@ -131,8 +131,8 @@ include __DIR__ . '/../includes/sidebar.php';
                             </tr>
                         </thead>
                         <tbody id="activity-results-tbody">
-                            <?php foreach ($searchResult['rows'] as $row): ?>
-                                <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">
+                            <?php foreach ($searchResult['rows'] as $rowIndex => $row): ?>
+                                <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 motion-safe:animate-fade-in-up" style="animation-delay: <?= (int) ($rowIndex * 50) ?>ms">
                                     <td class="px-4 py-3"><?= e_upper(date('F j, Y g:i A', strtotime($row['created_at']))) ?></td>
                                     <td class="px-4 py-3"><?= $row['user_name'] !== null ? e_upper($row['user_name']) : 'SYSTEM' ?></td>
                                     <td class="px-4 py-3"><?= e_upper($row['action']) ?></td>

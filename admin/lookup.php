@@ -63,7 +63,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow">
+        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow motion-safe:animate-fade-in-up">
             <form id="lookup-filter-form" method="get" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
                     <label class="mb-1.5 block text-xs font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">SCHOOL</label>
@@ -137,7 +137,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     <p class="text-sm font-medium text-gray-700 dark:text-gray-300">NO HONOR GRADUATE RECORD FOUND.</p>
                 </div>
             <?php else: ?>
-                <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto hge-shadow">
+                <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto overflow-y-hidden hge-shadow">
                     <table class="w-full text-sm text-left">
                         <thead>
                             <tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">
@@ -151,8 +151,8 @@ include __DIR__ . '/../includes/sidebar.php';
                             </tr>
                         </thead>
                         <tbody id="lookup-results-tbody">
-                            <?php foreach ($searchResult['rows'] as $row): ?>
-                                <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">
+                            <?php foreach ($searchResult['rows'] as $rowIndex => $row): ?>
+                                <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 motion-safe:animate-fade-in-up" style="animation-delay: <?= (int) ($rowIndex * 50) ?>ms">
                                     <td class="px-4 py-3"><?= e_upper($row['graduate_name']) ?></td>
                                     <td class="px-4 py-3"><?= ($row['course'] ?? '') !== '' ? e_upper($row['course']) : '—' ?></td>
                                     <td class="px-4 py-3"><?= e_upper(format_school_display_name($row['school_name'], $row['campus'])) ?></td>
@@ -162,8 +162,9 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <td class="px-4 py-3"><?= e((string) $row['graduation_year']) ?></td>
                                     <td class="px-4 py-3"><?= e(format_date_display($row['application_date'] ?? null)) ?></td>
                                     <td class="px-4 py-3">
+                                        <?php $actionBtnIndex = 0; ?>
                                         <div class="flex items-center justify-end gap-1.5">
-                                            <button type="button" class="view-graduate-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5" title="View record"
+                                            <button type="button" class="view-graduate-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($rowIndex * 50 + ($actionBtnIndex++) * 70) ?>ms" title="View record"
                                                 data-name="<?= e($row['graduate_name']) ?>"
                                                 data-course="<?= e($row['course'] ?? '') ?>"
                                                 data-school="<?= e(format_school_display_name($row['school_name'], $row['campus'])) ?>"
@@ -176,14 +177,14 @@ include __DIR__ . '/../includes/sidebar.php';
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                             </button>
                                             <?php if ((int) $row['has_applied'] !== 1): ?>
-                                            <button type="button" class="apply-graduate-btn rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5" title="Mark as applied"
+                                            <button type="button" class="apply-graduate-btn rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($rowIndex * 50 + ($actionBtnIndex++) * 70) ?>ms" title="Mark as applied"
                                                 data-id="<?= (int) $row['id'] ?>"
                                                 data-name="<?= e($row['graduate_name']) ?>">
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                                             </button>
                                             <?php endif; ?>
                                             <?php if ($isAdmin): ?>
-                                            <button type="button" class="edit-graduate-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5" title="Edit record"
+                                            <button type="button" class="edit-graduate-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($rowIndex * 50 + ($actionBtnIndex++) * 70) ?>ms" title="Edit record"
                                                 data-id="<?= (int) $row['id'] ?>"
                                                 data-name="<?= e($row['graduate_name']) ?>"
                                                 data-course="<?= e($row['course'] ?? '') ?>"
@@ -192,7 +193,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                                 data-year="<?= e((string) $row['graduation_year']) ?>">
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
                                             </button>
-                                            <button type="button" class="delete-graduate-btn rounded-lg bg-csc-red-600/10 hover:bg-csc-red-600/20 text-csc-red-600 dark:text-csc-red-400 p-1.5" title="Delete record"
+                                            <button type="button" class="delete-graduate-btn rounded-lg bg-csc-red-600/10 hover:bg-csc-red-600/20 text-csc-red-600 dark:text-csc-red-400 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($rowIndex * 50 + ($actionBtnIndex++) * 70) ?>ms" title="Delete record"
                                                 data-id="<?= (int) $row['id'] ?>"
                                                 data-name="<?= e($row['graduate_name']) ?>">
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>

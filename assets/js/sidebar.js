@@ -39,8 +39,11 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        var items = content.querySelectorAll(':scope > a');
+        var collapseTransition = 'height 200ms ease, opacity 200ms ease';
+
         content.style.overflow = 'hidden';
-        content.style.transition = 'height 200ms ease, opacity 200ms ease';
+        content.style.transition = collapseTransition;
         if (!details.open) {
             content.style.height = '0px';
             content.style.opacity = '0';
@@ -50,6 +53,7 @@ document.addEventListener('DOMContentLoaded', function () {
             event.preventDefault();
 
             if (details.open) {
+                content.style.transition = collapseTransition;
                 content.style.height = content.scrollHeight + 'px';
                 requestAnimationFrame(function () {
                     content.style.height = '0px';
@@ -61,16 +65,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 }, { once: true });
             } else {
                 details.open = true;
-                content.style.height = '0px';
-                content.style.opacity = '0';
-                requestAnimationFrame(function () {
-                    content.style.height = content.scrollHeight + 'px';
-                    content.style.opacity = '1';
+                // The panel itself just snaps open (no height/opacity slide);
+                // each link instead drops into position one after another via
+                // the same "drop-in" keyframe used for action-button icons
+                // elsewhere. Remove-reflow-readd restarts the animation on
+                // every open, not just the first time.
+                content.style.transition = 'none';
+                content.style.height = 'auto';
+                content.style.opacity = '1';
+
+                items.forEach(function (item, index) {
+                    item.classList.remove('motion-safe:animate-drop-in');
+                    void item.offsetWidth;
+                    item.style.animationDelay = (index * 70) + 'ms';
+                    item.classList.add('motion-safe:animate-drop-in');
                 });
-                content.addEventListener('transitionend', function expand() {
-                    content.style.height = 'auto';
-                    content.removeEventListener('transitionend', expand);
-                }, { once: true });
             }
         });
     });

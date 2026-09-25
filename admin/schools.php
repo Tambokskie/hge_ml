@@ -18,17 +18,22 @@ include __DIR__ . '/../includes/sidebar.php';
 ?>
 <main class="lg:ml-64 min-h-screen bg-gray-50 dark:bg-surface-950">
     <div class="p-6 lg:p-8">
-        <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
-            <div class="flex items-start gap-4">
-                <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
-                    <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
-                </div>
-                <div>
-                    <h1 class="text-2xl font-bold text-csc-navy-600 dark:text-white">SCHOOL MANAGEMENT</h1>
-                    <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">ADD, EDIT, OR REMOVE THE SCHOOLS TRACKED IN THIS SYSTEM.</p>
-                </div>
+        <div class="mb-6 flex items-start gap-4">
+            <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
             </div>
-            <div class="flex items-center gap-2">
+            <div>
+                <h1 class="text-2xl font-bold text-csc-navy-600 dark:text-white">SCHOOL MANAGEMENT</h1>
+                <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">ADD, EDIT, OR REMOVE THE SCHOOLS TRACKED IN THIS SYSTEM.</p>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow motion-safe:animate-fade-in-up">
+            <div class="flex flex-wrap items-center gap-2">
+                <a href="<?= e(APP_BASE_URL) ?>/admin/upload.php" class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-white/15 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium px-4 py-2.5 transition-colors">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 8.25 12 3.75m0 0L7.5 8.25M12 3.75v12" /></svg>
+                    UPLOAD PDF LIST
+                </a>
                 <button type="button" id="create-school-btn" class="inline-flex items-center gap-1.5 rounded-xl bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-semibold px-4 py-2.5 transition-colors">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                     CREATE SCHOOL
@@ -40,7 +45,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto hge-shadow">
+        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto overflow-y-hidden hge-shadow">
             <table class="w-full text-sm text-left">
                 <thead>
                     <tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">
@@ -54,8 +59,8 @@ include __DIR__ . '/../includes/sidebar.php';
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($schools as $school): ?>
-                        <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">
+                    <?php foreach ($schools as $rowIndex => $school): ?>
+                        <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 motion-safe:animate-fade-in-up" style="animation-delay: <?= (int) ($rowIndex * 50) ?>ms">
                             <td class="px-4 py-3">
                                 <input type="checkbox" class="school-checkbox"
                                     data-school-id="<?= (int) $school['id'] ?>"

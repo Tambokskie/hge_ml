@@ -28,7 +28,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow">
+        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow motion-safe:animate-fade-in-up">
             <form id="add-keyword-form" class="flex flex-col sm:flex-row items-start sm:items-end gap-3">
                 <input type="hidden" name="csrf_token" value="<?= e($csrfToken) ?>">
                 <div class="flex-1 w-full">
@@ -44,7 +44,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </form>
         </div>
 
-        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto hge-shadow">
+        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto overflow-y-hidden hge-shadow">
             <table class="w-full text-sm text-left">
                 <thead>
                     <tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">
@@ -57,8 +57,8 @@ include __DIR__ . '/../includes/sidebar.php';
                     <?php if (empty($keywords)): ?>
                         <tr id="keywords-empty-row"><td colspan="3" class="px-4 py-6 text-center text-gray-600 dark:text-gray-500">NO CUSTOM COURSE KEYWORDS YET.</td></tr>
                     <?php else: ?>
-                        <?php foreach ($keywords as $keyword): ?>
-                            <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5" data-keyword-id="<?= (int) $keyword['id'] ?>">
+                        <?php foreach ($keywords as $rowIndex => $keyword): ?>
+                            <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 motion-safe:animate-fade-in-up" style="animation-delay: <?= (int) ($rowIndex * 50) ?>ms" data-keyword-id="<?= (int) $keyword['id'] ?>">
                                 <td class="px-4 py-3 font-medium text-gray-900 dark:text-white"><?= e($keyword['keyword']) ?></td>
                                 <td class="px-4 py-3"><?= e(date('F j, Y', strtotime($keyword['created_at']))) ?></td>
                                 <td class="px-4 py-3 text-right">

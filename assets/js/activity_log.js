@@ -52,10 +52,10 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        var rowsHtml = data.rows.map(function (row) {
+        var rowsHtml = data.rows.map(function (row, rowIndex) {
             var userLabel = row.user_name ? row.user_name.toUpperCase() : 'SYSTEM';
             var details = row.details ? row.details : '—';
-            return '<tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">' +
+            return '<tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 motion-safe:animate-fade-in-up" style="animation-delay: ' + (rowIndex * 50) + 'ms">' +
                 '<td class="px-4 py-3">' + escapeHtml(formatTimestamp(row.created_at)) + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(userLabel) + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(String(row.action).toUpperCase()) + '</td>' +
@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '<div class="flex items-center gap-1.5">' + pageButtonsHtml + '</div></div>';
 
         resultsContainer.innerHTML =
-            '<div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto"><table class="w-full text-sm text-left">' +
+            '<div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto overflow-y-hidden"><table class="w-full text-sm text-left">' +
             '<thead><tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">' +
             '<th class="px-4 py-3">TIMESTAMP</th><th class="px-4 py-3">USER</th><th class="px-4 py-3">ACTION</th><th class="px-4 py-3">DETAILS</th></tr></thead>' +
             '<tbody id="activity-results-tbody">' + rowsHtml + '</tbody></table></div>' + paginationHtml;

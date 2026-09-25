@@ -70,7 +70,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow">
+        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
             <form id="school-records-filter-form" method="get" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="mb-1.5 block text-xs font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">SCHOOL</label>
@@ -128,7 +128,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     <p class="text-sm font-medium text-gray-700 dark:text-gray-300">NO UPLOADS FOUND.</p>
                 </div>
             <?php else: ?>
-                <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto hge-shadow">
+                <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto overflow-y-hidden hge-shadow">
                     <table class="w-full text-sm text-left">
                         <thead>
                             <tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">
@@ -142,8 +142,15 @@ include __DIR__ . '/../includes/sidebar.php';
                             </tr>
                         </thead>
                         <tbody id="school-records-tbody">
-                            <?php foreach ($searchResult['rows'] as $upload): $agingClass = pending_upload_age_class($upload); $statusPill = upload_status_pill($upload['extraction_status']); ?>
-                                <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5<?= $agingClass !== '' ? ' ' . $agingClass : '' ?>">
+                            <?php foreach ($searchResult['rows'] as $rowIndex => $upload):
+                                $agingClass = pending_upload_age_class($upload);
+                                $statusPill = upload_status_pill($upload['extraction_status']);
+                                // The critical-aging tier already pulses continuously via its own
+                                // animation; stacking the fade-in-up entrance on top of it would
+                                // fight over the single CSS `animation` property, so skip it there.
+                                $hasPulseAnimation = strpos($agingClass, 'animate-pending-critical-pulse') !== false;
+                            ?>
+                                <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5<?= $agingClass !== '' ? ' ' . $agingClass : '' ?><?= $hasPulseAnimation ? '' : ' motion-safe:animate-fade-in-up' ?>"<?= $hasPulseAnimation ? '' : ' style="animation-delay: ' . ($rowIndex * 50) . 'ms"' ?>>
                                     <td class="px-4 py-3"><?= e_upper(format_school_display_name($upload['school_name'], $upload['campus'])) ?></td>
                                     <td class="px-4 py-3"><?= e($upload['school_year']) ?></td>
                                     <td class="px-4 py-3"><?= (int) $upload['records_extracted'] ?> RECORDS</td>
@@ -161,17 +168,18 @@ include __DIR__ . '/../includes/sidebar.php';
                                     </td>
                                     <td class="px-4 py-3"><?= e($upload['original_filename']) ?></td>
                                     <td class="px-4 py-3 text-right">
+                                        <?php $actionBtnIndex = 0; ?>
                                         <div class="flex items-center justify-end gap-1.5">
-                                            <a href="<?= e(APP_BASE_URL) ?>/admin/view_upload.php?id=<?= (int) $upload['id'] ?>" class="rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5" title="View upload">
+                                            <a href="<?= e(APP_BASE_URL) ?>/admin/view_upload.php?id=<?= (int) $upload['id'] ?>" class="rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($rowIndex * 50 + ($actionBtnIndex++) * 70) ?>ms" title="View upload">
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                             </a>
                                             <?php if ($upload['extraction_status'] === 'reviewed'): ?>
-                                            <a href="<?= e(APP_BASE_URL) ?>/admin/review.php?upload_id=<?= (int) $upload['id'] ?>" class="rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5" title="Edit saved records">
+                                            <a href="<?= e(APP_BASE_URL) ?>/admin/review.php?upload_id=<?= (int) $upload['id'] ?>" class="rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($rowIndex * 50 + ($actionBtnIndex++) * 70) ?>ms" title="Edit saved records">
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
                                             </a>
                                             <?php endif; ?>
                                             <?php if ((int) $upload['records_extracted'] === 0): ?>
-                                            <button type="button" class="delete-upload-btn rounded-lg bg-csc-red-600/10 hover:bg-csc-red-600/20 text-csc-red-600 dark:text-csc-red-400 p-1.5" title="Delete upload"
+                                            <button type="button" class="delete-upload-btn rounded-lg bg-csc-red-600/10 hover:bg-csc-red-600/20 text-csc-red-600 dark:text-csc-red-400 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($rowIndex * 50 + ($actionBtnIndex++) * 70) ?>ms" title="Delete upload"
                                                 data-upload-id="<?= (int) $upload['id'] ?>"
                                                 data-school="<?= e(format_school_display_name($upload['school_name'], $upload['campus'])) ?>"
                                                 data-year="<?= e($upload['school_year']) ?>">
