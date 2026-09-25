@@ -201,6 +201,8 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold <?= latin_honor_pill_class($row['latin_honor']) ?>"><?= e($row['latin_honor']) ?></span>
                                     <?php if (($row['source'] ?? null) === 'ocr'): ?>
                                         <span class="ml-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium bg-yellow-500/20 text-yellow-400">OCR — VERIFY</span>
+                                    <?php elseif (($row['source'] ?? null) === 'ai'): ?>
+                                        <span class="ml-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium bg-yellow-500/20 text-yellow-400">AI — VERIFY</span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-3"><?= e(format_date_display($row['graduation_date'])) ?></td>

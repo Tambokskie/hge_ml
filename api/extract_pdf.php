@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/gemini.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/uploads.php';
@@ -9,6 +10,7 @@ require_once __DIR__ . '/../includes/ocr_tools.php';
 require_once __DIR__ . '/../includes/ocr_keywords.php';
 require_once __DIR__ . '/../extractors/ExtractorInterface.php';
 require_once __DIR__ . '/../extractors/ParsesHonorRows.php';
+require_once __DIR__ . '/../extractors/GeminiExtractor.php';
 require_once __DIR__ . '/../extractors/generic_extractor.php';
 require_once __DIR__ . '/../extractors/ocr_extractor.php';
 require_once __DIR__ . '/../extractors/TemplateExtractor.php';
@@ -52,7 +54,17 @@ try {
         } else {
             $extraCourseKeywords = array_column(get_ocr_course_keywords($pdo), 'keyword');
 
-            $result = (new GenericExtractor($extraCourseKeywords))->extract($upload['file_path']);
+            // AI extraction is the primary path: it reads the PDF directly and
+            // understands layout (wrapped cells, borderless columns, narrative
+            // letters) without a bespoke handler per layout. GenericExtractor
+            // -> OcrExtractor below is the fallback, used only when the AI path
+            // is unavailable or fails (no API key configured, network error,
+            // unparseable/empty response) — that existing chain is untouched.
+            $result = (new GeminiExtractor())->extract($upload['file_path']);
+
+            if ($result['status'] === 'failed') {
+                $result = (new GenericExtractor($extraCourseKeywords))->extract($upload['file_path']);
+            }
             if ($result['status'] === 'failed') {
                 $toolStatus = check_ocr_tools_installed();
                 $missingTools = array_keys(array_filter($toolStatus, fn (bool $installed) => !$installed));
