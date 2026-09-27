@@ -295,4 +295,38 @@ class GeminiExtractorTest extends TestCase
         $this->assertSame('failed', $result['status']);
         $this->assertSame([], $result['rows']);
     }
+
+    // --- transport-level failures (curl errors, e.g. timeouts/DNS/connection
+    // refused) must be retried and rotated across keys the same way a 503
+    // is, not abandoned after the very first attempt ---
+
+    public function testTransportErrorsRetryThenRotateToNextKeyRatherThanFailingImmediately(): void
+    {
+        // Both keys point at a closed local port, so every attempt is a fast
+        // curl-level connection failure with no real network dependency.
+        // The fixed retry+rotate policy burns through 3 attempts per key
+        // with 0.5s/1.0s backoff between them (~1.5s per key, ~3s for two
+        // keys); the pre-fix bug aborted on the very first curl error, in
+        // well under a second.
+        $extractor = new \GeminiExtractor(['key-one', 'key-two'], 'gemini-flash-latest', 'http://127.0.0.1:1/');
+
+        $start = microtime(true);
+        $result = $extractor->extract(__FILE__);
+        $elapsed = microtime(true) - $start;
+
+        $this->assertSame('failed', $result['status']);
+        $this->assertGreaterThanOrEqual(2.5, $elapsed);
+    }
+
+    public function testTransportErrorsDoNotMarkQuotaExhausted(): void
+    {
+        // A curl-level failure says nothing about quota, so it must not
+        // trigger the "free AI extraction is exhausted" notice the way a
+        // 429 does.
+        $extractor = new \GeminiExtractor('key-one', 'gemini-flash-latest', 'http://127.0.0.1:1/');
+
+        $extractor->extract(__FILE__);
+
+        $this->assertFalse(\GeminiExtractor::isQuotaExhausted());
+    }
 }
