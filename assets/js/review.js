@@ -186,12 +186,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var bodyHtml =
             '<div class="space-y-4">' +
-            modalField({ id: 'modal-last-name', label: 'LAST NAME', required: true, icon: 'user', value: defaults.lastName || '' }) +
-            modalField({ id: 'modal-given-name', label: 'GIVEN NAME', required: true, icon: 'user', value: defaults.givenName || '' }) +
-            modalField({
-                id: 'modal-middle-name', label: 'MIDDLE NAME', optional: true, icon: 'user', value: defaults.middleName || '',
-                note: isNew ? undefined : 'AUTO-SPLIT FROM THE EXTRACTED NAME — PLEASE VERIFY, ESPECIALLY MULTI-WORD SURNAMES.',
-            }) +
+            modalField({ id: 'modal-graduate-name', label: 'GRADUATE NAME', required: true, icon: 'user', value: defaults.name || '' }) +
             modalField({ id: 'modal-course', label: 'DEGREE/COURSE', icon: 'academic', value: defaults.course || '' }) +
             modalField({ id: 'modal-latin-honor', label: 'LATIN HONOR', type: 'select', icon: 'tag', optionsHtml: optionsHtml }) +
             modalField({ id: 'modal-graduation-date', label: 'DATE OF GRADUATION', type: 'date', icon: 'calendar', value: defaults.date || '' }) +
@@ -213,11 +208,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         var payload = {
                             csrf_token: config.csrfToken,
                             upload_id: config.uploadId,
-                            graduate_name: combineGraduateName(
-                                document.getElementById('modal-last-name').value,
-                                document.getElementById('modal-given-name').value,
-                                document.getElementById('modal-middle-name').value
-                            ),
+                            graduate_name: document.getElementById('modal-graduate-name').value,
                             course: document.getElementById('modal-course').value,
                             latin_honor: document.getElementById('modal-latin-honor').value,
                             graduation_date: document.getElementById('modal-graduation-date').value,
@@ -248,9 +239,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.edit-row-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             openEditModal(parseInt(btn.dataset.rowIndex, 10), {
-                lastName: btn.dataset.lastName,
-                givenName: btn.dataset.givenName,
-                middleName: btn.dataset.middleName,
+                name: btn.dataset.name,
                 course: btn.dataset.course,
                 honor: btn.dataset.honor,
                 date: btn.dataset.date,

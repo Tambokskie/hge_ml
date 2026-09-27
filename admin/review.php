@@ -167,9 +167,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                 class="h-4 w-4 rounded border-gray-300 dark:border-white/20 text-csc-navy-600 focus:ring-csc-navy-500/40">
                         </th>
                         <th class="px-4 py-3">NO.</th>
-                        <th class="px-4 py-3">LAST NAME</th>
-                        <th class="px-4 py-3">GIVEN NAME</th>
-                        <th class="px-4 py-3">MIDDLE NAME</th>
+                        <th class="px-4 py-3">GRADUATE NAME</th>
                         <th class="px-4 py-3">DEGREE/COURSE</th>
                         <th class="px-4 py-3">LATIN HONOR</th>
                         <th class="px-4 py-3">DATE OF GRADUATION</th>
@@ -180,11 +178,10 @@ include __DIR__ . '/../includes/sidebar.php';
                 </thead>
                 <tbody id="review-rows-tbody">
                     <?php if (empty($rows)): ?>
-                        <tr><td colspan="11" class="px-4 py-6 text-center text-gray-600 dark:text-gray-500">NO RECORDS YET. CLICK ADD RECORD ABOVE.</td></tr>
+                        <tr><td colspan="9" class="px-4 py-6 text-center text-gray-600 dark:text-gray-500">NO RECORDS YET. CLICK ADD RECORD ABOVE.</td></tr>
                     <?php else: ?>
                         <?php foreach ($rows as $index => $row): ?>
                             <?php $status = staged_row_status($row); ?>
-                            <?php $nameParts = split_graduate_name($row['graduate_name']); ?>
                             <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 motion-safe:animate-fade-in-up" style="animation-delay: <?= (int) ($index * 50) ?>ms"
                                 data-filter-name="<?= e(mb_strtoupper($row['graduate_name'])) ?>"
                                 data-filter-course="<?= e($row['course'] ?? '') ?>">
@@ -193,9 +190,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                         data-row-index="<?= $index ?>" aria-label="Select record">
                                 </td>
                                 <td class="px-4 py-3"><?= $index + 1 ?></td>
-                                <td class="px-4 py-3"><?= e_upper($nameParts['last_name']) ?></td>
-                                <td class="px-4 py-3"><?= e_upper($nameParts['given_name']) ?></td>
-                                <td class="px-4 py-3"><?= $nameParts['middle_name'] !== '' ? e_upper($nameParts['middle_name']) : '—' ?></td>
+                                <td class="px-4 py-3"><?= e_upper($row['graduate_name']) ?></td>
                                 <td class="px-4 py-3"><?= ($row['course'] ?? '') !== '' ? e_upper($row['course']) : '—' ?></td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold <?= latin_honor_pill_class($row['latin_honor']) ?>"><?= e($row['latin_honor']) ?></span>
@@ -216,9 +211,6 @@ include __DIR__ . '/../includes/sidebar.php';
                                         <button type="button" class="edit-row-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($index * 50 + ($actionBtnIndex++) * 70) ?>ms" title="Edit row"
                                             data-row-index="<?= $index ?>"
                                             data-name="<?= e($row['graduate_name']) ?>"
-                                            data-last-name="<?= e($nameParts['last_name']) ?>"
-                                            data-given-name="<?= e($nameParts['given_name']) ?>"
-                                            data-middle-name="<?= e($nameParts['middle_name']) ?>"
                                             data-course="<?= e($row['course'] ?? '') ?>"
                                             data-honor="<?= e($row['latin_honor']) ?>"
                                             data-date="<?= e((string) $row['graduation_date']) ?>"
