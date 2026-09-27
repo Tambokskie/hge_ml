@@ -35,32 +35,32 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
 
-            <?php if ($aiUsage['configured']): ?>
-                <div class="mb-6 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 hge-shadow px-4 py-3 sm:px-5 sm:py-4">
-                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-                        <p class="text-xs font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">FREE AI EXTRACTION USAGE TODAY</p>
-                        <span class="text-xs font-semibold <?= $aiQuotaTier['text_class'] ?>"><?= (int) $aiUsage['percent'] ?>% &middot; <?= e($aiQuotaTier['label']) ?></span>
-                    </div>
-                    <div class="relative h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
-                        <div class="absolute inset-y-0 left-0 h-full rounded-full <?= $aiQuotaTier['bar_class'] ?> transition-[width] duration-300 ease-out" style="width: <?= (int) $aiUsage['percent'] ?>%"></div>
-                    </div>
-                    <?php if ($aiUsage['percent'] >= 100): ?>
-                        <p class="mt-2 text-xs <?= $aiQuotaTier['text_class'] ?>">TODAY'S FREE AI LIMIT HAS BEEN REACHED. UPLOADS WILL BE PROCESSED USING STANDARD TEXT/OCR EXTRACTION INSTEAD UNTIL IT RESETS.</p>
-                    <?php endif; ?>
-                </div>
-            <?php endif; ?>
-
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
             <div class="lg:col-span-2 space-y-6">
                 <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-6 sm:p-8 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
-                    <div class="flex items-start gap-3 mb-6">
-                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
-                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 8.25 12 3.75m0 0L7.5 8.25M12 3.75v12" /></svg>
+                    <div class="flex items-start justify-between gap-3 mb-6">
+                        <div class="flex items-start gap-3">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 8.25 12 3.75m0 0L7.5 8.25M12 3.75v12" /></svg>
+                            </div>
+                            <div>
+                                <h2 class="text-base font-bold text-csc-navy-600 dark:text-white">UPLOAD DOCUMENT</h2>
+                                <p id="upload-mode-description" class="text-xs text-gray-500 dark:text-gray-500 mt-0.5">SELECT A SCHOOL, CHOOSE THE SCHOOL YEAR, AND UPLOAD THE LATIN HONOR LIST PDF.</p>
+                            </div>
                         </div>
-                        <div>
-                            <h2 class="text-base font-bold text-csc-navy-600 dark:text-white">UPLOAD DOCUMENT</h2>
-                            <p id="upload-mode-description" class="text-xs text-gray-500 dark:text-gray-500 mt-0.5">SELECT A SCHOOL, CHOOSE THE SCHOOL YEAR, AND UPLOAD THE LATIN HONOR LIST PDF.</p>
-                        </div>
+                        <?php if ($aiUsage['configured']): ?>
+                            <div class="relative group shrink-0 mt-1">
+                                <span class="block h-4 w-4 rounded-full <?= $aiQuotaTier['bar_class'] ?> cursor-default" tabindex="0" role="status"
+                                    aria-label="Free AI extraction usage today: <?= (int) $aiUsage['percent'] ?>% — <?= e($aiQuotaTier['label']) ?>"></span>
+                                <div class="pointer-events-none absolute right-0 top-full z-20 mt-2 w-60 rounded-lg bg-gray-900 dark:bg-black text-white text-xs leading-snug px-3 py-2.5 opacity-0 scale-95 origin-top-right transition-all duration-150 group-hover:opacity-100 group-hover:scale-100 group-focus-within:opacity-100 group-focus-within:scale-100 shadow-lg">
+                                    <p class="font-bold tracking-wide <?= $aiQuotaTier['text_class'] ?>"><?= (int) $aiUsage['percent'] ?>% &middot; <?= e($aiQuotaTier['label']) ?></p>
+                                    <p class="mt-1 text-gray-300">FREE AI EXTRACTION USAGE TODAY (<?= (int) $aiUsage['count'] ?> OF <?= (int) $aiUsage['limit'] ?> ESTIMATED REQUESTS).</p>
+                                    <?php if ($aiUsage['percent'] >= 100): ?>
+                                        <p class="mt-1 text-gray-300">TODAY'S LIMIT IS REACHED. UPLOADS WILL USE STANDARD TEXT/OCR EXTRACTION INSTEAD UNTIL IT RESETS.</p>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
                     <div class="mb-6 inline-flex rounded-xl bg-gray-100 dark:bg-white/5 p-1">
