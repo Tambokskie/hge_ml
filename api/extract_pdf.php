@@ -53,18 +53,62 @@ try {
             }
         } else {
             $extraCourseKeywords = array_column(get_ocr_course_keywords($pdo), 'keyword');
+            $useOcr = !empty($_POST['use_ocr']);
 
-            // AI extraction is the primary path: it reads the PDF directly and
-            // understands layout (wrapped cells, borderless columns, narrative
-            // letters) without a bespoke handler per layout. GenericExtractor
-            // -> OcrExtractor below is the fallback, used only when the AI path
-            // is unavailable or fails (no API key configured, network error,
-            // unparseable/empty response) — that existing chain is untouched.
-            $result = (new GeminiExtractor())->extract($upload['file_path']);
-
-            if ($result['status'] === 'failed') {
+            if ($useOcr) {
+                // The admin already confirmed OCR after being told AI
+                // couldn't handle this document (see the ocr_confirm_required
+                // response below) — run the existing GenericExtractor ->
+                // OcrExtractor chain directly, skipping AI entirely so this
+                // retry isn't delayed by re-trying a path already known to fail.
                 $result = (new GenericExtractor($extraCourseKeywords))->extract($upload['file_path']);
+            } else {
+                // AI extraction is the primary path: it reads the PDF directly
+                // and understands layout (wrapped cells, borderless columns,
+                // narrative letters) without a bespoke handler per layout.
+                $geminiExtractor = new GeminiExtractor();
+                $result = $geminiExtractor->extract($upload['file_path']);
+
+                if ($result['status'] === 'failed' && !GeminiExtractor::isQuotaExhausted() && empty($result['unreachable'])) {
+                    // Today's estimated AI usage still has room and Google was
+                    // actually reachable, so this wasn't a quota or connectivity
+                    // problem — most likely a transient overload or a one-off
+                    // unparseable response. Give AI a single extra try before
+                    // conceding to the OCR fallback (bounded, not a loop, so a
+                    // persistently failing document can't blow past PHP's
+                    // execution time limit).
+                    $result = $geminiExtractor->extract($upload['file_path']);
+                }
+
+                $aiQuotaExhausted = GeminiExtractor::isQuotaExhausted();
+                $aiUnreachable = !empty($result['unreachable']);
+
+                if ($result['status'] === 'failed') {
+                    // GenericExtractor is a fast, free text-layer read, not
+                    // OCR — try it before asking the admin anything.
+                    $result = (new GenericExtractor($extraCourseKeywords))->extract($upload['file_path']);
+                }
+
+                if ($result['status'] === 'failed') {
+                    // AI failed and this PDF has no text layer either — actual
+                    // (Tesseract) OCR is the only remaining option, and it's
+                    // slower and less accurate than AI/text-layer extraction.
+                    // Ask before running it instead of silently falling back.
+                    $reason = $aiQuotaExhausted
+                        ? "TODAY'S FREE AI EXTRACTION QUOTA HAS BEEN USED UP."
+                        : ($aiUnreachable
+                            ? 'THE AI EXTRACTION SERVICE COULD NOT BE REACHED.'
+                            : 'AI EXTRACTION WAS UNABLE TO PROCESS THIS DOCUMENT.');
+
+                    echo json_encode([
+                        'status' => 'ocr_confirm_required',
+                        'message' => $reason . ' THIS DOCUMENT HAS NO SELECTABLE TEXT, SO OPTICAL CHARACTER RECOGNITION (OCR) IS NEEDED TO READ IT INSTEAD. '
+                            . 'OCR RESULTS CAN BE LESS ACCURATE AND WILL NEED CAREFUL REVIEW. PROCEED WITH OCR EXTRACTION?',
+                    ]);
+                    exit;
+                }
             }
+
             if ($result['status'] === 'failed') {
                 $toolStatus = check_ocr_tools_installed();
                 $missingTools = array_keys(array_filter($toolStatus, fn (bool $installed) => !$installed));

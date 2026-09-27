@@ -329,4 +329,40 @@ class GeminiExtractorTest extends TestCase
 
         $this->assertFalse(\GeminiExtractor::isQuotaExhausted());
     }
+
+    // --- extract()'s 'unreachable' flag — lets api/extract_pdf.php tell "no
+    // response from Google at all" apart from other failures, so it knows
+    // not to bother retrying AI extraction when the network path is down ---
+
+    public function testExtractFlagsUnreachableWhenEveryKeyHitsATransportFailure(): void
+    {
+        $extractor = new \GeminiExtractor(['key-one', 'key-two'], 'gemini-flash-latest', 'http://127.0.0.1:1/');
+
+        $result = $extractor->extract(__FILE__);
+
+        $this->assertSame('failed', $result['status']);
+        $this->assertTrue($result['unreachable']);
+    }
+
+    public function testExtractDoesNotFlagUnreachableWithNoApiKeyConfigured(): void
+    {
+        // No network attempt was even made - this is a configuration gap,
+        // not "Google could not be reached".
+        $extractor = new \GeminiExtractor('', 'gemini-flash-latest');
+
+        $result = $extractor->extract(__FILE__);
+
+        $this->assertSame('failed', $result['status']);
+        $this->assertFalse($result['unreachable']);
+    }
+
+    public function testExtractDoesNotFlagUnreachableWhenFileIsMissing(): void
+    {
+        $extractor = new \GeminiExtractor('fake-key', 'gemini-flash-latest');
+
+        $result = $extractor->extract('/no/such/file.pdf');
+
+        $this->assertSame('failed', $result['status']);
+        $this->assertFalse($result['unreachable']);
+    }
 }

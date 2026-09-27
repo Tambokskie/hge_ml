@@ -98,15 +98,22 @@ class GeminiExtractor implements ExtractorInterface
         $this->apiBaseUrl = $apiBaseUrl ?? self::DEFAULT_API_BASE_URL;
     }
 
+    /**
+     * @return array{status: 'ok'|'failed', rows: array<int, array<string, mixed>>, unreachable: bool}
+     *     `unreachable` is true only when every configured key's final
+     *     attempt was a transport-level failure (no response from Google at
+     *     all) — the signal api/extract_pdf.php uses to decide whether
+     *     retrying AI extraction is even worth attempting.
+     */
     public function extract(string $filePath): array
     {
         if (empty($this->apiKeys)) {
-            return ['status' => 'failed', 'rows' => []];
+            return ['status' => 'failed', 'rows' => [], 'unreachable' => false];
         }
 
         $pdfBytes = @file_get_contents($filePath);
         if ($pdfBytes === false) {
-            return ['status' => 'failed', 'rows' => []];
+            return ['status' => 'failed', 'rows' => [], 'unreachable' => false];
         }
 
         $payload = self::buildGeminiRequestPayload(base64_encode($pdfBytes));
@@ -121,14 +128,15 @@ class GeminiExtractor implements ExtractorInterface
             if ($e instanceof RetryableGeminiApiException && $e->httpCode === 429) {
                 self::markQuotaExhausted();
             }
-            return ['status' => 'failed', 'rows' => []];
+            $unreachable = $e instanceof RetryableGeminiApiException && $e->httpCode === null;
+            return ['status' => 'failed', 'rows' => [], 'unreachable' => $unreachable];
         }
 
         self::clearQuotaExhausted();
 
         $rows = self::parseGeminiResponseRows($decoded);
 
-        return ['status' => empty($rows) ? 'failed' : 'ok', 'rows' => $rows];
+        return ['status' => empty($rows) ? 'failed' : 'ok', 'rows' => $rows, 'unreachable' => false];
     }
 
     /**

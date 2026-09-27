@@ -76,13 +76,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function extract() {
+    function extract(useOcr) {
         setBusy('EXTRACTING...');
         var closeLoadingModal = showLoadingModal('EXTRACTING DATA', 'PLEASE WAIT WHILE WE GATHER THE LATEST INFORMATION.');
 
         var formData = new FormData();
         formData.set('csrf_token', config.csrfToken);
         formData.set('upload_id', btn.dataset.uploadId);
+        if (useOcr) {
+            formData.set('use_ocr', '1');
+        }
 
         fetch(config.apiBase + '/api/extract_pdf.php', {
             method: 'POST',
@@ -94,6 +97,16 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(function (data) {
                 if (data.status === 'success') {
                     window.location.href = data.redirect_url;
+                } else if (data.status === 'ocr_confirm_required') {
+                    closeLoadingModal();
+                    clearBusy();
+                    promptOcrExtractionConfirm({
+                        message: data.message,
+                        onConfirm: function () {
+                            extract(true);
+                        },
+                        onCancelled: clearBusy,
+                    });
                 } else if (data.status === 'ocr_tools_missing') {
                     closeLoadingModal();
                     clearBusy();
@@ -104,7 +117,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         onInstalling: function () {
                             setBusy('INSTALLING OCR TOOLS...');
                         },
-                        onInstalled: extract,
+                        onInstalled: function () {
+                            extract(true);
+                        },
                         onFailed: clearBusy,
                         onCancelled: clearBusy,
                     });

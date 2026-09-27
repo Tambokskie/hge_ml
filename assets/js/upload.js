@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function () {
         showFileInfo(fileInput.files[0]);
     });
 
-    function extractAndRedirect(uploadId) {
+    function extractAndRedirect(uploadId, useOcr) {
         var extractUrl = form.dataset.extractUrl;
         var installUrl = extractUrl.replace('extract_pdf.php', 'install_ocr_tools.php');
         var csrfToken = form.querySelector('[name="csrf_token"]').value;
@@ -133,6 +133,9 @@ document.addEventListener('DOMContentLoaded', function () {
         var formData = new FormData();
         formData.set('csrf_token', csrfToken);
         formData.set('upload_id', uploadId);
+        if (useOcr) {
+            formData.set('use_ocr', '1');
+        }
 
         fetch(extractUrl, {
             method: 'POST',
@@ -144,6 +147,17 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(function (data) {
                 if (data.status === 'success') {
                     window.location.href = data.redirect_url;
+                } else if (data.status === 'ocr_confirm_required') {
+                    closeLoadingModal();
+                    promptOcrExtractionConfirm({
+                        message: data.message,
+                        onConfirm: function () {
+                            extractAndRedirect(uploadId, true);
+                        },
+                        onCancelled: function () {
+                            window.location.href = viewUploadUrl;
+                        },
+                    });
                 } else if (data.status === 'ocr_tools_missing') {
                     closeLoadingModal();
                     promptOcrToolsInstall({
@@ -155,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             setIndeterminateProgress();
                         },
                         onInstalled: function () {
-                            extractAndRedirect(uploadId);
+                            extractAndRedirect(uploadId, true);
                         },
                         onFailed: function () {
                             hideProgress();
