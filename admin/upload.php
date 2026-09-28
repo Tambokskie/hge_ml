@@ -5,6 +5,7 @@ require_once __DIR__ . '/../config/gemini.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/schools.php';
+require_once __DIR__ . '/../includes/app_settings.php';
 require_once __DIR__ . '/../extractors/ExtractorInterface.php';
 require_once __DIR__ . '/../extractors/GeminiExtractor.php';
 
@@ -16,7 +17,7 @@ $uploadedSchools = get_schools_with_uploads($pdo);
 $currentUser = current_user();
 $currentPage = 'upload';
 $csrfToken = csrf_token();
-$aiUsage = GeminiExtractor::getUsageStats();
+$aiUsage = GeminiExtractor::getUsageStats(count(resolve_gemini_api_keys($pdo)));
 $aiQuotaTier = ai_quota_gauge_tier($aiUsage['percent']);
 
 include __DIR__ . '/../includes/header.php';

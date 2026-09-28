@@ -8,6 +8,7 @@ require_once __DIR__ . '/../includes/uploads.php';
 require_once __DIR__ . '/../includes/extraction_review.php';
 require_once __DIR__ . '/../includes/ocr_tools.php';
 require_once __DIR__ . '/../includes/ocr_keywords.php';
+require_once __DIR__ . '/../includes/app_settings.php';
 require_once __DIR__ . '/../extractors/ExtractorInterface.php';
 require_once __DIR__ . '/../extractors/ParsesHonorRows.php';
 require_once __DIR__ . '/../extractors/GeminiExtractor.php';
@@ -66,7 +67,9 @@ try {
                 // AI extraction is the primary path: it reads the PDF directly
                 // and understands layout (wrapped cells, borderless columns,
                 // narrative letters) without a bespoke handler per layout.
-                $geminiExtractor = new GeminiExtractor();
+                // resolve_gemini_api_keys() prefers a key saved via Settings ->
+                // AI Extraction (admin/users.php) over the env-var default.
+                $geminiExtractor = new GeminiExtractor(resolve_gemini_api_keys($pdo));
                 $result = $geminiExtractor->extract($upload['file_path']);
 
                 if ($result['status'] === 'failed' && !GeminiExtractor::isQuotaExhausted() && empty($result['unreachable'])) {
