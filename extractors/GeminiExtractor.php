@@ -326,6 +326,14 @@ class GeminiExtractor implements ExtractorInterface
      * for a visual indicator, not a live "remaining quota" figure read back
      * from Google (the free tier exposes no such endpoint).
      *
+     * A fresh isQuotaExhausted() flag overrides that local estimate: Google
+     * itself has already said no (a real 429), which is authoritative over
+     * this app's own call count — the key may have been used outside this
+     * app today, or the real per-key limit may simply be lower than the
+     * PER_KEY_DAILY_LIMIT guess. Without this, the gauge could keep showing
+     * "mostly available" for the rest of the day while every extraction
+     * silently falls through to OCR, which is confusing rather than useful.
+     *
      * @param int|null $configuredKeyCount Pass explicitly to test against a
      *     specific key count; null (the real call site) reads how many of
      *     GEMINI_API_KEY/GEMINI_API_KEY_2 are actually set.
@@ -345,7 +353,7 @@ class GeminiExtractor implements ExtractorInterface
         }
 
         $limit = $configuredKeyCount * self::PER_KEY_DAILY_LIMIT;
-        $count = self::todaysRequestCount();
+        $count = self::isQuotaExhausted() ? $limit : self::todaysRequestCount();
         $percent = (int) min(100, round(($count / $limit) * 100));
 
         return ['configured' => true, 'percent' => $percent, 'count' => $count, 'limit' => $limit];

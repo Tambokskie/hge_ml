@@ -129,6 +129,45 @@ class GeminiExtractorTest extends TestCase
         file_put_contents(\GeminiExtractor::QUOTA_STATUS_FILE, json_encode(['date' => $date, 'count' => $count]));
     }
 
+    public function testGetUsageStatsShowsFullWhenQuotaIsFreshlyExhaustedEvenWithALowLocalCount(): void
+    {
+        // A real 429 from Google is authoritative over this app's own
+        // undercounted estimate — see the doc comment on getUsageStats().
+        $dir = dirname(\GeminiExtractor::QUOTA_STATUS_FILE);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        file_put_contents(\GeminiExtractor::QUOTA_STATUS_FILE, json_encode([
+            'date' => date('Y-m-d'),
+            'count' => 3,
+            'exhausted_at' => date('Y-m-d H:i:s'),
+        ]));
+
+        $stats = \GeminiExtractor::getUsageStats(2);
+
+        $this->assertSame(100, $stats['percent']);
+        $this->assertSame(40, $stats['count']);
+        $this->assertSame(40, $stats['limit']);
+    }
+
+    public function testGetUsageStatsUsesLocalCountWhenExhaustedFlagIsStale(): void
+    {
+        $dir = dirname(\GeminiExtractor::QUOTA_STATUS_FILE);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        file_put_contents(\GeminiExtractor::QUOTA_STATUS_FILE, json_encode([
+            'date' => date('Y-m-d'),
+            'count' => 3,
+            'exhausted_at' => date('Y-m-d H:i:s', time() - 90000), // older than 24h
+        ]));
+
+        $stats = \GeminiExtractor::getUsageStats(2);
+
+        $this->assertSame(3, $stats['count']);
+        $this->assertNotSame(100, $stats['percent']);
+    }
+
     // --- buildGeminiRequestPayload() ---
 
     public function testBuildRequestPayloadEmbedsThePdfAsInlineBase64Data(): void
