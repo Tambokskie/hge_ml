@@ -122,6 +122,17 @@ function require_role(string $role): void
     $user = current_user();
     if (!user_has_role($user, $role)) {
         http_response_code(403);
+
+        // api/*.php callers always expect JSON (every endpoint sets that
+        // Content-Type and every frontend caller does response.json()) —
+        // but this check runs before an endpoint gets a chance to set that
+        // header itself, so without this branch a role failure on an API
+        // request would send a plain-text body a JSON parser chokes on.
+        if (str_contains($_SERVER['SCRIPT_NAME'] ?? '', '/api/')) {
+            header('Content-Type: application/json');
+            die(json_encode(['status' => 'error', 'message' => 'YOU DO NOT HAVE PERMISSION TO ACCESS THIS PAGE.']));
+        }
+
         die('YOU DO NOT HAVE PERMISSION TO ACCESS THIS PAGE.');
     }
 }
