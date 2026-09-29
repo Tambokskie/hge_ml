@@ -49,10 +49,15 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <p id="upload-mode-description" class="text-xs text-gray-500 dark:text-gray-500 mt-0.5">SELECT A SCHOOL, CHOOSE THE SCHOOL YEAR, AND UPLOAD THE LATIN HONOR LIST PDF.</p>
                             </div>
                         </div>
-                        <?php if ($aiUsage['configured']): ?>
+                        <?php if ($aiUsage['configured']): $aiNeedsAttention = $aiUsage['percent'] >= 75; ?>
                             <div class="relative group shrink-0 mt-1">
-                                <span class="block h-4 w-4 rounded-full <?= $aiQuotaTier['bar_class'] ?> cursor-default" tabindex="0" role="status"
-                                    aria-label="Free AI extraction usage today: <?= (int) $aiUsage['percent'] ?>% — <?= e($aiQuotaTier['label']) ?>"></span>
+                                <span class="relative flex h-4 w-4">
+                                    <?php if ($aiNeedsAttention): ?>
+                                        <span class="absolute inline-flex h-full w-full rounded-full <?= $aiQuotaTier['bar_class'] ?> opacity-75 motion-safe:animate-ping" aria-hidden="true"></span>
+                                    <?php endif; ?>
+                                    <span class="relative inline-flex h-4 w-4 rounded-full <?= $aiQuotaTier['bar_class'] ?> ring-2 ring-white dark:ring-surface-900 shadow-sm cursor-default" tabindex="0" role="status"
+                                        aria-label="Free AI extraction usage today: <?= (int) $aiUsage['percent'] ?>% — <?= e($aiQuotaTier['label']) ?>"></span>
+                                </span>
                                 <div class="pointer-events-none absolute right-0 top-full z-20 mt-2 w-60 rounded-lg bg-gray-900 dark:bg-black text-white text-xs leading-snug px-3 py-2.5 opacity-0 scale-95 origin-top-right transition-all duration-150 group-hover:opacity-100 group-hover:scale-100 group-focus-within:opacity-100 group-focus-within:scale-100 shadow-lg">
                                     <p class="font-bold tracking-wide <?= $aiQuotaTier['text_class'] ?>"><?= (int) $aiUsage['percent'] ?>% &middot; <?= e($aiQuotaTier['label']) ?></p>
                                     <p class="mt-1 text-gray-300">FREE AI EXTRACTION USAGE TODAY (<?= (int) $aiUsage['count'] ?> OF <?= (int) $aiUsage['limit'] ?> ESTIMATED REQUESTS).</p>
