@@ -198,16 +198,17 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (data.status === 'duplicate') {
             hideProgress();
             showModal({
+                icon: modalHeaderIcon('warning'),
+                iconClassName: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
                 title: 'POSSIBLE DUPLICATE UPLOAD',
-                bodyHtml: escapeHtml(data.message) + '<br><br>Existing file: ' + escapeHtml(data.existing_upload.original_filename),
+                subtitle: data.message,
+                bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">EXISTING FILE: <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(data.existing_upload.original_filename) + '</span></p>',
                 buttons: [
-                    {
-                        label: 'CANCEL',
-                        className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5',
-                    },
+                    { label: 'CANCEL', className: MODAL_BTN.secondary },
                     {
                         label: 'VIEW EXISTING',
-                        className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5',
+                        icon: modalButtonIcon('eye'),
+                        className: MODAL_BTN.secondary,
                         onClick: function (close) {
                             close();
                             window.location.href = form.dataset.viewUploadUrl + '?id=' + data.existing_upload.id;
@@ -215,7 +216,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     {
                         label: 'UPLOAD ANYWAY',
-                        className: 'rounded-lg px-4 py-2 text-sm bg-csc-navy-600 hover:bg-csc-navy-500 text-white',
+                        icon: modalButtonIcon('check'),
+                        className: MODAL_BTN.primary,
                         onClick: function (close) {
                             close();
                             submitForm({ confirm_duplicate: '1' });
@@ -490,16 +492,17 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (data.status === 'duplicate') {
             hideTemplateProgress();
             showModal({
+                icon: modalHeaderIcon('warning'),
+                iconClassName: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
                 title: 'POSSIBLE DUPLICATE UPLOAD',
-                bodyHtml: escapeHtml(data.message) + '<br><br>Existing file: ' + escapeHtml(data.existing_upload.original_filename),
+                subtitle: data.message,
+                bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">EXISTING FILE: <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(data.existing_upload.original_filename) + '</span></p>',
                 buttons: [
-                    {
-                        label: 'CANCEL',
-                        className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5',
-                    },
+                    { label: 'CANCEL', className: MODAL_BTN.secondary },
                     {
                         label: 'VIEW EXISTING',
-                        className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5',
+                        icon: modalButtonIcon('eye'),
+                        className: MODAL_BTN.secondary,
                         onClick: function (close) {
                             close();
                             window.location.href = templateForm.dataset.viewUploadUrl + '?id=' + data.existing_upload.id;
@@ -507,7 +510,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     {
                         label: 'UPLOAD ANYWAY',
-                        className: 'rounded-lg px-4 py-2 text-sm bg-csc-navy-600 hover:bg-csc-navy-500 text-white',
+                        icon: modalButtonIcon('check'),
+                        className: MODAL_BTN.primary,
                         onClick: function (close) {
                             close();
                             submitTemplateForm({ confirm_duplicate: '1' });
