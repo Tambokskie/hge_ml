@@ -338,6 +338,24 @@ function validate_removal_reason(string $reason): array
     return ['ok' => true];
 }
 
+/**
+ * Comparison key for the possible-duplicate-graduate check (see
+ * find_possible_duplicate_graduates() in includes/graduates.php) — not a
+ * display value. Two independent extractions of the same underlying name
+ * (one PDF read by AI, another re-uploaded and OCR'd) can differ in case,
+ * whitespace, or punctuation ("DELA CRUZ, JUAN" vs "Dela Cruz Juan") without
+ * being a different person, so this strips everything but letters/digits and
+ * collapses whitespace before comparing, rather than requiring an exact
+ * byte-for-byte match on graduate_name.
+ */
+function normalize_name_for_matching(string $name): string
+{
+    $upper = mb_strtoupper(trim($name));
+    $stripped = preg_replace('/[^A-Z0-9 ]/', ' ', $upper);
+
+    return trim(preg_replace('/\s+/', ' ', $stripped));
+}
+
 function log_activity(PDO $pdo, ?int $userId, string $action, ?string $details = null): void
 {
     // created_at is stamped from PHP's own clock (pinned to Asia/Manila in

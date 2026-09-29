@@ -60,6 +60,23 @@ $courseOptions = array_values(array_unique(array_filter(array_map(
 ))));
 sort($courseOptions);
 
+// Flags a staged row whose name matches something already saved for this
+// same school+year under a different upload — see the doc comment on
+// find_possible_duplicate_graduates() for why this is a hint, not an
+// automatic dedup. Keyed by row index so the table below can render a badge
+// without a second pass over $rows.
+$existingGraduatesByName = find_possible_duplicate_graduates($pdo, (int) $upload['school_id'], $upload['school_year'], $uploadId);
+$duplicateMatches = [];
+foreach ($rows as $index => $row) {
+    $key = normalize_name_for_matching($row['graduate_name']);
+    if ($key !== '' && isset($existingGraduatesByName[$key])) {
+        $match = $existingGraduatesByName[$key];
+        $match['exact_match'] = mb_strtoupper(trim($row['course'] ?? '')) === mb_strtoupper(trim($match['course']))
+            && mb_strtoupper($row['latin_honor']) === mb_strtoupper($match['latin_honor']);
+        $duplicateMatches[$index] = $match;
+    }
+}
+
 $currentUser = current_user();
 $currentPage = 'upload';
 $csrfToken = csrf_token();
@@ -181,13 +198,13 @@ include __DIR__ . '/../includes/sidebar.php';
                         <tr><td colspan="9" class="px-4 py-6 text-center text-gray-600 dark:text-gray-500">NO RECORDS YET. CLICK ADD RECORD ABOVE.</td></tr>
                     <?php else: ?>
                         <?php foreach ($rows as $index => $row): ?>
-                            <?php $status = staged_row_status($row); ?>
-                            <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 motion-safe:animate-fade-in-up" style="animation-delay: <?= (int) ($index * 50) ?>ms"
+                            <?php $status = staged_row_status($row); $dup = $duplicateMatches[$index] ?? null; ?>
+                            <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 motion-safe:animate-fade-in-up<?= $dup !== null ? ' bg-orange-500/5' : '' ?>" style="animation-delay: <?= (int) ($index * 50) ?>ms"
                                 data-filter-name="<?= e(mb_strtoupper($row['graduate_name'])) ?>"
                                 data-filter-course="<?= e($row['course'] ?? '') ?>">
                                 <td class="px-4 py-3">
                                     <input type="checkbox" class="review-row-checkbox h-4 w-4 rounded border-gray-300 dark:border-white/20 text-csc-navy-600 focus:ring-csc-navy-500/40"
-                                        data-row-index="<?= $index ?>" aria-label="Select record">
+                                        data-row-index="<?= $index ?>" data-duplicate="<?= $dup !== null ? '1' : '0' ?>" aria-label="Select record">
                                 </td>
                                 <td class="px-4 py-3"><?= $index + 1 ?></td>
                                 <td class="px-4 py-3"><?= e_upper($row['graduate_name']) ?></td>
@@ -204,6 +221,13 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <td class="px-4 py-3"><?= e((string) $row['graduation_year']) ?></td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold <?= $status === 'VALID' ? 'bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400' : 'bg-yellow-500/15 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400' ?>"><?= e($status) ?></span>
+                                    <?php if ($dup !== null): ?>
+                                        <br>
+                                        <span class="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-orange-500/15 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400"
+                                            title="ON FILE FROM: <?= e($dup['original_filename']) ?> (UPLOADED <?= e_upper(date('M j, Y', strtotime($dup['uploaded_at']))) ?>) — <?= e_upper($dup['course']) ?>, <?= e($dup['latin_honor']) ?>">
+                                            ⚠ <?= $dup['exact_match'] ? 'LIKELY DUPLICATE' : 'POSSIBLE DUPLICATE' ?>
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-3 text-right">
                                     <?php $actionBtnIndex = 0; ?>
@@ -219,7 +243,10 @@ include __DIR__ . '/../includes/sidebar.php';
                                         </button>
                                         <button type="button" class="remove-row-btn rounded-lg bg-csc-red-600/10 hover:bg-csc-red-600/20 text-csc-red-600 dark:text-csc-red-400 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($index * 50 + ($actionBtnIndex++) * 70) ?>ms" title="Remove row"
                                             data-row-index="<?= $index ?>"
-                                            data-name="<?= e($row['graduate_name']) ?>">
+                                            data-name="<?= e($row['graduate_name']) ?>"
+                                            data-duplicate="<?= $dup !== null ? '1' : '0' ?>"
+                                            data-duplicate-file="<?= $dup !== null ? e($dup['original_filename']) : '' ?>"
+                                            data-duplicate-date="<?= $dup !== null ? e_upper(date('M j, Y', strtotime($dup['uploaded_at']))) : '' ?>">
                                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                                         </button>
                                     </div>

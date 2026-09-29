@@ -177,4 +177,32 @@ class FunctionsTest extends TestCase
         $this->assertFalse(validate_removal_reason('12345')['ok']);
     }
 
+    public function testNormalizeNameForMatchingUppercasesAndTrims(): void
+    {
+        $this->assertSame('JUAN DELA CRUZ', normalize_name_for_matching('  juan dela cruz  '));
+    }
+
+    public function testNormalizeNameForMatchingStripsPunctuation(): void
+    {
+        $this->assertSame('DELA CRUZ JUAN M', normalize_name_for_matching('Dela Cruz, Juan M.'));
+    }
+
+    public function testNormalizeNameForMatchingCollapsesRepeatedWhitespace(): void
+    {
+        $this->assertSame('JUAN DELA CRUZ', normalize_name_for_matching("Juan   Dela\tCruz"));
+    }
+
+    public function testNormalizeNameForMatchingTreatsDifferentPunctuationTheSame(): void
+    {
+        $this->assertSame(
+            normalize_name_for_matching('Dela Cruz, Juan'),
+            normalize_name_for_matching('Dela Cruz Juan')
+        );
+    }
+
+    public function testNormalizeNameForMatchingReturnsEmptyStringForBlankInput(): void
+    {
+        $this->assertSame('', normalize_name_for_matching('   '));
+    }
+
 }

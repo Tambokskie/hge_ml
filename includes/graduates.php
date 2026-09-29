@@ -205,6 +205,62 @@ function bulk_update_graduation_date(PDO $pdo, int $schoolId, int $year, string 
     return ['status' => 'success', 'message' => $updated . ' RECORD(S) UPDATED.', 'updated' => $updated];
 }
 
+/**
+ * Looks up already-saved graduates for the same school+year (from any OTHER
+ * upload — a re-upload for a school+year that already has reviewed records,
+ * see handle_upload_request()'s duplicate-upload confirmation) so
+ * admin/review.php can flag a staged row that likely already exists rather
+ * than letting the same person silently get inserted twice under two
+ * different upload_ids.
+ *
+ * Matching is by normalized graduate name only (see
+ * normalize_name_for_matching() — tolerant of case/whitespace/punctuation
+ * differences between two independent extractions of the same list); course
+ * and latin_honor are returned alongside so the caller can tell a same-name
+ * exact match apart from a same-name-different-details one, without this
+ * function silently deciding which is "more likely" a real duplicate.
+ *
+ * @return array<string, array{graduate_name: string, course: string, latin_honor: string, upload_id: int, original_filename: string, uploaded_at: string}>
+ *     Keyed by normalize_name_for_matching() output. A name matching more
+ *     than one existing record (rare — e.g. two different graduates who
+ *     happen to share a name) keeps only the most recent upload's row; this
+ *     is a review-time hint for a human to double-check, not an authoritative
+ *     lookup, so picking one is an acceptable simplification.
+ */
+function find_possible_duplicate_graduates(PDO $pdo, int $schoolId, string $schoolYear, int $excludeUploadId): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT g.graduate_name, g.course, g.latin_honor, u.id AS upload_id, u.original_filename, u.uploaded_at
+         FROM latin_honor_graduates g
+         JOIN latin_honor_uploads u ON u.id = g.upload_id
+         WHERE u.school_id = :school_id AND u.school_year = :school_year AND u.id != :exclude_upload_id
+         ORDER BY u.uploaded_at ASC'
+    );
+    $stmt->execute([
+        'school_id' => $schoolId,
+        'school_year' => $schoolYear,
+        'exclude_upload_id' => $excludeUploadId,
+    ]);
+
+    $existing = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $key = normalize_name_for_matching($row['graduate_name']);
+        if ($key === '') {
+            continue;
+        }
+        $existing[$key] = [
+            'graduate_name' => $row['graduate_name'],
+            'course' => $row['course'],
+            'latin_honor' => $row['latin_honor'],
+            'upload_id' => (int) $row['upload_id'],
+            'original_filename' => $row['original_filename'],
+            'uploaded_at' => $row['uploaded_at'],
+        ];
+    }
+
+    return $existing;
+}
+
 function build_search_log_details(array $filters): string
 {
     $parts = [];

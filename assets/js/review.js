@@ -259,10 +259,16 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.addEventListener('click', function () {
             var submitting = false;
             var rowIndex = parseInt(btn.dataset.rowIndex, 10);
+            var isDuplicate = btn.dataset.duplicate === '1';
+            var duplicateNoteHtml = isDuplicate
+                ? '<p class="rounded-lg bg-orange-500/10 border border-orange-500/30 px-3 py-2 text-sm text-orange-700 dark:text-orange-400">⚠ THIS NAME ALREADY EXISTS ON FILE, FROM <span class="font-medium">' + escapeHtml(btn.dataset.duplicateFile) + '</span> (UPLOADED ' + escapeHtml(btn.dataset.duplicateDate) + ').</p>'
+                : '';
+
             var bodyHtml =
                 '<div class="space-y-4">' +
+                duplicateNoteHtml +
                 '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">PERMANENTLY REMOVE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(btn.dataset.name) + '</span>? THIS CANNOT BE UNDONE.</p>' +
-                modalField({ id: 'modal-remove-reason', label: 'REASON FOR REMOVAL', required: true, icon: 'pen', placeholder: 'E.G. DUPLICATE ENTRY', uppercase: true, note: 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.' }) +
+                modalField({ id: 'modal-remove-reason', label: 'REASON FOR REMOVAL', required: true, icon: 'pen', placeholder: 'E.G. DUPLICATE ENTRY', uppercase: true, value: isDuplicate ? 'DUPLICATE OF EXISTING RECORD' : '', note: 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.' }) +
                 '</div>';
 
             showModal({
@@ -344,12 +350,25 @@ document.addEventListener('DOMContentLoaded', function () {
             var rowIndexes = checkedBoxes.map(function (checkbox) {
                 return checkbox.dataset.rowIndex;
             });
+            var allDuplicates = checkedBoxes.every(function (checkbox) {
+                return checkbox.dataset.duplicate === '1';
+            });
+            var someDuplicates = !allDuplicates && checkedBoxes.some(function (checkbox) {
+                return checkbox.dataset.duplicate === '1';
+            });
 
             var submitting = false;
+            var duplicateNoteHtml = '';
+            if (allDuplicates) {
+                duplicateNoteHtml = '<p class="rounded-lg bg-orange-500/10 border border-orange-500/30 px-3 py-2 text-sm text-orange-700 dark:text-orange-400">⚠ ALL SELECTED RECORDS ALREADY EXIST ON FILE UNDER A DIFFERENT UPLOAD.</p>';
+            } else if (someDuplicates) {
+                duplicateNoteHtml = '<p class="rounded-lg bg-orange-500/10 border border-orange-500/30 px-3 py-2 text-sm text-orange-700 dark:text-orange-400">⚠ SOME SELECTED RECORDS ALREADY EXIST ON FILE UNDER A DIFFERENT UPLOAD — CHECK THE ⚠ BADGE IN THE TABLE BEFORE CONFIRMING.</p>';
+            }
             var bodyHtml =
                 '<div class="space-y-4">' +
+                duplicateNoteHtml +
                 '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">THIS WILL PERMANENTLY REMOVE THE ' + rowIndexes.length + ' SELECTED RECORD(S) FROM THIS REVIEW. THIS CANNOT BE UNDONE.</p>' +
-                modalField({ id: 'modal-bulk-remove-reason', label: 'REASON FOR REMOVAL', required: true, icon: 'pen', placeholder: 'E.G. DUPLICATE ENTRIES', uppercase: true, note: 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.' }) +
+                modalField({ id: 'modal-bulk-remove-reason', label: 'REASON FOR REMOVAL', required: true, icon: 'pen', placeholder: 'E.G. DUPLICATE ENTRIES', uppercase: true, value: allDuplicates ? 'DUPLICATE OF EXISTING RECORDS' : '', note: 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.' }) +
                 '</div>';
 
             showModal({

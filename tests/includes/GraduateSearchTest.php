@@ -376,4 +376,56 @@ class GraduateSearchTest extends TestCase
         $this->assertFalse($result['ok']);
         $this->assertNotNull(get_graduate_by_id(TestDb::pdo(), $id));
     }
+
+    // --- find_possible_duplicate_graduates() — the review-page duplicate-upload flag ---
+
+    public function testFindPossibleDuplicateGraduatesMatchesByName(): void
+    {
+        // Upload 1 and upload 3 (see setUp) are both school_id=1, school_year='2025'
+        // — the exact "re-uploaded for the same school+year" scenario.
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025, 'BS Computer Science');
+
+        $existing = find_possible_duplicate_graduates(TestDb::pdo(), 1, '2025', 3);
+
+        $this->assertArrayHasKey('JUAN DELA CRUZ', $existing);
+        $this->assertSame(1, $existing['JUAN DELA CRUZ']['upload_id']);
+        $this->assertSame('BS Computer Science', $existing['JUAN DELA CRUZ']['course']);
+    }
+
+    public function testFindPossibleDuplicateGraduatesIgnoresCasePunctuationAndWhitespace(): void
+    {
+        $this->insertGraduate(1, 1, 'Dela Cruz, Juan  M.', 'CUM LAUDE', '2025-06-15', 2025);
+
+        $existing = find_possible_duplicate_graduates(TestDb::pdo(), 1, '2025', 3);
+
+        $this->assertArrayHasKey('DELA CRUZ JUAN M', $existing);
+        $this->assertSame(normalize_name_for_matching('dela cruz juan m'), 'DELA CRUZ JUAN M');
+    }
+
+    public function testFindPossibleDuplicateGraduatesExcludesTheGivenUploadId(): void
+    {
+        // A row already belonging to the upload being reviewed (e.g.
+        // reopening an already-reviewed upload for editing) must never flag
+        // itself as a duplicate of itself.
+        $this->insertGraduate(3, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025);
+
+        $existing = find_possible_duplicate_graduates(TestDb::pdo(), 1, '2025', 3);
+
+        $this->assertSame([], $existing);
+    }
+
+    public function testFindPossibleDuplicateGraduatesScopesToSchoolAndYear(): void
+    {
+        // Upload 2 is a different school+year (school_id=2, '2024').
+        $this->insertGraduate(2, 2, 'Juan Dela Cruz', 'CUM LAUDE', '2024-06-15', 2024);
+
+        $existing = find_possible_duplicate_graduates(TestDb::pdo(), 1, '2025', 3);
+
+        $this->assertSame([], $existing);
+    }
+
+    public function testFindPossibleDuplicateGraduatesReturnsEmptyArrayWhenNothingOnFile(): void
+    {
+        $this->assertSame([], find_possible_duplicate_graduates(TestDb::pdo(), 1, '2025', 3));
+    }
 }
