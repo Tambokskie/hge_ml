@@ -219,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function openDetailsModal(data) {
         var bodyHtml =
-            '<div class="text-left space-y-2">' +
+            '<div class="space-y-2">' +
             '<div><span class="text-xs text-gray-500 dark:text-gray-400">GRADUATE NAME</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(data.name) + '</p></div>' +
             '<div><span class="text-xs text-gray-500 dark:text-gray-400">DEGREE/COURSE</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(data.course || '—') + '</p></div>' +
             '<div><span class="text-xs text-gray-500 dark:text-gray-400">SCHOOL</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(data.school) + '</p></div>' +
@@ -229,14 +229,16 @@ document.addEventListener('DOMContentLoaded', function () {
             '</div>';
 
         showModal({
-            icon: '<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>',
+            icon: modalHeaderIcon('document'),
             title: 'HONOR GRADUATE RECORD',
+            subtitle: 'Saved details for this honor graduate record.',
             bodyHtml: bodyHtml,
             buttons: [
-                { label: 'CLOSE', className: 'flex-1 rounded-full border border-gray-300 dark:border-white/15 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors' },
+                { label: 'CLOSE', className: MODAL_BTN.secondary },
                 {
                     label: 'VIEW SOURCE PDF',
-                    className: 'flex-1 rounded-full px-4 py-2.5 text-sm font-medium bg-csc-navy-600 hover:bg-csc-navy-500 text-white transition-colors',
+                    icon: modalButtonIcon('eye'),
+                    className: MODAL_BTN.primary,
                     onClick: function () {
                         openPdfDrawer(config.apiBase + '/api/serve_pdf.php?id=' + encodeURIComponent(data.uploadId), data.filename, {
                             school: data.school,
