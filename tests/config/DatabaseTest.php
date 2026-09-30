@@ -26,9 +26,9 @@ class DatabaseTest extends TestCase
 
     public function testConfigHonorsEnvironmentOverrides(): void
     {
-        putenv('DB_NAME=hge_masterlist_test');
+        putenv('DB_NAME=hge_masterlist_test2');
         $config = get_db_config();
-        $this->assertSame('hge_masterlist_test', $config['name']);
+        $this->assertSame('hge_masterlist_test2', $config['name']);
         putenv('DB_NAME');
     }
 
@@ -36,7 +36,7 @@ class DatabaseTest extends TestCase
     {
         $pdo = connect_pdo([
             'host' => '127.0.0.1',
-            'name' => 'hge_masterlist_test',
+            'name' => 'hge_masterlist_test2',
             'user' => 'root',
             'pass' => '',
         ]);
@@ -60,7 +60,7 @@ class DatabaseTest extends TestCase
     {
         $pdo = connect_pdo([
             'host' => '127.0.0.1',
-            'name' => 'hge_masterlist_test',
+            'name' => 'hge_masterlist_test2',
             'user' => 'root',
             'pass' => '',
         ]);
@@ -70,7 +70,7 @@ class DatabaseTest extends TestCase
 
     public function testGetPdoReturnsTheSameInstanceAcrossCalls(): void
     {
-        putenv('DB_NAME=hge_masterlist_test');
+        putenv('DB_NAME=hge_masterlist_test2');
         $first = get_pdo();
         $second = get_pdo();
         putenv('DB_NAME');

@@ -6,6 +6,17 @@ use PDO;
 
 class TestDb
 {
+    // Deliberately not "hge_masterlist_test" (the original name): that schema
+    // picked up permanent InnoDB data-dictionary corruption on this machine
+    // after an unclean MariaDB shutdown — orphaned entries in
+    // information_schema.INNODB_SYS_TABLESPACES that survive dropping the
+    // database's files from disk, and crash the server outright on DROP
+    // TABLE/DROP DATABASE (even under --innodb-force-recovery=1). Renaming
+    // sidesteps it entirely rather than risking further server-wide InnoDB
+    // surgery for a disposable schema. If this one ever gets into the same
+    // state, rename again rather than trying to repair it in place.
+    private const DB_NAME = 'hge_masterlist_test2';
+
     private static ?PDO $pdo = null;
 
     public static function pdo(): PDO
@@ -15,8 +26,8 @@ class TestDb
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             ]);
-            self::$pdo->exec('CREATE DATABASE IF NOT EXISTS hge_masterlist_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
-            self::$pdo->exec('USE hge_masterlist_test');
+            self::$pdo->exec('CREATE DATABASE IF NOT EXISTS ' . self::DB_NAME . ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+            self::$pdo->exec('USE ' . self::DB_NAME);
         }
 
         return self::$pdo;
