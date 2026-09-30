@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<td class="px-4 py-3">' + courseDisplay + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(formatSchoolDisplayName(row.school_name, row.campus).toUpperCase()) + '</td>' +
                 '<td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + honorPillClass(row.latin_honor) + '">' + escapeHtml(row.latin_honor) + '</span></td>' +
-                '<td class="px-4 py-3">' + escapeHtml(String(row.graduation_year)) + '</td>' +
+                '<td class="px-4 py-3">' + escapeHtml(displayDate) + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(displayApplicationDate) + '</td>' +
                 '<td class="px-4 py-3"><div class="flex items-center justify-end gap-1.5">' +
                 viewBtnHtml +
@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '<div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto overflow-y-hidden"><table class="w-full text-sm text-left">' +
             '<thead><tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">' +
             '<th class="px-4 py-3">GRADUATE NAME</th><th class="px-4 py-3">DEGREE/COURSE</th><th class="px-4 py-3">SCHOOL</th><th class="px-4 py-3">LATIN HONOR</th>' +
-            '<th class="px-4 py-3">GRADUATION YEAR</th><th class="px-4 py-3">APPLIED</th><th class="px-4 py-3 text-right">ACTION</th></tr></thead>' +
+            '<th class="px-4 py-3">DATE OF GRADUATION</th><th class="px-4 py-3">APPLIED</th><th class="px-4 py-3 text-right">ACTION</th></tr></thead>' +
             '<tbody id="lookup-results-tbody">' + rowsHtml + '</tbody></table></div>' + paginationHtml;
     }
 
