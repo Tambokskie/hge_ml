@@ -145,7 +145,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <th class="px-4 py-3">DEGREE/COURSE</th>
                                 <th class="px-4 py-3">SCHOOL</th>
                                 <th class="px-4 py-3">LATIN HONOR</th>
-                                <th class="px-4 py-3">GRADUATION YEAR</th>
+                                <th class="px-4 py-3">DATE OF GRADUATION</th>
                                 <th class="px-4 py-3">APPLIED</th>
                                 <th class="px-4 py-3 text-right">ACTION</th>
                             </tr>
@@ -159,7 +159,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <td class="px-4 py-3">
                                         <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold <?= latin_honor_pill_class($row['latin_honor']) ?>"><?= e($row['latin_honor']) ?></span>
                                     </td>
-                                    <td class="px-4 py-3"><?= e((string) $row['graduation_year']) ?></td>
+                                    <td class="px-4 py-3"><?= e(format_date_display($row['graduation_date'])) ?></td>
                                     <td class="px-4 py-3"><?= e(format_date_display($row['application_date'] ?? null)) ?></td>
                                     <td class="px-4 py-3">
                                         <?php $actionBtnIndex = 0; ?>
