@@ -113,6 +113,17 @@
     @apply opacity-100;
   }
 
+  /* Same fade-in mechanics as .dashboard-stat-number but with no typography
+     baked in, so a card's secondary details (a denominator, a caption line)
+     can fade in on the same stagger using their own size/color utilities. */
+  .dashboard-stat-reveal {
+    @apply opacity-0 transition-opacity duration-700 ease-out;
+  }
+
+  .dashboard-stat-reveal.is-visible {
+    @apply opacity-100;
+  }
+
   /* Sliding fill used while a progress stage has no real completion percentage (extraction, OCR install). */
   .upload-progress-indeterminate {
     @apply w-1/3 animate-progress-indeterminate;

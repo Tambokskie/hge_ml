@@ -28,6 +28,7 @@ class FlashAndStatsTest extends TestCase
 
         $this->assertSame(0, $stats['total_graduates']);
         $this->assertSame(0, $stats['total_schools']);
+        $this->assertSame(0, $stats['total_active_schools']);
         $this->assertSame(0, $stats['total_uploads']);
         $this->assertNull($stats['current_year']);
         $this->assertSame(0, $stats['current_year_records']);
@@ -51,9 +52,20 @@ class FlashAndStatsTest extends TestCase
 
         $this->assertSame(2, $stats['total_graduates']);
         $this->assertSame(1, $stats['total_schools']);
+        $this->assertSame(2, $stats['total_active_schools']);
         $this->assertSame(1, $stats['total_uploads']);
         $this->assertSame(2025, $stats['current_year']);
         $this->assertSame(1, $stats['current_year_records']);
+    }
+
+    public function testDashboardStatsExcludesDisabledSchoolsFromActiveCount(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec("INSERT INTO schools (school_name, status) VALUES ('ACTIVE SCHOOL', 'active'), ('DISABLED SCHOOL', 'disabled')");
+
+        $stats = get_dashboard_stats($pdo);
+
+        $this->assertSame(1, $stats['total_active_schools']);
     }
 
     public function testHonorTypeBreakdownIsZeroedOnEmptyDatabase(): void

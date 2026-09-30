@@ -36,21 +36,38 @@ function animateCountUp(el, target, duration, onComplete) {
 // admin/dashboard.php and admin/school_records.php for the markup pattern
 // (a ".dashboard-stat-card" wrapper with "motion-safe:animate-fade-in-up"
 // and a staggered inline animation-delay, containing this number).
+//
+// ".dashboard-stat-reveal" is the same fade-in timing/stagger for a stat
+// card's secondary details — a denominator ("/ 21") or a caption line ("1
+// SCHOOL WITH NO SUBMISSION YET") — so the whole card settles in together
+// instead of just its headline number. It counts up too when it carries its
+// own data-count-to (e.g. the denominator); otherwise it just fades in, since
+// "font-variant-numeric" prose isn't something you count up character by
+// character.
 document.addEventListener('DOMContentLoaded', function () {
     var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    document.querySelectorAll('.dashboard-stat-number').forEach(function (el, index) {
-        var target = parseInt(el.dataset.countTo, 10) || 0;
+    var revealTargets = Array.prototype.slice.call(
+        document.querySelectorAll('.dashboard-stat-number, .dashboard-stat-reveal')
+    );
+
+    revealTargets.forEach(function (el, index) {
+        var hasCount = el.hasAttribute('data-count-to');
+        var target = hasCount ? (parseInt(el.dataset.countTo, 10) || 0) : null;
 
         if (prefersReducedMotion) {
-            el.textContent = formatCount(target);
+            if (hasCount) {
+                el.textContent = formatCount(target);
+            }
             el.classList.add('is-visible');
             return;
         }
 
         setTimeout(function () {
             el.classList.add('is-visible');
-            animateCountUp(el, target, 1200);
+            if (hasCount) {
+                animateCountUp(el, target, 1200);
+            }
         }, index * 120);
     });
 });
