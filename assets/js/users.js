@@ -275,12 +275,16 @@ document.addEventListener('DOMContentLoaded', function () {
         var status = config.geminiKeyStatus || {};
         var key1Placeholder = status.key1 && status.key1.configured ? 'CURRENT: ' + status.key1.masked : 'NOT CONFIGURED';
         var key2Placeholder = status.key2 && status.key2.configured ? 'CURRENT: ' + status.key2.masked : 'NOT CONFIGURED';
+        var key3Placeholder = status.key3 && status.key3.configured ? 'CURRENT: ' + status.key3.masked : 'NOT CONFIGURED';
+        var key4Placeholder = status.key4 && status.key4.configured ? 'CURRENT: ' + status.key4.masked : 'NOT CONFIGURED';
 
         var bodyHtml =
             '<div class="space-y-4">' +
             '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">CONFIGURE THE GEMINI API KEY(S) USED FOR AI-BASED PDF EXTRACTION. THE SAVED VALUE TAKES EFFECT IMMEDIATELY — NO SERVER RESTART NEEDED.</p>' +
             modalField({ id: 'modal-ai-key-1', label: 'GEMINI API KEY', optional: true, type: 'password', icon: 'lock', placeholder: key1Placeholder, note: 'Leave blank to keep the current value.' }) +
             modalField({ id: 'modal-ai-key-2', label: 'GEMINI API KEY 2 (QUOTA FALLBACK)', optional: true, type: 'password', icon: 'lock', placeholder: key2Placeholder, note: 'Leave blank to keep the current value.' }) +
+            modalField({ id: 'modal-ai-key-3', label: 'GEMINI API KEY 3 (QUOTA FALLBACK)', optional: true, type: 'password', icon: 'lock', placeholder: key3Placeholder, note: 'Leave blank to keep the current value.' }) +
+            modalField({ id: 'modal-ai-key-4', label: 'GEMINI API KEY 4 (QUOTA FALLBACK)', optional: true, type: 'password', icon: 'lock', placeholder: key4Placeholder, note: 'Leave blank to keep the current value.' }) +
             '</div>';
 
         showModal({
@@ -306,6 +310,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             password: verifiedPassword,
                             gemini_api_key: document.getElementById('modal-ai-key-1').value,
                             gemini_api_key_2: document.getElementById('modal-ai-key-2').value,
+                            gemini_api_key_3: document.getElementById('modal-ai-key-3').value,
+                            gemini_api_key_4: document.getElementById('modal-ai-key-4').value,
                         })
                             .then(function (data) {
                                 if (data.status === 'success') {

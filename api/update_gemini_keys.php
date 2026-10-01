@@ -4,6 +4,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/app_settings.php';
+require_once __DIR__ . '/../extractors/GeminiExtractor.php';
 
 require_role('administrator');
 
@@ -28,10 +29,14 @@ if ($verifiedUser === null || $verifiedUser['role'] !== 'administrator') {
     exit;
 }
 
-$key1 = trim((string) ($_POST['gemini_api_key'] ?? ''));
-$key2 = trim((string) ($_POST['gemini_api_key_2'] ?? ''));
+$keys = [
+    'gemini_api_key' => trim((string) ($_POST['gemini_api_key'] ?? '')),
+    'gemini_api_key_2' => trim((string) ($_POST['gemini_api_key_2'] ?? '')),
+    'gemini_api_key_3' => trim((string) ($_POST['gemini_api_key_3'] ?? '')),
+    'gemini_api_key_4' => trim((string) ($_POST['gemini_api_key_4'] ?? '')),
+];
 
-if ($key1 === '' && $key2 === '') {
+if (array_filter($keys) === []) {
     echo json_encode(['status' => 'error', 'message' => 'ENTER AT LEAST ONE API KEY TO SAVE. LEAVE A FIELD BLANK TO KEEP ITS CURRENT VALUE.']);
     exit;
 }
@@ -39,17 +44,19 @@ if ($key1 === '' && $key2 === '') {
 try {
     $updated = [];
 
-    if ($key1 !== '') {
-        set_app_setting($pdo, 'gemini_api_key', $key1, (int) $verifiedUser['id']);
-        $updated[] = 'GEMINI_API_KEY';
-    }
-
-    if ($key2 !== '') {
-        set_app_setting($pdo, 'gemini_api_key_2', $key2, (int) $verifiedUser['id']);
-        $updated[] = 'GEMINI_API_KEY_2';
+    foreach ($keys as $settingKey => $value) {
+        if ($value !== '') {
+            set_app_setting($pdo, $settingKey, $value, (int) $verifiedUser['id']);
+            $updated[] = mb_strtoupper($settingKey);
+        }
     }
 
     log_activity($pdo, (int) $verifiedUser['id'], 'ai_settings_updated', implode(', ', $updated) . ' UPDATED');
+
+    // A quota-exhausted flag recorded against the previous key set says
+    // nothing about this new one — don't let admin/upload.php keep showing
+    // a stale red indicator for up to 24h after capacity just changed.
+    GeminiExtractor::clearQuotaExhausted();
 } catch (\Throwable $e) {
     error_log('update_gemini_keys failed: ' . $e->getMessage());
     http_response_code(500);

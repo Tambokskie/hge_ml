@@ -51,6 +51,27 @@ class GeminiExtractorTest extends TestCase
         $this->assertFalse(\GeminiExtractor::isQuotaExhausted());
     }
 
+    public function testClearQuotaExhaustedMakesIsQuotaExhaustedFalseAgain(): void
+    {
+        // api/update_gemini_keys.php calls this right after an admin saves
+        // keys, so a flag recorded against the old (smaller) key set doesn't
+        // keep showing a stale red indicator for up to 24h after capacity
+        // just increased.
+        $this->writeQuotaStatus(date('Y-m-d H:i:s'));
+        $this->assertTrue(\GeminiExtractor::isQuotaExhausted());
+
+        \GeminiExtractor::clearQuotaExhausted();
+
+        $this->assertFalse(\GeminiExtractor::isQuotaExhausted());
+    }
+
+    public function testClearQuotaExhaustedIsSafeToCallWithNoStatusFile(): void
+    {
+        \GeminiExtractor::clearQuotaExhausted();
+
+        $this->assertFalse(\GeminiExtractor::isQuotaExhausted());
+    }
+
     private function writeQuotaStatus(string $exhaustedAt): void
     {
         $dir = dirname(\GeminiExtractor::QUOTA_STATUS_FILE);

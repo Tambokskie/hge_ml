@@ -16,6 +16,8 @@ $currentPage = 'users';
 $csrfToken = csrf_token();
 $geminiKey1Status = gemini_key_display_status($pdo, 'gemini_api_key', defined('GEMINI_API_KEY') ? GEMINI_API_KEY : '');
 $geminiKey2Status = gemini_key_display_status($pdo, 'gemini_api_key_2', defined('GEMINI_API_KEY_2') ? GEMINI_API_KEY_2 : '');
+$geminiKey3Status = gemini_key_display_status($pdo, 'gemini_api_key_3', defined('GEMINI_API_KEY_3') ? GEMINI_API_KEY_3 : '');
+$geminiKey4Status = gemini_key_display_status($pdo, 'gemini_api_key_4', defined('GEMINI_API_KEY_4') ? GEMINI_API_KEY_4 : '');
 
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
@@ -106,7 +108,9 @@ window.HGE_USERS = {
     currentUserId: <?= (int) $currentUser['id'] ?>,
     geminiKeyStatus: {
         key1: <?= json_encode($geminiKey1Status) ?>,
-        key2: <?= json_encode($geminiKey2Status) ?>
+        key2: <?= json_encode($geminiKey2Status) ?>,
+        key3: <?= json_encode($geminiKey3Status) ?>,
+        key4: <?= json_encode($geminiKey4Status) ?>
     }
 };
 </script>

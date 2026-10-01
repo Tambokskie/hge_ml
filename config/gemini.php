@@ -10,12 +10,22 @@ if (!defined('GEMINI_API_KEY')) {
     define('GEMINI_API_KEY', getenv('GEMINI_API_KEY') ?: '');
 }
 
-// Optional second key, from a separate Google account/project — tried only
-// after the first key comes back quota-exhausted (HTTP 429), roughly
-// doubling the effective free-tier daily request quota. Safe to leave unset;
-// GeminiExtractor simply won't have a second key to fall back to.
+// Up to three additional optional keys, each from a separate Google
+// account/project — tried in order only after the previous one comes back
+// quota-exhausted (HTTP 429), roughly multiplying the effective free-tier
+// daily request quota by however many are actually configured. Safe to
+// leave any of these unset; GeminiExtractor simply won't have that slot to
+// fall back to.
 if (!defined('GEMINI_API_KEY_2')) {
     define('GEMINI_API_KEY_2', getenv('GEMINI_API_KEY_2') ?: '');
+}
+
+if (!defined('GEMINI_API_KEY_3')) {
+    define('GEMINI_API_KEY_3', getenv('GEMINI_API_KEY_3') ?: '');
+}
+
+if (!defined('GEMINI_API_KEY_4')) {
+    define('GEMINI_API_KEY_4', getenv('GEMINI_API_KEY_4') ?: '');
 }
 
 if (!defined('GEMINI_MODEL')) {

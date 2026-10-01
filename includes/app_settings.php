@@ -28,16 +28,20 @@ function set_app_setting(PDO $pdo, string $key, string $value, int $updatedBy): 
 /**
  * The API key(s) GeminiExtractor should try, in order. A value saved via
  * Settings -> AI Extraction (admin/users.php) takes precedence per-slot over
- * the GEMINI_API_KEY/GEMINI_API_KEY_2 environment variables (config/gemini.php),
- * so changing a key here is live on the very next request. Empty/unset slots
- * are dropped rather than returned as ''.
+ * the GEMINI_API_KEY/GEMINI_API_KEY_2/_3/_4 environment variables
+ * (config/gemini.php), so changing a key here is live on the very next
+ * request. Empty/unset slots are dropped rather than returned as ''.
  */
 function resolve_gemini_api_keys(PDO $pdo): array
 {
-    $key1 = get_app_setting($pdo, 'gemini_api_key') ?: (defined('GEMINI_API_KEY') ? GEMINI_API_KEY : '');
-    $key2 = get_app_setting($pdo, 'gemini_api_key_2') ?: (defined('GEMINI_API_KEY_2') ? GEMINI_API_KEY_2 : '');
+    $keys = [
+        get_app_setting($pdo, 'gemini_api_key') ?: (defined('GEMINI_API_KEY') ? GEMINI_API_KEY : ''),
+        get_app_setting($pdo, 'gemini_api_key_2') ?: (defined('GEMINI_API_KEY_2') ? GEMINI_API_KEY_2 : ''),
+        get_app_setting($pdo, 'gemini_api_key_3') ?: (defined('GEMINI_API_KEY_3') ? GEMINI_API_KEY_3 : ''),
+        get_app_setting($pdo, 'gemini_api_key_4') ?: (defined('GEMINI_API_KEY_4') ? GEMINI_API_KEY_4 : ''),
+    ];
 
-    return array_values(array_filter([$key1, $key2], static fn (string $k): bool => $k !== ''));
+    return array_values(array_filter($keys, static fn (string $k): bool => $k !== ''));
 }
 
 /**

@@ -60,6 +60,26 @@ class AppSettingsTest extends TestCase
         $this->assertSame([], resolve_gemini_api_keys(TestDb::pdo()));
     }
 
+    public function testResolveGeminiApiKeysReturnsAllFourSlotsInOrder(): void
+    {
+        $pdo = TestDb::pdo();
+        set_app_setting($pdo, 'gemini_api_key', 'Key1', 1);
+        set_app_setting($pdo, 'gemini_api_key_2', 'Key2', 1);
+        set_app_setting($pdo, 'gemini_api_key_3', 'Key3', 1);
+        set_app_setting($pdo, 'gemini_api_key_4', 'Key4', 1);
+
+        $this->assertSame(['Key1', 'Key2', 'Key3', 'Key4'], resolve_gemini_api_keys($pdo));
+    }
+
+    public function testResolveGeminiApiKeysSkipsUnsetMiddleSlots(): void
+    {
+        $pdo = TestDb::pdo();
+        set_app_setting($pdo, 'gemini_api_key', 'Key1', 1);
+        set_app_setting($pdo, 'gemini_api_key_4', 'Key4', 1);
+
+        $this->assertSame(['Key1', 'Key4'], resolve_gemini_api_keys($pdo));
+    }
+
     public function testGeminiKeyDisplayStatusReportsUnconfiguredWhenNothingIsSet(): void
     {
         $status = gemini_key_display_status(TestDb::pdo(), 'gemini_api_key', '');

@@ -345,6 +345,8 @@ class GeminiExtractor implements ExtractorInterface
             $configuredKeyCount = count(array_filter([
                 defined('GEMINI_API_KEY') ? GEMINI_API_KEY : '',
                 defined('GEMINI_API_KEY_2') ? GEMINI_API_KEY_2 : '',
+                defined('GEMINI_API_KEY_3') ? GEMINI_API_KEY_3 : '',
+                defined('GEMINI_API_KEY_4') ? GEMINI_API_KEY_4 : '',
             ], static fn (string $key): bool => $key !== ''));
         }
 
@@ -366,7 +368,15 @@ class GeminiExtractor implements ExtractorInterface
         self::writeStatusFile($data);
     }
 
-    private static function clearQuotaExhausted(): void
+    /**
+     * Also called by api/update_gemini_keys.php right after an admin saves
+     * (adds/changes/adds more) keys: an "exhausted" flag recorded against the
+     * previous, smaller set of keys has nothing meaningful to say about the
+     * new set's capacity, so it would otherwise sit there for up to
+     * QUOTA_STATUS_FRESH_SECONDS showing a stale red indicator even though
+     * real capacity just increased.
+     */
+    public static function clearQuotaExhausted(): void
     {
         $data = self::readStatusFile();
         if (array_key_exists('exhausted_at', $data)) {
