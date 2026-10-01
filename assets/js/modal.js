@@ -161,3 +161,50 @@ function showLoadingModal(title, subtitle) {
         buttons: [],
     });
 }
+
+// Same blocking "please wait" shell as showLoadingModal(), but with a real
+// determinate progress bar (same visual pattern as #upload-progress on
+// admin/upload.php) instead of just a spinner — driven by update(percent,
+// label) as the caller polls api/extraction_progress.php. Starts at 0% with
+// no label until the first poll response arrives.
+function showExtractionProgressModal(title, subtitle) {
+    var spinnerIcon = '<svg class="h-10 w-10 animate-spin" fill="none" viewBox="0 0 24 24">'
+        + '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>'
+        + '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>'
+        + '</svg>';
+
+    var close = showModal({
+        icon: spinnerIcon,
+        iconClassName: 'text-csc-navy-600 dark:text-csc-navy-300',
+        title: title,
+        bodyHtml: '<p>' + escapeHtml(subtitle) + '</p>'
+            + '<div class="mt-4">'
+            + '<div class="flex items-center justify-between gap-3 mb-1.5">'
+            + '<span id="extraction-progress-label" class="text-xs font-medium text-csc-navy-600 dark:text-csc-navy-300"></span>'
+            + '<span id="extraction-progress-percent" class="shrink-0 text-xs font-semibold tabular-nums text-csc-navy-600 dark:text-csc-navy-300"></span>'
+            + '</div>'
+            + '<div class="relative h-2 w-full overflow-hidden rounded-full bg-csc-navy-500/20">'
+            + '<div id="extraction-progress-bar" class="absolute inset-y-0 left-0 h-full rounded-full bg-csc-navy-600 transition-[width] duration-300 ease-out" style="width: 0%"></div>'
+            + '</div>'
+            + '</div>',
+        buttons: [],
+    });
+
+    var bar = document.getElementById('extraction-progress-bar');
+    var label = document.getElementById('extraction-progress-label');
+    var percentEl = document.getElementById('extraction-progress-percent');
+
+    function update(percent, text) {
+        if (bar) {
+            bar.style.width = Math.max(0, Math.min(100, percent)) + '%';
+        }
+        if (percentEl) {
+            percentEl.textContent = Math.round(percent) + '%';
+        }
+        if (label && text) {
+            label.textContent = text;
+        }
+    }
+
+    return { close: close, update: update };
+}

@@ -124,11 +124,13 @@ document.addEventListener('DOMContentLoaded', function () {
     function extractAndRedirect(uploadId, useOcr) {
         var extractUrl = form.dataset.extractUrl;
         var installUrl = extractUrl.replace('extract_pdf.php', 'install_ocr_tools.php');
+        var progressUrl = extractUrl.replace('extract_pdf.php', 'extraction_progress.php');
         var csrfToken = form.querySelector('[name="csrf_token"]').value;
         var viewUploadUrl = form.dataset.viewUploadUrl + '?id=' + uploadId;
 
         hideProgress();
-        var closeLoadingModal = showLoadingModal('EXTRACTING DATA', 'PLEASE WAIT WHILE WE GATHER THE LATEST INFORMATION.');
+        var extractionModal = showExtractionProgressModal('EXTRACTING DATA', 'PLEASE WAIT WHILE WE GATHER THE LATEST INFORMATION.');
+        var stopProgressPolling = startExtractionProgressPolling(progressUrl, uploadId, extractionModal.update);
 
         var formData = new FormData();
         formData.set('csrf_token', csrfToken);
@@ -145,10 +147,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 return response.json();
             })
             .then(function (data) {
+                stopProgressPolling();
                 if (data.status === 'success') {
                     window.location.href = data.redirect_url;
                 } else if (data.status === 'ocr_confirm_required') {
-                    closeLoadingModal();
+                    extractionModal.close();
                     promptOcrExtractionConfirm({
                         message: data.message,
                         onConfirm: function () {
@@ -159,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         },
                     });
                 } else if (data.status === 'ocr_tools_missing') {
-                    closeLoadingModal();
+                    extractionModal.close();
                     promptOcrToolsInstall({
                         missing: data.missing,
                         csrfToken: csrfToken,
@@ -180,13 +183,14 @@ document.addEventListener('DOMContentLoaded', function () {
                         },
                     });
                 } else {
-                    closeLoadingModal();
+                    extractionModal.close();
                     showToast('error', data.message);
                     window.location.href = viewUploadUrl;
                 }
             })
             .catch(function () {
-                closeLoadingModal();
+                stopProgressPolling();
+                extractionModal.close();
                 showToast('error', 'THE FILE WAS UPLOADED BUT COULD NOT BE PROCESSED AUTOMATICALLY. PLEASE EXTRACT IT MANUALLY.');
                 window.location.href = viewUploadUrl;
             });

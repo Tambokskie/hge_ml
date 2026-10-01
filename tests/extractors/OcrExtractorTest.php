@@ -130,4 +130,18 @@ class OcrExtractorTest extends TestCase
         $this->assertSame('failed', $result['status']);
         $this->assertSame([], $result['rows']);
     }
+
+    public function testOnPageProgressCallbackFiresOncePerPageWithCorrectTotal(): void
+    {
+        $calls = [];
+        $onPageProgress = function (int $currentPage, int $totalPages) use (&$calls): void {
+            $calls[] = [$currentPage, $totalPages];
+        };
+
+        (new \OcrExtractor([], $onPageProgress))->extract($this->sample);
+
+        // scanned-sample.pdf is a single page — one call, reporting itself
+        // as page 1 of 1.
+        $this->assertSame([[1, 1]], $calls);
+    }
 }

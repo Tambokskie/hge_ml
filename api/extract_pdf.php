@@ -9,6 +9,7 @@ require_once __DIR__ . '/../includes/extraction_review.php';
 require_once __DIR__ . '/../includes/ocr_tools.php';
 require_once __DIR__ . '/../includes/ocr_keywords.php';
 require_once __DIR__ . '/../includes/app_settings.php';
+require_once __DIR__ . '/../includes/extraction_progress.php';
 require_once __DIR__ . '/../extractors/ExtractorInterface.php';
 require_once __DIR__ . '/../extractors/ParsesHonorRows.php';
 require_once __DIR__ . '/../extractors/GeminiExtractor.php';
@@ -30,15 +31,32 @@ if (!csrf_verify($_POST['csrf_token'] ?? null)) {
 $uploadId = (int) ($_POST['upload_id'] ?? 0);
 $pdo = get_pdo();
 
+// This request can run for a long time (AI call, OCR). PHP's default session
+// handler holds an exclusive lock on the session file for as long as it's
+// open, which would otherwise block api/extraction_progress.php's polling
+// requests (same browser session) until this request finished — defeating
+// the whole point of polling for live progress. Nothing below needs to read
+// $_SESSION again; start_extraction_review() re-opens it (via ensure_session())
+// only once, right at the end, to stage the extracted rows.
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
+if ($uploadId > 0) {
+    write_extraction_progress($uploadId, 5, 'PREPARING DOCUMENT...');
+}
+
 try {
     $upload = $uploadId > 0 ? get_upload_by_id($pdo, $uploadId) : null;
 
     if ($upload === null) {
+        clear_extraction_progress($uploadId);
         echo json_encode(['status' => 'error', 'message' => 'UPLOAD RECORD NOT FOUND.']);
         exit;
     }
 
     if ($upload['extraction_status'] === 'reviewed') {
+        clear_extraction_progress($uploadId);
         echo json_encode(['status' => 'error', 'message' => 'THIS UPLOAD HAS ALREADY BEEN REVIEWED AND SAVED.']);
         exit;
     }
@@ -47,8 +65,10 @@ try {
 
     try {
         if ($isTemplateUpload) {
+            write_extraction_progress($uploadId, 40, 'READING TEMPLATE...');
             $result = (new TemplateExtractor())->extract($upload['file_path']);
             if ($result['status'] === 'failed') {
+                clear_extraction_progress($uploadId);
                 echo json_encode(['status' => 'error', 'message' => 'THE TEMPLATE COULD NOT BE RE-READ. IT MAY HAVE BEEN EDITED INTO AN INVALID FORMAT.']);
                 exit;
             }
@@ -62,6 +82,7 @@ try {
                 // response below) — run the existing GenericExtractor ->
                 // OcrExtractor chain directly, skipping AI entirely so this
                 // retry isn't delayed by re-trying a path already known to fail.
+                write_extraction_progress($uploadId, 20, 'READING DOCUMENT TEXT...');
                 $result = (new GenericExtractor($extraCourseKeywords))->extract($upload['file_path']);
             } else {
                 // AI extraction is the primary path: it reads the PDF directly
@@ -70,6 +91,7 @@ try {
                 // resolve_gemini_api_keys() prefers a key saved via Settings ->
                 // AI Extraction (admin/users.php) over the env-var default.
                 $geminiExtractor = new GeminiExtractor(resolve_gemini_api_keys($pdo));
+                write_extraction_progress($uploadId, 15, 'SENDING DOCUMENT TO AI...');
                 $result = $geminiExtractor->extract($upload['file_path']);
 
                 if ($result['status'] === 'failed' && !GeminiExtractor::isQuotaExhausted() && empty($result['unreachable'])) {
@@ -80,6 +102,7 @@ try {
                     // conceding to the OCR fallback (bounded, not a loop, so a
                     // persistently failing document can't blow past PHP's
                     // execution time limit).
+                    write_extraction_progress($uploadId, 25, 'RETRYING AI EXTRACTION...');
                     $result = $geminiExtractor->extract($upload['file_path']);
                 }
 
@@ -89,6 +112,7 @@ try {
                 if ($result['status'] === 'failed') {
                     // GenericExtractor is a fast, free text-layer read, not
                     // OCR — try it before asking the admin anything.
+                    write_extraction_progress($uploadId, 40, 'READING DOCUMENT TEXT...');
                     $result = (new GenericExtractor($extraCourseKeywords))->extract($upload['file_path']);
                 }
 
@@ -103,6 +127,7 @@ try {
                             ? 'THE AI EXTRACTION SERVICE COULD NOT BE REACHED.'
                             : 'AI EXTRACTION WAS UNABLE TO PROCESS THIS DOCUMENT.');
 
+                    clear_extraction_progress($uploadId);
                     echo json_encode([
                         'status' => 'ocr_confirm_required',
                         'message' => $reason . ' THIS DOCUMENT HAS NO SELECTABLE TEXT, SO OPTICAL CHARACTER RECOGNITION (OCR) IS NEEDED TO READ IT INSTEAD. '
@@ -117,6 +142,7 @@ try {
                 $missingTools = array_keys(array_filter($toolStatus, fn (bool $installed) => !$installed));
 
                 if (!empty($missingTools)) {
+                    clear_extraction_progress($uploadId);
                     echo json_encode([
                         'status' => 'ocr_tools_missing',
                         'missing' => array_map('mb_strtoupper', $missingTools),
@@ -126,14 +152,24 @@ try {
                     exit;
                 }
 
-                $result = (new OcrExtractor($extraCourseKeywords))->extract($upload['file_path']);
+                write_extraction_progress($uploadId, 50, 'RASTERIZING PDF PAGES...');
+                $result = (new OcrExtractor($extraCourseKeywords, function (int $currentPage, int $totalPages) use ($uploadId): void {
+                    // OCR's per-page loop is the only genuinely steppable part
+                    // of the whole pipeline — spread across the remaining 55-95%
+                    // so it's the one stage with a real, not estimated, percentage.
+                    $percent = $totalPages > 0 ? 55 + (int) floor(($currentPage / $totalPages) * 40) : 55;
+                    write_extraction_progress($uploadId, $percent, 'READING PAGE ' . $currentPage . ' OF ' . $totalPages . ' (OCR)...');
+                }))->extract($upload['file_path']);
             }
         }
     } catch (\Throwable $e) {
         error_log('Extraction failed: ' . $e->getMessage());
+        clear_extraction_progress($uploadId);
         echo json_encode(['status' => 'error', 'message' => 'THE FILE COULD NOT BE PROCESSED.']);
         exit;
     }
+
+    write_extraction_progress($uploadId, 98, 'FINALIZING...');
 
     $fallbackYear = derive_fallback_year($upload['school_year']);
 
@@ -149,6 +185,8 @@ try {
     $extractionStatus = $result['status'] === 'ok' ? 'extracted' : 'failed';
     update_upload_extraction_status($pdo, $uploadId, $extractionStatus, 0);
 
+    clear_extraction_progress($uploadId);
+
     echo json_encode([
         'status' => 'success',
         'extraction_status' => $extractionStatus,
@@ -156,6 +194,7 @@ try {
     ]);
 } catch (\Throwable $e) {
     error_log('PDF extraction failed: ' . $e->getMessage());
+    clear_extraction_progress($uploadId);
     http_response_code(500);
     echo json_encode(['status' => 'error', 'message' => 'THE FILE COULD NOT BE PROCESSED. PLEASE TRY AGAIN.']);
     exit;

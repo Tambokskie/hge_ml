@@ -9,9 +9,19 @@ class OcrExtractor implements ExtractorInterface
 {
     use ParsesHonorRows;
 
-    public function __construct(array $extraCourseKeywords = [])
+    /** @var ?callable(int, int): void */
+    private $onPageProgress;
+
+    /**
+     * @param ?callable(int $currentPage, int $totalPages): void $onPageProgress
+     *     Called once per page as Tesseract finishes it — the only genuinely
+     *     steppable part of this extractor (Ghostscript rasterizes every
+     *     page in one call, so there's no real per-page signal before this).
+     */
+    public function __construct(array $extraCourseKeywords = [], ?callable $onPageProgress = null)
     {
         $this->setExtraCourseKeywords($extraCourseKeywords);
+        $this->onPageProgress = $onPageProgress;
     }
 
     public function extract(string $filePath): array
@@ -52,7 +62,8 @@ class OcrExtractor implements ExtractorInterface
             }
 
             $textParts = [];
-            foreach ($pageImages as $imagePath) {
+            $totalPages = count($pageImages);
+            foreach ($pageImages as $pageIndex => $imagePath) {
                 try {
                     $pageText = (new \thiagoalessio\TesseractOCR\TesseractOCR($imagePath))
                         ->executable($tesseractPath)
@@ -60,6 +71,10 @@ class OcrExtractor implements ExtractorInterface
                     $textParts[] = $pageText;
                 } catch (\Throwable $e) {
                     error_log('OcrExtractor: Tesseract failed on ' . $imagePath . ': ' . $e->getMessage());
+                }
+
+                if ($this->onPageProgress !== null) {
+                    ($this->onPageProgress)($pageIndex + 1, $totalPages);
                 }
             }
 

@@ -2,6 +2,41 @@ function formatCount(value) {
     return Math.round(value).toLocaleString('en-US');
 }
 
+// Polls api/extraction_progress.php while a long-running extract_pdf.php
+// request is in flight, feeding each {percent, label} snapshot to onUpdate
+// (see showExtractionProgressModal()). progressUrl is that endpoint's full
+// URL with no query string (callers derive it the same way they already
+// derive install_ocr_tools.php's URL: extractUrl.replace('extract_pdf.php',
+// 'extraction_progress.php')). Returns a stop() to call once the main
+// extract_pdf.php fetch settles — a dangling interval would otherwise keep
+// polling (and briefly show a stale/empty snapshot) after the modal that
+// update() targets is already gone.
+function startExtractionProgressPolling(progressUrl, uploadId, onUpdate) {
+    var stopped = false;
+
+    function poll() {
+        if (stopped) {
+            return;
+        }
+        fetch(progressUrl + '?upload_id=' + encodeURIComponent(uploadId))
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (!stopped && data && typeof data.percent === 'number') {
+                    onUpdate(data.percent, data.label || '');
+                }
+            })
+            .catch(function () { /* a missed poll just waits for the next tick */ });
+    }
+
+    poll();
+    var intervalId = setInterval(poll, 700);
+
+    return function stop() {
+        stopped = true;
+        clearInterval(intervalId);
+    };
+}
+
 // Eases `el`'s text content from 0 up to `target` over `duration` ms, calling
 // `onComplete` (if given) once it lands exactly on `target` — used to
 // sequence an animation after the count finishes, e.g. revealing the line

@@ -78,7 +78,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function extract(useOcr) {
         setBusy('EXTRACTING...');
-        var closeLoadingModal = showLoadingModal('EXTRACTING DATA', 'PLEASE WAIT WHILE WE GATHER THE LATEST INFORMATION.');
+        var extractionModal = showExtractionProgressModal('EXTRACTING DATA', 'PLEASE WAIT WHILE WE GATHER THE LATEST INFORMATION.');
+        var stopProgressPolling = startExtractionProgressPolling(config.apiBase + '/api/extraction_progress.php', btn.dataset.uploadId, extractionModal.update);
 
         var formData = new FormData();
         formData.set('csrf_token', config.csrfToken);
@@ -95,10 +96,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 return response.json();
             })
             .then(function (data) {
+                stopProgressPolling();
                 if (data.status === 'success') {
                     window.location.href = data.redirect_url;
                 } else if (data.status === 'ocr_confirm_required') {
-                    closeLoadingModal();
+                    extractionModal.close();
                     clearBusy();
                     promptOcrExtractionConfirm({
                         message: data.message,
@@ -108,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         onCancelled: clearBusy,
                     });
                 } else if (data.status === 'ocr_tools_missing') {
-                    closeLoadingModal();
+                    extractionModal.close();
                     clearBusy();
                     promptOcrToolsInstall({
                         missing: data.missing,
@@ -124,13 +126,14 @@ document.addEventListener('DOMContentLoaded', function () {
                         onCancelled: clearBusy,
                     });
                 } else {
-                    closeLoadingModal();
+                    extractionModal.close();
                     clearBusy();
                     showToast('error', data.message);
                 }
             })
             .catch(function () {
-                closeLoadingModal();
+                stopProgressPolling();
+                extractionModal.close();
                 clearBusy();
                 showToast('error', 'EXTRACTION COULD NOT BE STARTED. PLEASE TRY AGAIN.');
             });
