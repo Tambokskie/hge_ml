@@ -221,13 +221,13 @@ function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows
         $existingIds = array_map('intval', $existingIdsStmt->fetchAll(PDO::FETCH_COLUMN));
 
         $insertStmt = $pdo->prepare(
-            'INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, course, latin_honor, graduation_date, graduation_year)
-             VALUES (:upload_id, :school_id, :graduate_name, :course, :latin_honor, :graduation_date, :graduation_year)'
+            'INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, course, latin_honor, graduation_date, graduation_year, source)
+             VALUES (:upload_id, :school_id, :graduate_name, :course, :latin_honor, :graduation_date, :graduation_year, :source)'
         );
         $updateStmt = $pdo->prepare(
             'UPDATE latin_honor_graduates
              SET graduate_name = :graduate_name, course = :course, latin_honor = :latin_honor,
-                 graduation_date = :graduation_date, graduation_year = :graduation_year
+                 graduation_date = :graduation_date, graduation_year = :graduation_year, source = :source
              WHERE id = :id AND upload_id = :upload_id'
         );
 
@@ -239,6 +239,7 @@ function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows
                 'latin_honor' => $row['latin_honor'],
                 'graduation_date' => $row['graduation_date'],
                 'graduation_year' => $row['graduation_year'],
+                'source' => $row['source'] ?? null,
             ];
 
             $rowId = isset($row['id']) ? (int) $row['id'] : 0;

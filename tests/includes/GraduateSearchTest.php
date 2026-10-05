@@ -29,11 +29,11 @@ class GraduateSearchTest extends TestCase
         );
     }
 
-    private function insertGraduate(int $uploadId, int $schoolId, string $name, string $honor, ?string $date, int $year, string $course = ''): void
+    private function insertGraduate(int $uploadId, int $schoolId, string $name, string $honor, ?string $date, int $year, string $course = '', ?string $source = null): void
     {
         $stmt = TestDb::pdo()->prepare(
-            'INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, course, latin_honor, graduation_date, graduation_year)
-             VALUES (:upload_id, :school_id, :name, :course, :honor, :date, :year)'
+            'INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, course, latin_honor, graduation_date, graduation_year, source)
+             VALUES (:upload_id, :school_id, :name, :course, :honor, :date, :year, :source)'
         );
         $stmt->execute([
             'upload_id' => $uploadId,
@@ -43,6 +43,7 @@ class GraduateSearchTest extends TestCase
             'honor' => $honor,
             'date' => $date,
             'year' => $year,
+            'source' => $source,
         ]);
     }
 
@@ -143,6 +144,26 @@ class GraduateSearchTest extends TestCase
         $result = search_graduates(TestDb::pdo(), ['name' => 'Juan'], 1);
 
         $this->assertSame('BS Computer Science', $result['rows'][0]['course']);
+    }
+
+    public function testResultRowsIncludeExtractionSource(): void
+    {
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025, '', 'ocr');
+
+        $result = search_graduates(TestDb::pdo(), ['name' => 'Juan'], 1);
+
+        $this->assertSame('ocr', $result['rows'][0]['source']);
+    }
+
+    public function testResultRowsHaveNullSourceWhenNeverSet(): void
+    {
+        // Records saved before extraction source was tracked — the bulk of
+        // the existing database — must not be misrepresented as any one method.
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025);
+
+        $result = search_graduates(TestDb::pdo(), ['name' => 'Juan'], 1);
+
+        $this->assertNull($result['rows'][0]['source']);
     }
 
     public function testUnderscoreInNameSearchIsLiteralNotWildcard(): void
@@ -324,7 +345,7 @@ class GraduateSearchTest extends TestCase
 
     public function testGetGraduatesForUploadReturnsRowsShapedForReviewWithIds(): void
     {
-        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025, 'BS Computer Science');
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025, 'BS Computer Science', 'ai');
         $firstId = (int) TestDb::pdo()->lastInsertId();
         $this->insertGraduate(1, 1, 'Ana Reyes', 'MAGNA CUM LAUDE', null, 2025);
         $this->insertGraduate(2, 2, 'Other School Grad', 'CUM LAUDE', null, 2024);
@@ -336,7 +357,9 @@ class GraduateSearchTest extends TestCase
         $this->assertSame('Juan Dela Cruz', $rows[1]['graduate_name']);
         $this->assertSame('BS Computer Science', $rows[1]['course']);
         $this->assertSame(2025, $rows[1]['graduation_year']);
+        $this->assertSame('ai', $rows[1]['source']);
         $this->assertSame('Ana Reyes', $rows[0]['graduate_name']);
+        $this->assertNull($rows[0]['source']);
     }
 
     public function testGetGraduatesForUploadReturnsEmptyArrayForUploadWithNoRecords(): void

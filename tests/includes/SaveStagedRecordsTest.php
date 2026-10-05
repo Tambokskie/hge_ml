@@ -70,6 +70,50 @@ class SaveStagedRecordsTest extends TestCase
         $this->assertSame('', $course);
     }
 
+    public function testSavesSourceAlongsideEachRow(): void
+    {
+        $pdo = TestDb::pdo();
+        $rows = $this->validRows();
+        $rows[0]['source'] = 'ai';
+        $rows[1]['source'] = 'ocr';
+
+        save_staged_records($pdo, 1, 1, $rows);
+
+        $sources = $pdo->query('SELECT source FROM latin_honor_graduates WHERE upload_id = 1 ORDER BY id')->fetchAll(\PDO::FETCH_COLUMN);
+        $this->assertSame(['ai', 'ocr'], $sources);
+    }
+
+    public function testSavesNullSourceWhenRowHasNoSourceKey(): void
+    {
+        $pdo = TestDb::pdo();
+
+        save_staged_records($pdo, 1, 1, $this->validRows());
+
+        $source = $pdo->query('SELECT source FROM latin_honor_graduates WHERE upload_id = 1 LIMIT 1')->fetchColumn();
+        $this->assertNull($source);
+    }
+
+    public function testReSavingAnEditedRowOverwritesItsSourceToManual(): void
+    {
+        // Mirrors set_staged_row(): the moment an admin edits a row through
+        // the review form, it stamps 'source' => 'manual' on it, regardless
+        // of what extractor originally produced it.
+        $pdo = TestDb::pdo();
+        $rows = $this->validRows();
+        $rows[0]['source'] = 'ocr';
+        save_staged_records($pdo, 1, 1, $rows);
+        $existingId = (int) $pdo->query("SELECT id FROM latin_honor_graduates WHERE graduate_name = 'Juan Dela Cruz'")->fetchColumn();
+
+        $rows = $this->validRows();
+        $rows[0]['id'] = $existingId;
+        $rows[0]['source'] = 'manual';
+
+        save_staged_records($pdo, 1, 1, $rows);
+
+        $source = $pdo->query("SELECT source FROM latin_honor_graduates WHERE id = {$existingId}")->fetchColumn();
+        $this->assertSame('manual', $source);
+    }
+
     public function testRejectsEmptyRowsWithoutTouchingTheDatabase(): void
     {
         $pdo = TestDb::pdo();

@@ -158,6 +158,9 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <td class="px-4 py-3"><?= e_upper(format_school_display_name($row['school_name'], $row['campus'])) ?></td>
                                     <td class="px-4 py-3">
                                         <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold <?= latin_honor_pill_class($row['latin_honor']) ?>"><?= e($row['latin_honor']) ?></span>
+                                        <?php if (extraction_source_label($row['source'] ?? null) !== ''): ?>
+                                            <span class="ml-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400" title="EXTRACTED VIA <?= e(extraction_source_label($row['source'])) ?>"><?= e(extraction_source_label($row['source'])) ?></span>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="px-4 py-3"><?= e(format_date_display($row['graduation_date'])) ?></td>
                                     <td class="px-4 py-3"><?= e(format_date_display($row['application_date'] ?? null)) ?></td>

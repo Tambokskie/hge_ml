@@ -211,6 +211,19 @@ function honorPillClass(honor) {
     return 'bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400';
 }
 
+// Mirrors includes/functions.php's extraction_source_label(): '' for a row
+// saved before extraction source was tracked, so the caller renders nothing
+// rather than an "UNKNOWN" badge for thousands of pre-existing rows.
+function extractionSourceLabel(source) {
+    switch (source) {
+        case 'ai': return 'AI';
+        case 'ocr': return 'OCR';
+        case 'text': return 'TEXT';
+        case 'manual': return 'MANUAL';
+        default: return '';
+    }
+}
+
 // Label + Tailwind classes for an upload's extraction_status pill (mirrors
 // includes/functions.php's upload_status_pill() for the AJAX-rendered table
 // on admin/school_records.php).

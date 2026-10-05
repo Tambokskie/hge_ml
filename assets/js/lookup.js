@@ -109,6 +109,10 @@ document.addEventListener('DOMContentLoaded', function () {
             var displayUploadedAt = formatDisplayDate(row.uploaded_at);
             var displayApplicationDate = formatDisplayDate(row.application_date);
             var courseDisplay = row.course ? escapeHtml(String(row.course).toUpperCase()) : '—';
+            var sourceLabel = extractionSourceLabel(row.source);
+            var sourceBadgeHtml = sourceLabel
+                ? '<span class="ml-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400" title="EXTRACTED VIA ' + sourceLabel + '">' + sourceLabel + '</span>'
+                : '';
 
             var actionBtnIndex = 0;
             var actionBtnDelay = function () {
@@ -152,7 +156,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<td class="px-4 py-3">' + escapeHtml(String(row.graduate_name).toUpperCase()) + '</td>' +
                 '<td class="px-4 py-3">' + courseDisplay + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(formatSchoolDisplayName(row.school_name, row.campus).toUpperCase()) + '</td>' +
-                '<td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + honorPillClass(row.latin_honor) + '">' + escapeHtml(row.latin_honor) + '</span></td>' +
+                '<td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + honorPillClass(row.latin_honor) + '">' + escapeHtml(row.latin_honor) + '</span>' + sourceBadgeHtml + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(displayDate) + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(displayApplicationDate) + '</td>' +
                 '<td class="px-4 py-3"><div class="flex items-center justify-end gap-1.5">' +

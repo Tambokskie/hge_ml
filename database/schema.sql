@@ -67,6 +67,7 @@ CREATE TABLE latin_honor_graduates (
   latin_honor ENUM('CUM LAUDE','MAGNA CUM LAUDE','SUMMA CUM LAUDE') NOT NULL,
   graduation_date DATE NULL,
   graduation_year YEAR NOT NULL,
+  source ENUM('ai','ocr','text','manual') NULL DEFAULT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (upload_id) REFERENCES latin_honor_uploads(id),

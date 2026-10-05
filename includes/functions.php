@@ -47,6 +47,29 @@ function latin_honor_pill_class(string $honor): string
 }
 
 /**
+ * Display label for a saved graduate row's extraction source (how the
+ * record was read off the original document — AI, OCR, the PDF's text
+ * layer, or typed in by hand). Records saved before this was tracked carry
+ * no source at all; '' tells the caller to render nothing rather than an
+ * "UNKNOWN" badge for thousands of pre-existing rows.
+ */
+function extraction_source_label(?string $source): string
+{
+    switch ($source) {
+        case 'ai':
+            return 'AI';
+        case 'ocr':
+            return 'OCR';
+        case 'text':
+            return 'TEXT';
+        case 'manual':
+            return 'MANUAL';
+        default:
+            return '';
+    }
+}
+
+/**
  * Visual urgency tier for a still-pending (0 extracted records) upload,
  * based on how many whole days it's been sitting unprocessed: nothing for
  * under 3 days, a light-orange highlight for 3-6 days, and a pulsing

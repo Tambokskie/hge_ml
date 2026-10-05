@@ -31,7 +31,7 @@ function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25
 
     $pagination = paginate($totalRows, $page, $perPage);
 
-    $sql = "SELECT g.id, g.graduate_name, g.course, g.latin_honor, g.graduation_date, g.graduation_year,
+    $sql = "SELECT g.id, g.graduate_name, g.course, g.latin_honor, g.graduation_date, g.graduation_year, g.source,
                    s.school_name, s.campus, u.id AS upload_id, u.original_filename, u.uploaded_at,
                    a.application_date, (a.id IS NOT NULL) AS has_applied
             FROM latin_honor_graduates g
@@ -117,7 +117,7 @@ function file_application(PDO $pdo, int $graduateId, int $appliedBy, string $app
 function get_graduates_for_upload(PDO $pdo, int $uploadId): array
 {
     $stmt = $pdo->prepare(
-        'SELECT id, graduate_name, course, latin_honor, graduation_date, graduation_year
+        'SELECT id, graduate_name, course, latin_honor, graduation_date, graduation_year, source
          FROM latin_honor_graduates WHERE upload_id = :upload_id ORDER BY graduate_name ASC'
     );
     $stmt->execute(['upload_id' => $uploadId]);
