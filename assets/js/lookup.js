@@ -171,7 +171,16 @@ document.addEventListener('DOMContentLoaded', function () {
         var pagination = data.pagination;
         var rangeStart = pagination.total_rows === 0 ? 0 : pagination.offset + 1;
         var rangeEnd = Math.min(pagination.offset + pagination.per_page, pagination.total_rows);
+        var pageSelectHtml = '';
+        if (pagination.total_pages > 1) {
+            var pageOptionsHtml = '';
+            for (var p = 1; p <= pagination.total_pages; p++) {
+                pageOptionsHtml += '<option value="' + p + '"' + (p === pagination.page ? ' selected' : '') + '>PAGE ' + p + ' OF ' + pagination.total_pages + '</option>';
+            }
+            pageSelectHtml = '<select class="lookup-page-select rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-800 px-2 py-1.5 text-sm focus:border-csc-navy-500 focus:ring-2 focus:ring-csc-navy-500/20 focus:outline-none" aria-label="Jump to page">' + pageOptionsHtml + '</select>';
+        }
         var pageButtonsHtml =
+            pageSelectHtml +
             (pagination.page > 1
                 ? '<button type="button" class="lookup-page-btn rounded-lg border border-gray-200 dark:border-white/10 p-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="' + (pagination.page - 1) + '" aria-label="Previous page">' + actionIcon('chevronLeft') + '</button>'
                 : '') +
@@ -654,6 +663,13 @@ document.addEventListener('DOMContentLoaded', function () {
         var pageBtn = event.target.closest('.lookup-page-btn');
         if (pageBtn) {
             performSearch(currentParams(parseInt(pageBtn.dataset.page, 10)), true);
+        }
+    });
+
+    resultsContainer.addEventListener('change', function (event) {
+        var pageSelect = event.target.closest('.lookup-page-select');
+        if (pageSelect) {
+            performSearch(currentParams(parseInt(pageSelect.value, 10)), true);
         }
     });
 

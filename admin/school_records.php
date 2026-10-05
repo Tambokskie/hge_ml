@@ -201,6 +201,13 @@ include __DIR__ . '/../includes/sidebar.php';
                 <div id="school-records-pagination" class="flex flex-wrap items-center justify-between gap-3 mt-4 text-sm text-gray-500 dark:text-gray-400">
                     <span>SHOWING <?= (int) $rangeStart ?> TO <?= (int) $rangeEnd ?> OF <?= (int) $pageInfo['total_rows'] ?> ENTRIES</span>
                     <div class="flex items-center gap-1.5">
+                        <?php if ($pageInfo['total_pages'] > 1): ?>
+                            <select class="school-records-page-select rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-800 px-2 py-1.5 text-sm focus:border-csc-navy-500 focus:ring-2 focus:ring-csc-navy-500/20 focus:outline-none" aria-label="Jump to page">
+                                <?php for ($p = 1; $p <= $pageInfo['total_pages']; $p++): ?>
+                                    <option value="<?= $p ?>" <?= $p === $pageInfo['page'] ? 'selected' : '' ?>>PAGE <?= $p ?> OF <?= (int) $pageInfo['total_pages'] ?></option>
+                                <?php endfor; ?>
+                            </select>
+                        <?php endif; ?>
                         <?php if ($pageInfo['page'] > 1): ?>
                             <button type="button" class="school-records-page-btn rounded-lg border border-gray-200 dark:border-white/10 p-1.5 hover:bg-gray-100 dark:hover:bg-white/5" data-page="<?= (int) $pageInfo['page'] - 1 ?>" aria-label="Previous page">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
