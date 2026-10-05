@@ -107,13 +107,25 @@
      enough (around the lg breakpoint, where the grid jumps from 2 to 4
      columns) that a side-by-side layout was overlapping; stacking is safe
      at every width instead of chasing a breakpoint that keeps moving as
-     labels/columns change. */
+     labels/columns change. Centered (items-center + text-center) rather
+     than left-aligned — plain block centering, so it holds up the same way
+     regardless of how wide or narrow the card ends up. */
   .dashboard-stat-card {
-    @apply relative flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-5 shadow-[0_4px_16px_-4px_rgba(15,23,42,0.10),0_2px_6px_-3px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-csc-navy-600/10 dark:border-white/5 dark:bg-surface-900 dark:shadow-[0_4px_20px_-4px_rgba(250,204,21,0.20),0_2px_10px_-3px_rgba(253,224,71,0.14)] dark:hover:shadow-[0_0_28px_-6px_theme(colors.csc-navy.600/45%)] dark:hover:border-csc-navy-500/30;
+    @apply relative flex flex-col items-center text-center gap-3 rounded-2xl border border-gray-100 bg-white p-5 shadow-[0_4px_16px_-4px_rgba(15,23,42,0.10),0_2px_6px_-3px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-csc-navy-600/10 dark:border-white/5 dark:bg-surface-900 dark:shadow-[0_4px_20px_-4px_rgba(250,204,21,0.20),0_2px_10px_-3px_rgba(253,224,71,0.14)] dark:hover:shadow-[0_0_28px_-6px_theme(colors.csc-navy.600/45%)] dark:hover:border-csc-navy-500/30;
   }
 
+  /* Opacity keeps its own slower 700ms timing for the once-per-load reveal;
+     transform gets its own faster 250ms so the year-dropdown's scale pulse
+     (assets/js/dashboard.js) feels snappy rather than sluggish — a single
+     shared duration would have forced one or the other to feel wrong.
+     Written as a plain `transition` declaration rather than Tailwind's
+     `transition-[...]` arbitrary value: that utility only ever sets
+     `transition-property`, so per-property durations embedded inside it
+     (e.g. "opacity_700ms_ease-out") are invalid there, get dropped, and
+     silently fall back to Tailwind's default 150ms transition-duration. */
   .dashboard-stat-number {
-    @apply shrink-0 text-4xl font-bold tabular-nums text-csc-navy-600 opacity-0 transition-opacity duration-700 ease-out dark:text-white;
+    @apply shrink-0 text-4xl font-bold tabular-nums text-csc-navy-600 opacity-0 dark:text-white;
+    transition: opacity 700ms ease-out, transform 250ms ease-out;
   }
 
   .dashboard-stat-number.is-visible {

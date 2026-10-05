@@ -58,6 +58,29 @@ class FlashAndStatsTest extends TestCase
         $this->assertSame(1, $stats['current_year_records']);
     }
 
+    public function testGetGraduateCountByYearReturnsCountForTheRequestedYearOnly(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec("INSERT INTO users (name, username, email, password, role) VALUES ('Admin', 'admin', 'a@a.com', 'x', 'administrator')");
+        $pdo->exec("INSERT INTO schools (school_name) VALUES ('ABC UNIVERSITY')");
+        $pdo->exec(
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, extraction_status, records_extracted)
+             VALUES (1, '2025', 'list.pdf', 'stored.pdf', '/storage/pdfs/stored.pdf', 100, SHA2('x',256), 1, 'reviewed', 3)"
+        );
+        $pdo->exec(
+            "INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, latin_honor, graduation_year)
+             VALUES (1, 1, 'JUAN DELA CRUZ', 'CUM LAUDE', 2025), (1, 1, 'MARIA SANTOS', 'MAGNA CUM LAUDE', 2025), (1, 1, 'PEDRO REYES', 'CUM LAUDE', 2024)"
+        );
+
+        $this->assertSame(2, get_graduate_count_by_year($pdo, 2025));
+        $this->assertSame(1, get_graduate_count_by_year($pdo, 2024));
+    }
+
+    public function testGetGraduateCountByYearReturnsZeroForAYearWithNoRecords(): void
+    {
+        $this->assertSame(0, get_graduate_count_by_year(TestDb::pdo(), 1999));
+    }
+
     public function testDashboardStatsExcludesDisabledSchoolsFromActiveCount(): void
     {
         $pdo = TestDb::pdo();

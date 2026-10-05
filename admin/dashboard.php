@@ -10,6 +10,7 @@ require_login();
 
 $pdo = get_pdo();
 $stats = get_dashboard_stats($pdo);
+$graduationYears = get_distinct_graduation_years($pdo);
 $recentUploads = get_recent_uploads($pdo, 10);
 $honorBreakdown = get_honor_type_breakdown($pdo);
 $uploadActivity = get_upload_activity_by_month($pdo, 6);
@@ -36,7 +37,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347M4.26 10.147a50.548 50.548 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.841c-.896.248-1.783.52-2.658.814M4.26 10.147a50.696 50.696 0 017.74-3.342M12 13.489a50.702 50.702 0 017.74-3.342" /></svg>
                     </span>
@@ -46,14 +47,14 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
             <?php $schoolsMissing = max(0, $stats['total_active_schools'] - $stats['total_schools']); ?>
             <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
                     </span>
                     <p class="text-xs text-gray-600 dark:text-gray-500">SCHOOLS WITH RECORDS</p>
                 </div>
                 <div>
-                    <p class="flex items-baseline gap-1">
+                    <p class="flex items-baseline justify-center gap-1">
                         <span class="dashboard-stat-number" data-count-to="<?= (int) $stats['total_schools'] ?>">0</span>
                         <span class="text-lg font-semibold text-gray-400 dark:text-gray-500">/</span>
                         <span class="dashboard-stat-reveal text-lg font-semibold text-gray-400 dark:text-gray-500" data-count-to="<?= (int) $stats['total_active_schools'] ?>">0</span>
@@ -64,7 +65,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
             <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 400ms">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
                     </span>
@@ -73,16 +74,25 @@ include __DIR__ . '/../includes/sidebar.php';
                 <p class="dashboard-stat-number" data-count-to="<?= (int) $stats['total_uploads'] ?>">0</p>
             </div>
             <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 600ms">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
                     </span>
-                    <div>
-                        <p class="text-xs text-gray-600 dark:text-gray-500">CURRENT YEAR RECORDS</p>
-                        <p class="text-xs text-gray-400 dark:text-gray-600 mt-1"><?= $stats['current_year'] ? e((string) $stats['current_year']) : 'NO DATA YET' ?></p>
-                    </div>
+                    <p class="text-xs text-gray-600 dark:text-gray-500">CURRENT YEAR RECORDS</p>
                 </div>
-                <p class="dashboard-stat-number" data-count-to="<?= (int) $stats['current_year_records'] ?>">0</p>
+                <p class="dashboard-stat-number" id="dashboard-year-records-number" data-count-to="<?= (int) $stats['current_year_records'] ?>">0</p>
+                <?php if (!empty($graduationYears)): ?>
+                    <div class="relative inline-block">
+                        <select id="dashboard-year-select" class="appearance-none bg-transparent text-xs text-gray-400 dark:text-gray-600 text-center pl-1 pr-4 cursor-pointer hover:text-gray-600 dark:hover:text-gray-400 focus:outline-none" aria-label="Select year">
+                            <?php foreach ($graduationYears as $y): ?>
+                                <option value="<?= (int) $y ?>" <?= $y === $stats['current_year'] ? 'selected' : '' ?>><?= (int) $y ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <svg class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                    </div>
+                <?php else: ?>
+                    <p class="text-xs text-gray-400 dark:text-gray-600">NO DATA YET</p>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -267,12 +277,10 @@ include __DIR__ . '/../includes/sidebar.php';
     </div>
 </main>
 <?php include __DIR__ . '/../includes/footer.php'; ?>
-<?php if ($isAdmin): ?>
 <script>
 window.HGE_DASHBOARD = {
     apiBase: <?= json_encode(APP_BASE_URL) ?>,
     csrfToken: <?= json_encode($csrfToken) ?>
 };
 </script>
-<?php endif; ?>
 <script src="<?= e(asset_url('assets/js/dashboard.js')) ?>"></script>

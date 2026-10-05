@@ -127,4 +127,49 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     });
+
+    var yearSelect = document.getElementById('dashboard-year-select');
+    var yearRecordsNumber = document.getElementById('dashboard-year-records-number');
+    if (yearSelect && yearRecordsNumber) {
+        var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        yearSelect.addEventListener('change', function () {
+            var year = yearSelect.value;
+            var previousCount = parseInt(yearRecordsNumber.textContent.replace(/,/g, ''), 10) || 0;
+            var previousText = yearRecordsNumber.textContent;
+            yearRecordsNumber.classList.add('opacity-50');
+
+            fetch(config.apiBase + '/api/get_dashboard_year_records.php?year=' + encodeURIComponent(year))
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (data) {
+                    yearRecordsNumber.classList.remove('opacity-50');
+                    if (data.status === 'success') {
+                        if (prefersReducedMotion) {
+                            yearRecordsNumber.textContent = formatCount(data.count);
+                            return;
+                        }
+
+                        // A brief scale pulse on top of the count tween (from
+                        // the previous value, not 0 — see animateCountUp())
+                        // signals "this number just changed" instead of the
+                        // flat, instant text swap the card had before.
+                        yearRecordsNumber.classList.add('scale-110');
+                        setTimeout(function () {
+                            yearRecordsNumber.classList.remove('scale-110');
+                        }, 250);
+                        animateCountUp(yearRecordsNumber, data.count, 500, null, previousCount);
+                    } else {
+                        yearRecordsNumber.textContent = previousText;
+                        showToast('error', data.message || 'THE RECORD COUNT COULD NOT BE LOADED.');
+                    }
+                })
+                .catch(function () {
+                    yearRecordsNumber.classList.remove('opacity-50');
+                    yearRecordsNumber.textContent = previousText;
+                    showToast('error', 'THE RECORD COUNT COULD NOT BE LOADED. PLEASE TRY AGAIN.');
+                });
+        });
+    }
 });

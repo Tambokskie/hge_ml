@@ -208,12 +208,7 @@ function get_dashboard_stats(PDO $pdo): array
     $totalUploads = (int) $pdo->query('SELECT COUNT(*) FROM latin_honor_uploads')->fetchColumn();
     $currentYear = $pdo->query('SELECT MAX(graduation_year) FROM latin_honor_graduates')->fetchColumn();
 
-    $currentYearRecords = 0;
-    if ($currentYear !== null) {
-        $stmt = $pdo->prepare('SELECT COUNT(*) FROM latin_honor_graduates WHERE graduation_year = :year');
-        $stmt->execute(['year' => $currentYear]);
-        $currentYearRecords = (int) $stmt->fetchColumn();
-    }
+    $currentYearRecords = $currentYear !== null ? get_graduate_count_by_year($pdo, (int) $currentYear) : 0;
 
     return [
         'total_graduates' => $totalGraduates,
@@ -223,6 +218,20 @@ function get_dashboard_stats(PDO $pdo): array
         'current_year' => $currentYear !== null ? (int) $currentYear : null,
         'current_year_records' => $currentYearRecords,
     ];
+}
+
+/**
+ * Backs the dashboard's "CURRENT YEAR RECORDS" card year dropdown
+ * (admin/dashboard.php + api/get_dashboard_year_records.php) — lets an
+ * admin pick any year with records, not just the most recent one
+ * get_dashboard_stats() defaults to.
+ */
+function get_graduate_count_by_year(PDO $pdo, int $year): int
+{
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM latin_honor_graduates WHERE graduation_year = :year');
+    $stmt->execute(['year' => $year]);
+
+    return (int) $stmt->fetchColumn();
 }
 
 function get_honor_type_breakdown(PDO $pdo): array

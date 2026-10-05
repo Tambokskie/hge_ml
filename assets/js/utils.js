@@ -37,12 +37,15 @@ function startExtractionProgressPolling(progressUrl, uploadId, onUpdate) {
     };
 }
 
-// Eases `el`'s text content from 0 up to `target` over `duration` ms, calling
-// `onComplete` (if given) once it lands exactly on `target` — used to
-// sequence an animation after the count finishes, e.g. revealing the line
-// graph on the Dashboard's UPLOAD ACTIVITY card only once its PDF count is
-// done counting up.
-function animateCountUp(el, target, duration, onComplete) {
+// Eases `el`'s text content from `from` (default 0) up to `target` over
+// `duration` ms, calling `onComplete` (if given) once it lands exactly on
+// `target`. The default `from` of 0 serves the once-per-load entrance
+// animation (e.g. the Dashboard's UPLOAD ACTIVITY card, which then reveals
+// its line graph only once the count finishes); passing the previous value
+// as `from` lets a later re-count (e.g. switching the Dashboard year
+// dropdown) tween between two arbitrary values instead of flashing to 0.
+function animateCountUp(el, target, duration, onComplete, from) {
+    var startValue = from || 0;
     var startTime = null;
 
     function step(timestamp) {
@@ -51,7 +54,7 @@ function animateCountUp(el, target, duration, onComplete) {
         }
         var progress = Math.min((timestamp - startTime) / duration, 1);
         var eased = 1 - Math.pow(1 - progress, 3);
-        el.textContent = formatCount(target * eased);
+        el.textContent = formatCount(startValue + (target - startValue) * eased);
         if (progress < 1) {
             requestAnimationFrame(step);
         } else {
