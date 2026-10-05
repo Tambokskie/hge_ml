@@ -56,7 +56,7 @@ function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25
 function get_graduate_by_id(PDO $pdo, int $id): ?array
 {
     $stmt = $pdo->prepare(
-        'SELECT id, upload_id, school_id, graduate_name, course, latin_honor, graduation_date, graduation_year
+        'SELECT id, upload_id, school_id, graduate_name, course, latin_honor, graduation_date, graduation_year, source
          FROM latin_honor_graduates WHERE id = :id LIMIT 1'
     );
     $stmt->execute(['id' => $id]);
@@ -65,12 +65,18 @@ function get_graduate_by_id(PDO $pdo, int $id): ?array
     return $row === false ? null : $row;
 }
 
+/**
+ * Edits a saved record directly (the admin/lookup.php "edit" action, outside
+ * the review flow). Always stamps source = 'manual' — the moment an admin
+ * corrects a saved record, it's no longer purely AI/OCR/text output, same
+ * as set_staged_row() already does when a row is edited during review.
+ */
 function update_graduate(PDO $pdo, int $id, array $data): void
 {
     $stmt = $pdo->prepare(
         'UPDATE latin_honor_graduates
          SET graduate_name = :graduate_name, course = :course, latin_honor = :latin_honor,
-             graduation_date = :graduation_date, graduation_year = :graduation_year
+             graduation_date = :graduation_date, graduation_year = :graduation_year, source = \'manual\'
          WHERE id = :id'
     );
     $stmt->execute([

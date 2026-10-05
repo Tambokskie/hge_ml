@@ -216,6 +216,27 @@ class GraduateSearchTest extends TestCase
         $this->assertSame(2025, (int) $row['graduation_year']);
     }
 
+    public function testUpdateGraduateStampsSourceAsManualRegardlessOfOriginalSource(): void
+    {
+        // Mirrors set_staged_row()'s behavior during review: the moment an
+        // admin corrects a saved record outside the review flow (the
+        // admin/lookup.php edit action), it's no longer purely AI/OCR/text
+        // output, so the badge should reflect that a human touched it.
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025, 'BS Computer Science', 'ocr');
+        $id = (int) TestDb::pdo()->lastInsertId();
+
+        update_graduate(TestDb::pdo(), $id, [
+            'graduate_name' => 'Juan D. Cruz',
+            'course' => 'BS Computer Science',
+            'latin_honor' => 'CUM LAUDE',
+            'graduation_date' => '2025-06-15',
+            'graduation_year' => 2025,
+        ]);
+
+        $row = get_graduate_by_id(TestDb::pdo(), $id);
+        $this->assertSame('manual', $row['source']);
+    }
+
     public function testUpdateGraduateAllowsNullGraduationDate(): void
     {
         $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025);
