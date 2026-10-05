@@ -315,23 +315,37 @@ function upload_status_pill(string $status): array
 }
 
 /**
- * Color/label tier for the free AI extraction usage gauge on
- * admin/upload.php, by percent of today's assumed request cap used
- * (GeminiExtractor::getUsageStats()): green under 50%, yellow from 50%,
- * orange from 75%, red at 100%.
+ * Three-state (GREEN/YELLOW/RED) AI extraction availability indicator on
+ * admin/upload.php. One deterministic formula, no other signal involved:
+ * the percentage of today's assumed total request capacity across all
+ * configured Gemini keys that is still AVAILABLE — i.e. 100 minus
+ * $usedPercent (GeminiExtractor::getUsageStats()'s 'percent', the fraction
+ * of count/key-count*20 used so far today).
+ *
+ *   available  100%-60%  -> GREEN  ("AVAILABLE")
+ *   available  below 60%-40% -> YELLOW ("MODERATE USAGE")
+ *   available  below 40%     -> RED    ("LOW AVAILABILITY")
+ *
+ * A failed extraction isn't a separate trigger — it naturally lowers the
+ * available percentage through the same underlying count (and a real quota
+ * failure pins used% at 100%/available% at 0% for the rest of the day via
+ * GeminiExtractor::isQuotaExhausted()'s existing exhausted_at flag), so a
+ * failure that actually reduced capacity shows up here automatically,
+ * without a second rule to keep in sync with this one.
  */
-function ai_quota_gauge_tier(int $percent): array
+function ai_availability_tier(int $usedPercent): array
 {
-    if ($percent >= 100) {
-        return ['label' => 'LIMIT REACHED', 'bar_class' => 'bg-csc-red-600', 'text_class' => 'text-csc-red-600 dark:text-csc-red-400'];
+    $availablePercent = max(0, 100 - $usedPercent);
+
+    if ($availablePercent >= 60) {
+        $tier = ['label' => 'AVAILABLE', 'bar_class' => 'bg-green-500', 'text_class' => 'text-green-600 dark:text-green-400'];
+    } elseif ($availablePercent >= 40) {
+        $tier = ['label' => 'MODERATE USAGE', 'bar_class' => 'bg-yellow-400', 'text_class' => 'text-yellow-600 dark:text-yellow-400'];
+    } else {
+        $tier = ['label' => 'LOW AVAILABILITY', 'bar_class' => 'bg-csc-red-600', 'text_class' => 'text-csc-red-600 dark:text-csc-red-400'];
     }
-    if ($percent >= 75) {
-        return ['label' => 'NEARING LIMIT', 'bar_class' => 'bg-orange-500', 'text_class' => 'text-orange-600 dark:text-orange-400'];
-    }
-    if ($percent >= 50) {
-        return ['label' => 'MODERATE USAGE', 'bar_class' => 'bg-yellow-400', 'text_class' => 'text-yellow-600 dark:text-yellow-400'];
-    }
-    return ['label' => 'AVAILABLE', 'bar_class' => 'bg-green-500', 'text_class' => 'text-green-600 dark:text-green-400'];
+
+    return $tier + ['available_percent' => $availablePercent];
 }
 
 function get_distinct_graduation_years(PDO $pdo): array
