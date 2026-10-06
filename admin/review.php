@@ -18,6 +18,11 @@ if ($upload === null) {
     redirect(APP_BASE_URL . '/admin/upload.php');
 }
 
+if (upload_needs_more_extraction($upload)) {
+    flash_set('error', 'FINISH EXTRACTING ALL PAGES BEFORE REVIEWING THIS UPLOAD.');
+    redirect(APP_BASE_URL . '/admin/view_upload.php?id=' . $uploadId);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['cancel'])) {
     if (csrf_verify($_POST['csrf_token'] ?? null)) {
         clear_extraction_review();
