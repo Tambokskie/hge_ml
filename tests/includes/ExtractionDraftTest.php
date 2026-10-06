@@ -129,4 +129,37 @@ class ExtractionDraftTest extends TestCase
         $draftCount = (int) $pdo->query('SELECT COUNT(*) FROM extraction_review_drafts')->fetchColumn();
         $this->assertSame(0, $draftCount);
     }
+
+    public function testAppendExtractionDraftRowsCreatesADraftWhenNoneExists(): void
+    {
+        $pdo = TestDb::pdo();
+        $newRows = [
+            ['graduate_name' => 'Juan Dela Cruz', 'course' => '', 'latin_honor' => 'CUM LAUDE', 'graduation_date' => null, 'graduation_year' => 2025],
+        ];
+
+        $result = append_extraction_draft_rows($pdo, 1, 1, $newRows);
+
+        $this->assertSame('success', $result['status']);
+        $draft = get_extraction_draft($pdo, 1);
+        $this->assertSame($newRows, $draft['rows']);
+    }
+
+    public function testAppendExtractionDraftRowsAddsToAnExistingDraftWithoutDroppingPriorRows(): void
+    {
+        $pdo = TestDb::pdo();
+        $firstChunkRows = [
+            ['graduate_name' => 'Juan Dela Cruz', 'course' => '', 'latin_honor' => 'CUM LAUDE', 'graduation_date' => null, 'graduation_year' => 2025],
+        ];
+        save_extraction_draft($pdo, 1, 1, $firstChunkRows);
+
+        $secondChunkRows = [
+            ['graduate_name' => 'Maria Santos', 'course' => '', 'latin_honor' => 'MAGNA CUM LAUDE', 'graduation_date' => null, 'graduation_year' => 2025],
+        ];
+        append_extraction_draft_rows($pdo, 1, 1, $secondChunkRows);
+
+        $draft = get_extraction_draft($pdo, 1);
+        $this->assertCount(2, $draft['rows']);
+        $this->assertSame('Juan Dela Cruz', $draft['rows'][0]['graduate_name']);
+        $this->assertSame('Maria Santos', $draft['rows'][1]['graduate_name']);
+    }
 }

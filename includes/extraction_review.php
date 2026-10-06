@@ -329,6 +329,21 @@ function save_extraction_draft(PDO $pdo, int $uploadId, int $savedBy, array $row
     return ['status' => 'success', 'message' => count($rows) . ' RECORD(S) SAVED AS DRAFT. YOU CAN RESUME THIS REVIEW LATER.'];
 }
 
+/**
+ * Appends newly-extracted rows onto an upload's existing draft (if any),
+ * reusing save_extraction_draft() for the actual persistence. Used by the
+ * chunked AI extraction flow (api/extract_pdf.php), where each
+ * successfully-extracted page range adds its rows to what prior chunks
+ * already staged, rather than replacing them.
+ */
+function append_extraction_draft_rows(PDO $pdo, int $uploadId, int $savedBy, array $newRows): array
+{
+    $existing = get_extraction_draft($pdo, $uploadId);
+    $rows = $existing !== null ? $existing['rows'] : [];
+
+    return save_extraction_draft($pdo, $uploadId, $savedBy, array_merge($rows, $newRows));
+}
+
 function get_extraction_draft(PDO $pdo, int $uploadId): ?array
 {
     $stmt = $pdo->prepare('SELECT rows_json, updated_at FROM extraction_review_drafts WHERE upload_id = :upload_id');
