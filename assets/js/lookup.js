@@ -233,8 +233,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function openDetailsModal(data) {
         var bodyHtml =
             '<div class="space-y-2">' +
-            '<div><span class="text-xs text-gray-500 dark:text-gray-400">GRADUATE NAME</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(data.name) + '</p></div>' +
-            '<div><span class="text-xs text-gray-500 dark:text-gray-400">DEGREE/COURSE</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(data.course || '—') + '</p></div>' +
+            '<div><span class="text-xs text-gray-500 dark:text-gray-400">GRADUATE NAME</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(String(data.name || '').toUpperCase()) + '</p></div>' +
+            '<div><span class="text-xs text-gray-500 dark:text-gray-400">DEGREE/COURSE</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(data.course ? String(data.course).toUpperCase() : '—') + '</p></div>' +
             '<div><span class="text-xs text-gray-500 dark:text-gray-400">SCHOOL</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(data.school) + '</p></div>' +
             '<div><span class="text-xs text-gray-500 dark:text-gray-400">LATIN HONOR</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(data.honor) + '</p></div>' +
             '<div><span class="text-xs text-gray-500 dark:text-gray-400">DATE OF GRADUATION</span><p class="pl-3 text-gray-900 dark:text-white">' + escapeHtml(data.date) + '</p></div>' +
@@ -376,7 +376,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function openApplyModal(defaults) {
         var bodyHtml =
             '<div class="space-y-4">' +
-            modalField({ id: 'modal-applicant-name', label: 'NAME', type: 'static', value: defaults.name }) +
+            modalField({ id: 'modal-applicant-name', label: 'NAME', type: 'static', value: String(defaults.name || '').toUpperCase() }) +
             modalField({ id: 'modal-application-date', label: 'DATE OF APPLICATION', required: true, type: 'date', icon: 'calendar', value: todayIsoDate() }) +
             '</div>';
 

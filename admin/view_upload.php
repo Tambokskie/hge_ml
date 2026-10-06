@@ -147,6 +147,13 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <p class="text-sm text-gray-900 dark:text-white"><?= e_upper(date('F j, Y', strtotime($upload['uploaded_at']))) ?></p>
                             </div>
                         </div>
+                        <div class="flex items-start gap-2.5 hidden" id="extraction-error-row">
+                            <svg class="h-5 w-5 shrink-0 text-csc-red-600 dark:text-csc-red-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-bold tracking-wide text-csc-red-600 dark:text-csc-red-400">LAST EXTRACTION ERROR</p>
+                                <p class="text-sm text-csc-red-600 dark:text-csc-red-400" id="extraction-error-message"></p>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="my-5 border-t border-gray-100 dark:border-white/10"></div>
@@ -159,6 +166,11 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
                                     EXTRACT RECORDS
                                 </button>
+                                <button type="button" id="extract-ocr-btn" data-upload-id="<?= (int) $upload['id'] ?>"
+                                    class="inline-flex items-center gap-1.5 rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-semibold px-4 py-2.5 transition-colors">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                                    EXTRACT VIA TEXT/OCR
+                                </button>
                             <?php elseif ($needsMoreExtraction): ?>
                                 <button type="button" id="continue-extraction-btn" data-upload-id="<?= (int) $upload['id'] ?>"
                                     class="inline-flex items-center gap-1.5 rounded-xl bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-semibold px-4 py-2.5 transition-colors">
@@ -168,7 +180,12 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <button type="button" id="extract-records-btn" data-upload-id="<?= (int) $upload['id'] ?>" data-should-confirm="true"
                                     class="inline-flex items-center gap-1.5 rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-semibold px-4 py-2.5 transition-colors">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
-                                    RE-EXTRACT RECORDS
+                                    USE AI EXTRACTION
+                                </button>
+                                <button type="button" id="extract-ocr-btn" data-upload-id="<?= (int) $upload['id'] ?>" data-should-confirm="true"
+                                    class="inline-flex items-center gap-1.5 rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-semibold px-4 py-2.5 transition-colors">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                                    EXTRACT VIA TEXT/OCR
                                 </button>
                             <?php else: ?>
                                 <a href="<?= e(APP_BASE_URL) ?>/admin/review.php?upload_id=<?= (int) $upload['id'] ?>"
@@ -179,7 +196,12 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <button type="button" id="extract-records-btn" data-upload-id="<?= (int) $upload['id'] ?>" data-should-confirm="true"
                                     class="inline-flex items-center gap-1.5 rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-semibold px-4 py-2.5 transition-colors">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
-                                    RE-EXTRACT RECORDS
+                                    USE AI EXTRACTION
+                                </button>
+                                <button type="button" id="extract-ocr-btn" data-upload-id="<?= (int) $upload['id'] ?>" data-should-confirm="true"
+                                    class="inline-flex items-center gap-1.5 rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-semibold px-4 py-2.5 transition-colors">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                                    EXTRACT VIA TEXT/OCR
                                 </button>
                             <?php endif; ?>
                         <?php endif; ?>
@@ -251,7 +273,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
                                     </span>
                                     <span class="min-w-0 flex-1">
-                                        <span class="block text-sm font-semibold text-gray-900 dark:text-white">RE-EXTRACT RECORDS</span>
+                                        <span class="block text-sm font-semibold text-gray-900 dark:text-white">USE AI EXTRACTION</span>
                                         <span class="block text-xs text-gray-500 dark:text-gray-500">UPDATE EXTRACTED DATA FROM THE FILE.</span>
                                     </span>
                                     <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-navy-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>

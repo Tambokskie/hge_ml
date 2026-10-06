@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var btn = document.getElementById('extract-records-btn');
     var quickReextractBtn = document.getElementById('quick-reextract-btn');
     var continueBtn = document.getElementById('continue-extraction-btn');
+    var ocrBtn = document.getElementById('extract-ocr-btn');
     if (!config || (!btn && !continueBtn)) {
         return;
     }
@@ -68,6 +69,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         btn.disabled = true;
         btn.textContent = text;
+        // Only btn's own text changes (it's the one showing progress), but
+        // every sibling action button is disabled too, so a click on one
+        // can't race a click on another while a request is in flight.
+        if (continueBtn) {
+            continueBtn.disabled = true;
+        }
+        if (ocrBtn) {
+            ocrBtn.disabled = true;
+        }
     }
 
     function clearBusy() {
@@ -75,10 +85,39 @@ document.addEventListener('DOMContentLoaded', function () {
         if (btn.dataset.originalText) {
             btn.textContent = btn.dataset.originalText;
         }
+        if (continueBtn) {
+            continueBtn.disabled = false;
+        }
+        if (ocrBtn) {
+            ocrBtn.disabled = false;
+        }
+    }
+
+    var errorRow = document.getElementById('extraction-error-row');
+    var errorMessageEl = document.getElementById('extraction-error-message');
+
+    // Purely a page-level display, never persisted — a reload or a fresh
+    // upload_id clears it along with everything else on the page, by design
+    // (the admin asked for this to surface the last attempt's failure
+    // without adding any new saved/DB state).
+    function showExtractionError(message) {
+        if (!errorRow || !errorMessageEl) {
+            return;
+        }
+        errorMessageEl.textContent = message || 'THE EXTRACTION COULD NOT BE COMPLETED.';
+        errorRow.classList.remove('hidden');
+    }
+
+    function hideExtractionError() {
+        if (!errorRow) {
+            return;
+        }
+        errorRow.classList.add('hidden');
     }
 
     function extract(useOcr, isContinuing) {
         var uploadId = isContinuing ? continueBtn.dataset.uploadId : btn.dataset.uploadId;
+        hideExtractionError();
         setBusy('EXTRACTING...');
         var extractionModal = showExtractionProgressModal('EXTRACTING DATA', 'PLEASE WAIT WHILE WE GATHER THE LATEST INFORMATION.');
         var stopProgressPolling = startExtractionProgressPolling(config.apiBase + '/api/extraction_progress.php', uploadId, extractionModal.update);
@@ -117,6 +156,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else if (data.status === 'ocr_tools_missing') {
                     extractionModal.close();
                     clearBusy();
+                    showExtractionError(data.message);
                     promptOcrToolsInstall({
                         missing: data.missing,
                         csrfToken: config.csrfToken,
@@ -133,6 +173,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     extractionModal.close();
                     clearBusy();
+                    showExtractionError(data.message);
                     showToast('error', data.message);
                 }
             })
@@ -140,6 +181,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 stopProgressPolling();
                 extractionModal.close();
                 clearBusy();
+                showExtractionError('EXTRACTION COULD NOT BE STARTED. PLEASE TRY AGAIN.');
                 showToast('error', 'EXTRACTION COULD NOT BE STARTED. PLEASE TRY AGAIN.');
             });
     }
@@ -153,13 +195,13 @@ document.addEventListener('DOMContentLoaded', function () {
         showModal({
             icon: modalHeaderIcon('warning'),
             iconClassName: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
-            title: 'CONFIRM RE-EXTRACTION',
-            subtitle: 'Re-extracting replaces this upload’s currently staged data.',
+            title: 'CONFIRM AI EXTRACTION',
+            subtitle: 'This replaces this upload’s currently staged data.',
             bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">THIS WILL DISCARD THE PREVIOUSLY EXTRACTED DATA FOR THIS UPLOAD, INCLUDING ANY EDITS MADE TO IT. THIS CANNOT BE UNDONE.</p>',
             buttons: [
                 { label: 'CANCEL', className: MODAL_BTN.secondary },
                 {
-                    label: 'RE-EXTRACT',
+                    label: 'USE AI EXTRACTION',
                     icon: modalButtonIcon('reset'),
                     className: MODAL_BTN.primary,
                     onClick: function (close) {
@@ -187,6 +229,40 @@ document.addEventListener('DOMContentLoaded', function () {
     if (continueBtn) {
         continueBtn.addEventListener('click', function () {
             extract(false, true);
+        });
+    }
+
+    if (ocrBtn) {
+        ocrBtn.addEventListener('click', function () {
+            if (ocrBtn.dataset.shouldConfirm !== 'true') {
+                extract(true);
+                return;
+            }
+
+            showModal({
+                icon: modalHeaderIcon('warning'),
+                iconClassName: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
+                title: 'CONFIRM TEXT/OCR EXTRACTION',
+                subtitle: 'This replaces this upload’s currently staged data.',
+                bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">THIS WILL DISCARD THE PREVIOUSLY EXTRACTED DATA FOR THIS UPLOAD, INCLUDING ANY EDITS MADE TO IT, AND RE-EXTRACT USING TEXT/OCR INSTEAD OF AI. THIS CANNOT BE UNDONE.</p>',
+                buttons: [
+                    { label: 'CANCEL', className: MODAL_BTN.secondary },
+                    {
+                        label: 'EXTRACT VIA TEXT/OCR',
+                        icon: modalButtonIcon('reset'),
+                        className: MODAL_BTN.primary,
+                        onClick: function (close) {
+                            close();
+                            // Let this modal's own fade-out transition finish
+                            // before the loading modal fades in, so the two
+                            // never visibly overlap mid-crossfade.
+                            setTimeout(function () {
+                                extract(true);
+                            }, 200);
+                        },
+                    },
+                ],
+            });
         });
     }
 });
