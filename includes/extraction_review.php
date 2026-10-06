@@ -9,6 +9,25 @@ function derive_fallback_year(string $schoolYear): ?int
     return null;
 }
 
+/**
+ * Computes the next page range to extract for the chunked AI extraction
+ * flow (api/extract_pdf.php), given how many pages have already been
+ * successfully extracted, the document's total page count, and the
+ * configured chunk size. Returns null once every page is covered — the
+ * signal that nothing remains to extract.
+ */
+function next_chunk_range(int $extractedThroughPage, int $totalPages, int $chunkSize): ?array
+{
+    if ($extractedThroughPage >= $totalPages) {
+        return null;
+    }
+
+    $first = $extractedThroughPage + 1;
+    $last = min($extractedThroughPage + $chunkSize, $totalPages);
+
+    return ['first' => $first, 'last' => $last];
+}
+
 function validate_staged_row(array $row): array
 {
     $errors = [];

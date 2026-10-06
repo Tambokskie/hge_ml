@@ -156,4 +156,29 @@ class ExtractionReviewCoreTest extends TestCase
 
         $this->assertNull(get_extraction_review(999));
     }
+
+    public function testNextChunkRangeReturnsTheFirstChunkFromZero(): void
+    {
+        $this->assertSame(['first' => 1, 'last' => 15], next_chunk_range(0, 120, 15));
+    }
+
+    public function testNextChunkRangeReturnsAMiddleChunk(): void
+    {
+        $this->assertSame(['first' => 46, 'last' => 60], next_chunk_range(45, 120, 15));
+    }
+
+    public function testNextChunkRangeReturnsAFinalPartialChunkShorterThanChunkSize(): void
+    {
+        $this->assertSame(['first' => 106, 'last' => 120], next_chunk_range(105, 120, 20));
+    }
+
+    public function testNextChunkRangeReturnsNullWhenNothingRemains(): void
+    {
+        $this->assertNull(next_chunk_range(120, 120, 15));
+    }
+
+    public function testNextChunkRangeCoversTheWholeDocumentWhenItFitsInOneChunk(): void
+    {
+        $this->assertSame(['first' => 1, 'last' => 5], next_chunk_range(0, 5, 15));
+    }
 }
