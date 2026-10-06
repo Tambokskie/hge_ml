@@ -12,3 +12,4 @@
 !/storage/cache/.gitkeep
 .phpunit.result.cache
 composer.phar
+/.worktrees/
