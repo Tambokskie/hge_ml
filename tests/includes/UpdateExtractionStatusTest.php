@@ -48,4 +48,53 @@ class UpdateExtractionStatusTest extends TestCase
         $updatedAt = $pdo->query('SELECT updated_at FROM latin_honor_uploads WHERE id = 1')->fetchColumn();
         $this->assertGreaterThan('2020-01-01 00:00:00', $updatedAt);
     }
+
+    public function testUpdateUploadChunkProgressPersistsTotalPagesAndCursor(): void
+    {
+        $pdo = TestDb::pdo();
+
+        update_upload_chunk_progress($pdo, 1, 120, 45);
+
+        $row = $pdo->query('SELECT total_pages, extracted_through_page FROM latin_honor_uploads WHERE id = 1')->fetch();
+        $this->assertSame(120, (int) $row['total_pages']);
+        $this->assertSame(45, (int) $row['extracted_through_page']);
+    }
+
+    public function testResetUploadChunkProgressClearsTotalPagesAndCursor(): void
+    {
+        $pdo = TestDb::pdo();
+        update_upload_chunk_progress($pdo, 1, 120, 45);
+
+        reset_upload_chunk_progress($pdo, 1);
+
+        $row = $pdo->query('SELECT total_pages, extracted_through_page FROM latin_honor_uploads WHERE id = 1')->fetch();
+        $this->assertNull($row['total_pages']);
+        $this->assertSame(0, (int) $row['extracted_through_page']);
+    }
+
+    public function testUploadNeedsMoreExtractionIsFalseWhenTotalPagesIsNull(): void
+    {
+        $this->assertFalse(upload_needs_more_extraction(['total_pages' => null, 'extracted_through_page' => 0]));
+    }
+
+    public function testUploadNeedsMoreExtractionIsTrueWhenPagesRemain(): void
+    {
+        $this->assertTrue(upload_needs_more_extraction(['total_pages' => 120, 'extracted_through_page' => 45]));
+    }
+
+    public function testUploadNeedsMoreExtractionIsFalseWhenFullyExtracted(): void
+    {
+        $this->assertFalse(upload_needs_more_extraction(['total_pages' => 120, 'extracted_through_page' => 120]));
+    }
+
+    public function testGetUploadByIdIncludesChunkProgressColumns(): void
+    {
+        $pdo = TestDb::pdo();
+        update_upload_chunk_progress($pdo, 1, 120, 45);
+
+        $upload = get_upload_by_id($pdo, 1);
+
+        $this->assertSame(120, $upload['total_pages']);
+        $this->assertSame(45, $upload['extracted_through_page']);
+    }
 }

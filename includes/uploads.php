@@ -162,7 +162,8 @@ function get_upload_by_id(PDO $pdo, int $id): ?array
 {
     $stmt = $pdo->prepare(
         'SELECT u.id, u.school_id, u.school_year, u.original_filename, u.stored_filename, u.file_path,
-                u.file_size, u.uploaded_at, u.extraction_status, u.records_extracted, s.school_name, s.campus,
+                u.file_size, u.uploaded_at, u.extraction_status, u.records_extracted,
+                u.total_pages, u.extracted_through_page, s.school_name, s.campus,
                 usr.name AS uploaded_by_name
          FROM latin_honor_uploads u
          JOIN schools s ON s.id = u.school_id
@@ -328,4 +329,50 @@ function update_upload_extraction_status(PDO $pdo, int $uploadId, string $status
         'updated_at' => date('Y-m-d H:i:s'),
         'id' => $uploadId,
     ]);
+}
+
+/**
+ * Called after a chunk of AI extraction succeeds — records the document's
+ * total page count (set once, on the first chunk of a fresh attempt) and
+ * how far extraction has progressed so far.
+ */
+function update_upload_chunk_progress(PDO $pdo, int $uploadId, int $totalPages, int $extractedThroughPage): void
+{
+    $stmt = $pdo->prepare(
+        'UPDATE latin_honor_uploads SET total_pages = :total_pages, extracted_through_page = :extracted_through_page WHERE id = :id'
+    );
+    $stmt->execute([
+        'total_pages' => $totalPages,
+        'extracted_through_page' => $extractedThroughPage,
+        'id' => $uploadId,
+    ]);
+}
+
+/**
+ * Called at the start of a fresh AI extraction attempt (first-time, or
+ * RE-EXTRACT RECORDS) — clears any chunk progress from a prior attempt, so
+ * the next chunk computed is page 1 of a freshly-counted document rather
+ * than continuing a stale cursor. Does not touch extraction_review_drafts;
+ * callers that also need the existing draft cleared (RE-EXTRACT RECORDS)
+ * call delete_extraction_draft() separately, since includes/*.php files in
+ * this codebase don't cross-require each other.
+ */
+function reset_upload_chunk_progress(PDO $pdo, int $uploadId): void
+{
+    $pdo->prepare('UPDATE latin_honor_uploads SET total_pages = NULL, extracted_through_page = 0 WHERE id = :id')
+        ->execute(['id' => $uploadId]);
+}
+
+/**
+ * True when a chunked AI extraction is in progress but not yet covering
+ * every page. admin/view_upload.php uses this to show "Continue
+ * Extraction" instead of "Resume Draft Review"; admin/review.php uses it to
+ * refuse opening a review until extraction finishes. total_pages is NULL
+ * for every upload that isn't mid-chunked-extraction — a pre-existing
+ * upload, or one that finished in a single chunk — so this is always false
+ * for those, regardless of extracted_through_page's value.
+ */
+function upload_needs_more_extraction(array $upload): bool
+{
+    return $upload['total_pages'] !== null && (int) $upload['extracted_through_page'] < (int) $upload['total_pages'];
 }
