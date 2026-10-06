@@ -192,7 +192,21 @@ try {
                         return $row;
                     }, $result['rows']);
 
-                    append_extraction_draft_rows($pdo, $uploadId, (int) current_user()['id'], $rows);
+                    $appendResult = append_extraction_draft_rows($pdo, $uploadId, (int) current_user()['id'], $rows);
+                    if ($appendResult['status'] === 'error') {
+                        // The pages were extracted successfully, but the draft
+                        // save itself failed — do NOT advance
+                        // extracted_through_page, or "Continue Extraction"
+                        // would skip these pages forever and silently lose
+                        // their rows.
+                        clear_extraction_progress($uploadId);
+                        echo json_encode([
+                            'status' => 'error',
+                            'message' => 'PAGES ' . $chunk['first'] . '-' . $chunk['last'] . ' WERE EXTRACTED BUT COULD NOT BE SAVED. YOU CAN TRY CONTINUE EXTRACTION AGAIN.',
+                        ]);
+                        exit;
+                    }
+
                     update_upload_chunk_progress($pdo, $uploadId, $totalPages, $chunk['last']);
                     clear_extraction_progress($uploadId);
 
