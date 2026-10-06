@@ -57,7 +57,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var btn = document.getElementById('extract-records-btn');
     var quickReextractBtn = document.getElementById('quick-reextract-btn');
-    if (!config || !btn) {
+    var continueBtn = document.getElementById('continue-extraction-btn');
+    if (!config || (!btn && !continueBtn)) {
         return;
     }
 
@@ -76,16 +77,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function extract(useOcr) {
+    function extract(useOcr, isContinuing) {
+        var uploadId = isContinuing ? continueBtn.dataset.uploadId : btn.dataset.uploadId;
         setBusy('EXTRACTING...');
         var extractionModal = showExtractionProgressModal('EXTRACTING DATA', 'PLEASE WAIT WHILE WE GATHER THE LATEST INFORMATION.');
-        var stopProgressPolling = startExtractionProgressPolling(config.apiBase + '/api/extraction_progress.php', btn.dataset.uploadId, extractionModal.update);
+        var stopProgressPolling = startExtractionProgressPolling(config.apiBase + '/api/extraction_progress.php', uploadId, extractionModal.update);
 
         var formData = new FormData();
         formData.set('csrf_token', config.csrfToken);
-        formData.set('upload_id', btn.dataset.uploadId);
+        formData.set('upload_id', uploadId);
         if (useOcr) {
             formData.set('use_ocr', '1');
+        }
+        if (isContinuing) {
+            formData.set('continue', '1');
         }
 
         fetch(config.apiBase + '/api/extract_pdf.php', {
@@ -176,6 +181,12 @@ document.addEventListener('DOMContentLoaded', function () {
     if (quickReextractBtn) {
         quickReextractBtn.addEventListener('click', function () {
             handleExtractClick(quickReextractBtn.dataset.shouldConfirm);
+        });
+    }
+
+    if (continueBtn) {
+        continueBtn.addEventListener('click', function () {
+            extract(false, true);
         });
     }
 });

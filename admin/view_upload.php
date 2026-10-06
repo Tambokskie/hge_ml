@@ -44,6 +44,7 @@ if ($upload !== null) {
     $canRemove = $isAdmin && (int) $upload['records_extracted'] === 0;
     $fileExtension = mb_strtoupper((string) pathinfo($upload['stored_filename'], PATHINFO_EXTENSION));
     $isTemplateUpload = $fileExtension === 'XLSX';
+    $needsMoreExtraction = upload_needs_more_extraction($upload);
 }
 
 include __DIR__ . '/../includes/header.php';
@@ -130,6 +131,9 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <p class="text-sm text-gray-900 dark:text-white">
                                     <?php if ($status === 'draft'): ?>
                                         <?= (int) $draftRecordCount ?> IN DRAFT
+                                        <?php if ($needsMoreExtraction): ?>
+                                            <span class="block text-xs text-gray-500 dark:text-gray-500 mt-0.5">PAGES <?= (int) $upload['extracted_through_page'] ?> OF <?= (int) $upload['total_pages'] ?> EXTRACTED</span>
+                                        <?php endif; ?>
                                     <?php else: ?>
                                         <?= (int) $upload['records_extracted'] ?> EXTRACTED
                                     <?php endif; ?>
@@ -154,6 +158,17 @@ include __DIR__ . '/../includes/sidebar.php';
                                     class="inline-flex items-center gap-1.5 rounded-xl bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-semibold px-4 py-2.5 transition-colors">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
                                     EXTRACT RECORDS
+                                </button>
+                            <?php elseif ($needsMoreExtraction): ?>
+                                <button type="button" id="continue-extraction-btn" data-upload-id="<?= (int) $upload['id'] ?>"
+                                    class="inline-flex items-center gap-1.5 rounded-xl bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-semibold px-4 py-2.5 transition-colors">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                                    CONTINUE EXTRACTION
+                                </button>
+                                <button type="button" id="extract-records-btn" data-upload-id="<?= (int) $upload['id'] ?>" data-should-confirm="true"
+                                    class="inline-flex items-center gap-1.5 rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-semibold px-4 py-2.5 transition-colors">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                                    RE-EXTRACT RECORDS
                                 </button>
                             <?php else: ?>
                                 <a href="<?= e(APP_BASE_URL) ?>/admin/review.php?upload_id=<?= (int) $upload['id'] ?>"
