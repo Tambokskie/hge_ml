@@ -37,6 +37,8 @@ CREATE TABLE latin_honor_uploads (
   upload_number INT UNSIGNED NOT NULL DEFAULT 1,
   extraction_status ENUM('pending','extracted','reviewed','failed','draft') NOT NULL DEFAULT 'pending',
   records_extracted INT UNSIGNED NOT NULL DEFAULT 0,
+  total_pages INT UNSIGNED NULL,
+  extracted_through_page INT UNSIGNED NOT NULL DEFAULT 0,
   uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (school_id) REFERENCES schools(id),
