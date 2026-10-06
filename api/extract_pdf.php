@@ -103,8 +103,16 @@ try {
                 // chunk's failure.
                 $isContinuing = !empty($_POST['continue']);
                 if (!$isContinuing) {
+                    // Progress bookkeeping is safe to reset immediately — it
+                    // carries no user data. The existing draft and session
+                    // are NOT touched here: deleting them before this fresh
+                    // attempt has even succeeded once would destroy a prior,
+                    // still-valid draft if this attempt then fails (AI
+                    // failure, a Ghostscript slice failure, or a PHP
+                    // execution-time fatal are all real possibilities). They
+                    // are only cleared once this attempt's first chunk
+                    // actually succeeds, further down.
                     reset_upload_chunk_progress($pdo, $uploadId);
-                    delete_extraction_draft($pdo, $uploadId);
                     $upload['total_pages'] = null;
                     $upload['extracted_through_page'] = 0;
                 }
@@ -112,40 +120,56 @@ try {
                 $totalPages = $upload['total_pages'];
                 if ($totalPages === null) {
                     $totalPages = count_pdf_pages($upload['file_path']);
-                    if ($totalPages === null) {
-                        clear_extraction_progress($uploadId);
-                        echo json_encode(['status' => 'error', 'message' => 'THE FILE COULD NOT BE PROCESSED.']);
-                        exit;
-                    }
                 }
 
-                $chunk = next_chunk_range((int) $upload['extracted_through_page'], $totalPages, AI_EXTRACTION_CHUNK_PAGE_SIZE);
-                if ($chunk === null) {
-                    clear_extraction_progress($uploadId);
-                    echo json_encode(['status' => 'error', 'message' => 'ALL PAGES HAVE ALREADY BEEN EXTRACTED FOR THIS UPLOAD.']);
-                    exit;
-                }
+                // Ghostscript couldn't count this PDF's pages (missing/broken
+                // binary, or a file Ghostscript can't read) — degrade to the
+                // whole-document path instead of hard-failing every
+                // extraction attempt on a machine without Ghostscript. AI
+                // extraction and its text/OCR fallback never needed
+                // Ghostscript before chunking existed, and still shouldn't
+                // need it for a document that would fit in one chunk anyway.
+                $ghostscriptUnavailable = $totalPages === null;
 
-                $isWholeDocumentChunk = $chunk['first'] === 1 && $chunk['last'] === $totalPages;
-
-                if ($isWholeDocumentChunk) {
-                    // Fits in one chunk — no need to slice a copy at all,
-                    // send the real stored file exactly as before chunking
-                    // existed.
+                if ($ghostscriptUnavailable) {
+                    $isWholeDocumentChunk = true;
+                    $chunkFirst = null;
+                    $chunkLast = null;
                     $chunkFilePath = $upload['file_path'];
                 } else {
-                    $chunkFilePath = extract_pdf_page_range($upload['file_path'], $chunk['first'], $chunk['last']);
-                    if ($chunkFilePath === null) {
+                    $chunk = next_chunk_range((int) $upload['extracted_through_page'], $totalPages, AI_EXTRACTION_CHUNK_PAGE_SIZE);
+                    if ($chunk === null) {
                         clear_extraction_progress($uploadId);
-                        echo json_encode(['status' => 'error', 'message' => 'THE FILE COULD NOT BE PROCESSED.']);
+                        echo json_encode(['status' => 'error', 'message' => 'ALL PAGES HAVE ALREADY BEEN EXTRACTED FOR THIS UPLOAD.']);
                         exit;
+                    }
+
+                    $chunkFirst = $chunk['first'];
+                    $chunkLast = $chunk['last'];
+                    $isWholeDocumentChunk = $chunkFirst === 1 && $chunkLast === $totalPages;
+
+                    if ($isWholeDocumentChunk) {
+                        // Fits in one chunk — no need to slice a copy at all,
+                        // send the real stored file exactly as before chunking
+                        // existed.
+                        $chunkFilePath = $upload['file_path'];
+                    } else {
+                        $chunkFilePath = extract_pdf_page_range($upload['file_path'], $chunkFirst, $chunkLast);
+                        if ($chunkFilePath === null) {
+                            clear_extraction_progress($uploadId);
+                            echo json_encode(['status' => 'error', 'message' => 'THE FILE COULD NOT BE PROCESSED.']);
+                            exit;
+                        }
                     }
                 }
 
                 // resolve_gemini_api_keys() prefers a key saved via Settings ->
                 // AI Extraction (admin/users.php) over the env-var default.
                 $geminiExtractor = new GeminiExtractor(resolve_gemini_api_keys($pdo));
-                write_extraction_progress($uploadId, 15, 'SENDING PAGES ' . $chunk['first'] . '-' . $chunk['last'] . ' TO AI...');
+                $progressLabel = $isWholeDocumentChunk
+                    ? 'SENDING DOCUMENT TO AI...'
+                    : 'SENDING PAGES ' . $chunkFirst . '-' . $chunkLast . ' TO AI...';
+                write_extraction_progress($uploadId, 15, $progressLabel);
                 $result = $geminiExtractor->extract($chunkFilePath);
 
                 if ($result['status'] === 'failed' && !GeminiExtractor::isQuotaExhausted() && empty($result['unreachable'])) {
@@ -179,7 +203,7 @@ try {
                                 : 'AI EXTRACTION WAS UNABLE TO PROCESS THESE PAGES.');
                         echo json_encode([
                             'status' => 'error',
-                            'message' => $reason . ' PAGES ' . $chunk['first'] . '-' . $chunk['last'] . ' WERE NOT EXTRACTED. YOU CAN TRY CONTINUE EXTRACTION AGAIN.',
+                            'message' => $reason . ' PAGES ' . $chunkFirst . '-' . $chunkLast . ' WERE NOT EXTRACTED. PLEASE TRY AGAIN.',
                         ]);
                         exit;
                     }
@@ -192,7 +216,16 @@ try {
                         return $row;
                     }, $result['rows']);
 
-                    $appendResult = append_extraction_draft_rows($pdo, $uploadId, (int) current_user()['id'], $rows);
+                    if (!$isContinuing) {
+                        // First successful chunk of a fresh attempt — only
+                        // now is it safe to discard whatever existed before.
+                        delete_extraction_draft($pdo, $uploadId);
+                        clear_extraction_review();
+                        $appendResult = save_extraction_draft($pdo, $uploadId, (int) current_user()['id'], $rows);
+                    } else {
+                        $appendResult = append_extraction_draft_rows($pdo, $uploadId, (int) current_user()['id'], $rows);
+                    }
+
                     if ($appendResult['status'] === 'error') {
                         // The pages were extracted successfully, but the draft
                         // save itself failed — do NOT advance
@@ -202,15 +235,15 @@ try {
                         clear_extraction_progress($uploadId);
                         echo json_encode([
                             'status' => 'error',
-                            'message' => 'PAGES ' . $chunk['first'] . '-' . $chunk['last'] . ' WERE EXTRACTED BUT COULD NOT BE SAVED. YOU CAN TRY CONTINUE EXTRACTION AGAIN.',
+                            'message' => 'PAGES ' . $chunkFirst . '-' . $chunkLast . ' WERE EXTRACTED BUT COULD NOT BE SAVED. YOU CAN TRY CONTINUE EXTRACTION AGAIN.',
                         ]);
                         exit;
                     }
 
-                    update_upload_chunk_progress($pdo, $uploadId, $totalPages, $chunk['last']);
+                    update_upload_chunk_progress($pdo, $uploadId, $totalPages, $chunkLast);
                     clear_extraction_progress($uploadId);
 
-                    $hasMoreChunks = $chunk['last'] < $totalPages;
+                    $hasMoreChunks = $chunkLast < $totalPages;
                     echo json_encode([
                         'status' => 'success',
                         'extraction_status' => 'draft',
@@ -221,9 +254,10 @@ try {
                     exit;
                 }
 
-                // Whole document fit in one chunk: behaves exactly as before
-                // chunking existed, including the existing text/OCR fallback
-                // chain.
+                // Whole document fit in one chunk, or Ghostscript was
+                // unavailable so this is a forced whole-document attempt:
+                // behaves exactly as before chunking existed, including the
+                // existing text/OCR fallback chain.
                 if ($result['status'] === 'failed') {
                     // GenericExtractor is a fast, free text-layer read, not
                     // OCR — try it before asking the admin anything.
