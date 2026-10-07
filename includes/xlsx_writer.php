@@ -234,3 +234,106 @@ function build_latin_honor_template_xlsx(string $schoolName, string $campus): st
         'xl/worksheets/sheet1.xml' => $sheetXml,
     ]);
 }
+
+/**
+ * @param array{total_on_record: int, total_applied: int, filing_rate: float,
+ *     schools: array<int, array{school_display: string, on_record: int, applied: int, filing_rate: float}>} $report
+ *     Same shape get_application_filing_report() (includes/reports.php) returns,
+ *     with each school row additionally carrying a pre-formatted
+ *     'school_display' string — this file does not call
+ *     format_school_display_name() (includes/functions.php) itself, since
+ *     includes/*.php files in this project don't require each other; the
+ *     caller (the export endpoint) does that formatting first.
+ */
+function build_application_filing_report_xlsx(array $report, int $year): string
+{
+    $rows = [
+        1 => [
+            1 => ['value' => 'APPLICATION FILING REPORT — ' . $year, 'style' => 1],
+        ],
+        3 => [
+            1 => ['value' => 'TOTAL ON RECORD', 'style' => 1],
+            2 => ['value' => (string) $report['total_on_record'], 'type' => 'n'],
+        ],
+        4 => [
+            1 => ['value' => 'TOTAL APPLIED', 'style' => 1],
+            2 => ['value' => (string) $report['total_applied'], 'type' => 'n'],
+        ],
+        5 => [
+            1 => ['value' => 'FILING RATE (%)', 'style' => 1],
+            2 => ['value' => (string) $report['filing_rate'], 'type' => 'n'],
+        ],
+        7 => [
+            1 => ['value' => 'SCHOOL', 'style' => 1],
+            2 => ['value' => 'ON RECORD', 'style' => 1],
+            3 => ['value' => 'APPLIED', 'style' => 1],
+            4 => ['value' => 'FILING RATE (%)', 'style' => 1],
+        ],
+    ];
+
+    $rowNum = 8;
+    foreach ($report['schools'] as $school) {
+        $rows[$rowNum] = [
+            1 => ['value' => $school['school_display']],
+            2 => ['value' => (string) $school['on_record'], 'type' => 'n'],
+            3 => ['value' => (string) $school['applied'], 'type' => 'n'],
+            4 => ['value' => (string) $school['filing_rate'], 'type' => 'n'],
+        ];
+        $rowNum++;
+    }
+
+    $sheetXml = xlsx_build_sheet_xml($rows, [1 => 40, 2 => 14, 3 => 12, 4 => 16]);
+
+    return xlsx_zip_parts([
+        '[Content_Types].xml' => xlsx_content_types_xml(),
+        '_rels/.rels' => xlsx_package_rels_xml(),
+        'xl/workbook.xml' => xlsx_workbook_xml('APPLICATION FILING REPORT'),
+        'xl/_rels/workbook.xml.rels' => xlsx_workbook_rels_xml(),
+        'xl/styles.xml' => xlsx_styles_xml(),
+        'xl/worksheets/sheet1.xml' => $sheetXml,
+    ]);
+}
+
+/**
+ * @param array<int, array{school_display: string, honor_count: int}> $rows
+ *     Same shape get_school_ranking_by_honor_count() (includes/reports.php)
+ *     returns, with each row additionally carrying a pre-formatted
+ *     'school_display' string (see build_application_filing_report_xlsx()'s
+ *     docblock for why this file doesn't format it itself).
+ */
+function build_school_ranking_report_xlsx(array $rows, int $year): string
+{
+    $sheetRows = [
+        1 => [
+            1 => ['value' => 'SCHOOL RANKING REPORT — ' . $year, 'style' => 1],
+        ],
+        2 => [
+            1 => ['value' => 'RANK', 'style' => 1],
+            2 => ['value' => 'SCHOOL', 'style' => 1],
+            3 => ['value' => 'LATIN HONOR GRADUATES', 'style' => 1],
+        ],
+    ];
+
+    $rowNum = 3;
+    $rank = 1;
+    foreach ($rows as $row) {
+        $sheetRows[$rowNum] = [
+            1 => ['value' => (string) $rank, 'type' => 'n'],
+            2 => ['value' => $row['school_display']],
+            3 => ['value' => (string) $row['honor_count'], 'type' => 'n'],
+        ];
+        $rowNum++;
+        $rank++;
+    }
+
+    $sheetXml = xlsx_build_sheet_xml($sheetRows, [1 => 10, 2 => 40, 3 => 22]);
+
+    return xlsx_zip_parts([
+        '[Content_Types].xml' => xlsx_content_types_xml(),
+        '_rels/.rels' => xlsx_package_rels_xml(),
+        'xl/workbook.xml' => xlsx_workbook_xml('SCHOOL RANKING REPORT'),
+        'xl/_rels/workbook.xml.rels' => xlsx_workbook_rels_xml(),
+        'xl/styles.xml' => xlsx_styles_xml(),
+        'xl/worksheets/sheet1.xml' => $sheetXml,
+    ]);
+}

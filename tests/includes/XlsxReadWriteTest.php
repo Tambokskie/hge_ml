@@ -112,4 +112,53 @@ class XlsxReadWriteTest extends TestCase
         $this->assertSame(27, xlsx_column_index('AA100'));
         $this->assertSame(28, xlsx_column_index('AB1'));
     }
+
+    public function testApplicationFilingReportXlsxRoundTripsThroughReader(): void
+    {
+        $report = [
+            'total_on_record' => 3,
+            'total_applied' => 1,
+            'filing_rate' => 33.3,
+            'schools' => [
+                ['school_display' => 'ABC UNIVERSITY-MAIN', 'on_record' => 2, 'applied' => 1, 'filing_rate' => 50.0],
+                ['school_display' => 'XYZ COLLEGE', 'on_record' => 1, 'applied' => 0, 'filing_rate' => 0.0],
+            ],
+        ];
+
+        $bytes = build_application_filing_report_xlsx($report, 2025);
+        $path = $this->writeTempFile($bytes);
+
+        $result = xlsx_read_first_sheet($path);
+
+        $this->assertTrue($result['ok']);
+        $rows = $result['rows'];
+        $this->assertSame('3', $rows[3][2]);
+        $this->assertSame('1', $rows[4][2]);
+        $this->assertSame('ABC UNIVERSITY-MAIN', $rows[8][1]);
+        $this->assertSame('2', $rows[8][2]);
+        $this->assertSame('XYZ COLLEGE', $rows[9][1]);
+        $this->assertSame('0', $rows[9][3]);
+    }
+
+    public function testSchoolRankingReportXlsxRoundTripsThroughReader(): void
+    {
+        $rows = [
+            ['school_display' => 'ABC UNIVERSITY-MAIN', 'honor_count' => 2],
+            ['school_display' => 'XYZ COLLEGE', 'honor_count' => 1],
+        ];
+
+        $bytes = build_school_ranking_report_xlsx($rows, 2025);
+        $path = $this->writeTempFile($bytes);
+
+        $result = xlsx_read_first_sheet($path);
+
+        $this->assertTrue($result['ok']);
+        $resultRows = $result['rows'];
+        $this->assertSame('1', $resultRows[3][1]);
+        $this->assertSame('ABC UNIVERSITY-MAIN', $resultRows[3][2]);
+        $this->assertSame('2', $resultRows[3][3]);
+        $this->assertSame('2', $resultRows[4][1]);
+        $this->assertSame('XYZ COLLEGE', $resultRows[4][2]);
+        $this->assertSame('1', $resultRows[4][3]);
+    }
 }
