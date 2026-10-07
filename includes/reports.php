@@ -49,3 +49,28 @@ function get_application_filing_report(PDO $pdo, int $year): array
         'schools' => $schools,
     ];
 }
+
+/**
+ * Year-scoped sibling of includes/functions.php's get_honor_type_breakdown()
+ * — same three-key shape and zero-filled defaults, but counts only one
+ * graduation year rather than every graduate on file. Kept separate from
+ * the dashboard's version rather than adding a parameter to it, since the
+ * dashboard's call site has no year to pass and changing that function's
+ * signature would ripple into admin/dashboard.php for no reason.
+ */
+function get_honor_tier_breakdown_for_year(PDO $pdo, int $year): array
+{
+    $counts = [
+        'CUM LAUDE' => 0,
+        'MAGNA CUM LAUDE' => 0,
+        'SUMMA CUM LAUDE' => 0,
+    ];
+
+    $stmt = $pdo->prepare('SELECT latin_honor, COUNT(*) AS total FROM latin_honor_graduates WHERE graduation_year = :year GROUP BY latin_honor');
+    $stmt->execute(['year' => $year]);
+    foreach ($stmt->fetchAll() as $row) {
+        $counts[$row['latin_honor']] = (int) $row['total'];
+    }
+
+    return $counts;
+}

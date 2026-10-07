@@ -84,4 +84,35 @@ class ReportsTest extends TestCase
 
         $this->assertSame([], $report['schools']);
     }
+
+    public function testGetHonorTierBreakdownForYearCountsOnlyThatYear(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec(
+            "INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, latin_honor, graduation_year)
+             VALUES (1, 1, 'JUAN DELA CRUZ', 'CUM LAUDE', 2025),
+                    (1, 1, 'MARIA SANTOS', 'CUM LAUDE', 2025),
+                    (1, 1, 'PEDRO REYES', 'SUMMA CUM LAUDE', 2025),
+                    (2, 2, 'ANA LOPEZ', 'MAGNA CUM LAUDE', 2024)"
+        );
+
+        $breakdown = get_honor_tier_breakdown_for_year($pdo, 2025);
+
+        $this->assertSame([
+            'CUM LAUDE' => 2,
+            'MAGNA CUM LAUDE' => 0,
+            'SUMMA CUM LAUDE' => 1,
+        ], $breakdown);
+    }
+
+    public function testGetHonorTierBreakdownForYearReturnsZeroedDefaultsWhenNoData(): void
+    {
+        $breakdown = get_honor_tier_breakdown_for_year(TestDb::pdo(), 1999);
+
+        $this->assertSame([
+            'CUM LAUDE' => 0,
+            'MAGNA CUM LAUDE' => 0,
+            'SUMMA CUM LAUDE' => 0,
+        ], $breakdown);
+    }
 }
