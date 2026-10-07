@@ -124,6 +124,11 @@ function showModal(config) {
     document.body.appendChild(overlay);
     document.addEventListener('keydown', onKeydown);
 
+    var firstField = body.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
+    if (firstField) {
+        firstField.focus({ preventScroll: true });
+    }
+
     if (!prefersReducedMotion) {
         overlay.style.transition = 'opacity 180ms ease-out';
         overlay.style.opacity = '0';
