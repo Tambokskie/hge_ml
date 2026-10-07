@@ -74,3 +74,30 @@ function get_honor_tier_breakdown_for_year(PDO $pdo, int $year): array
 
     return $counts;
 }
+
+/**
+ * Schools ranked by Latin Honor graduate count for one graduation year,
+ * descending, with an alphabetical tiebreak so two schools tied on count
+ * always render in the same order rather than one that varies between
+ * page loads. Same zero-graduates-that-year exclusion as
+ * get_application_filing_report() (INNER JOIN, not LEFT JOIN).
+ */
+function get_school_ranking_by_honor_count(PDO $pdo, int $year): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT s.school_name, s.campus, COUNT(g.id) AS honor_count
+         FROM schools s
+         JOIN latin_honor_graduates g ON g.school_id = s.id AND g.graduation_year = :year
+         GROUP BY s.id, s.school_name, s.campus
+         ORDER BY honor_count DESC, s.school_name ASC'
+    );
+    $stmt->execute(['year' => $year]);
+
+    return array_map(static function (array $row): array {
+        return [
+            'school_name' => $row['school_name'],
+            'campus' => $row['campus'],
+            'honor_count' => (int) $row['honor_count'],
+        ];
+    }, $stmt->fetchAll());
+}

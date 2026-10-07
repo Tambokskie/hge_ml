@@ -115,4 +115,56 @@ class ReportsTest extends TestCase
             'SUMMA CUM LAUDE' => 0,
         ], $breakdown);
     }
+
+    public function testGetSchoolRankingByHonorCountOrdersDescending(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec(
+            "INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, latin_honor, graduation_year)
+             VALUES (1, 1, 'JUAN DELA CRUZ', 'CUM LAUDE', 2025),
+                    (1, 1, 'MARIA SANTOS', 'CUM LAUDE', 2025),
+                    (2, 2, 'PEDRO REYES', 'CUM LAUDE', 2025)"
+        );
+
+        $ranking = get_school_ranking_by_honor_count($pdo, 2025);
+
+        $this->assertCount(2, $ranking);
+        $this->assertSame('ABC UNIVERSITY', $ranking[0]['school_name']);
+        $this->assertSame(2, $ranking[0]['honor_count']);
+        $this->assertSame('XYZ COLLEGE', $ranking[1]['school_name']);
+        $this->assertSame(1, $ranking[1]['honor_count']);
+    }
+
+    public function testGetSchoolRankingByHonorCountTieBreaksBySchoolNameAscending(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec(
+            "INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, latin_honor, graduation_year)
+             VALUES (1, 1, 'JUAN DELA CRUZ', 'CUM LAUDE', 2025),
+                    (2, 2, 'PEDRO REYES', 'CUM LAUDE', 2025)"
+        );
+
+        $ranking = get_school_ranking_by_honor_count($pdo, 2025);
+
+        $this->assertSame('ABC UNIVERSITY', $ranking[0]['school_name']);
+        $this->assertSame('XYZ COLLEGE', $ranking[1]['school_name']);
+    }
+
+    public function testGetSchoolRankingByHonorCountExcludesSchoolsWithNoGraduatesThatYear(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec(
+            "INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, latin_honor, graduation_year)
+             VALUES (1, 1, 'JUAN DELA CRUZ', 'CUM LAUDE', 2024)"
+        );
+
+        $ranking = get_school_ranking_by_honor_count($pdo, 2025);
+
+        $this->assertSame([], $ranking);
+    }
+
+    public function testGetSchoolRankingByHonorCountReturnsEmptyForYearWithNoData(): void
+    {
+        $this->assertSame([], get_school_ranking_by_honor_count(TestDb::pdo(), 1999));
+    }
 }
