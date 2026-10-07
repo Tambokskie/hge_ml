@@ -21,7 +21,7 @@ try {
 
     $rows = get_school_ranking_by_honor_count($pdo, $year);
     $rows = array_map(static function (array $row): array {
-        $row['school_display'] = format_school_display_name($row['school_name'], $row['campus']);
+        $row['school_display'] = strtoupper(format_school_display_name($row['school_name'], $row['campus']));
         return $row;
     }, $rows);
 

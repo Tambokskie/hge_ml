@@ -19,7 +19,7 @@ function get_application_filing_report(PDO $pdo, int $year): array
          JOIN latin_honor_graduates g ON g.school_id = s.id AND g.graduation_year = :year
          LEFT JOIN graduate_applications ga ON ga.graduate_id = g.id
          GROUP BY s.id, s.school_name, s.campus
-         ORDER BY s.school_name'
+         ORDER BY s.school_name, s.campus'
     );
     $stmt->execute(['year' => $year]);
 
@@ -89,7 +89,7 @@ function get_school_ranking_by_honor_count(PDO $pdo, int $year): array
          FROM schools s
          JOIN latin_honor_graduates g ON g.school_id = s.id AND g.graduation_year = :year
          GROUP BY s.id, s.school_name, s.campus
-         ORDER BY honor_count DESC, s.school_name ASC'
+         ORDER BY honor_count DESC, s.school_name ASC, s.campus ASC'
     );
     $stmt->execute(['year' => $year]);
 

@@ -21,7 +21,7 @@ try {
 
     $report = get_application_filing_report($pdo, $year);
     $report['schools'] = array_map(static function (array $school): array {
-        $school['school_display'] = format_school_display_name($school['school_name'], $school['campus']);
+        $school['school_display'] = strtoupper(format_school_display_name($school['school_name'], $school['campus']));
         return $school;
     }, $report['schools']);
 
