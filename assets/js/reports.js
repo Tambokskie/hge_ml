@@ -36,15 +36,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Same geometry admin/reports.php computes in PHP for the initial render —
     // kept identical so the AJAX year-switch redraw matches pixel-for-pixel.
-    var RING_RADIUS = 54;
-    var RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
     var DONUT_RADIUS = 50;
     var DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS;
 
     // Mirrors admin/reports.php's render_trend_html(): same arrow path,
     // color, and sign logic, built as an HTML string for innerHTML rather
     // than DOM construction since a whole small subtree is replaced at once.
-    function buildTrendHtml(change) {
+    function buildTrendHtml(change, span) {
         if (change === null || change === undefined) {
             return '';
         }
@@ -56,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var sign = isUp ? '+' : '';
         return '<p class="flex items-center gap-1 text-xs ' + colorClass + ' mt-2">' +
             '<svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="' + arrowPath + '" /></svg>' +
-            '<span>' + sign + Math.abs(change).toFixed(1) + '% FROM PREVIOUS YEAR</span>' +
+            '<span>' + sign + Math.abs(change).toFixed(1) + '% FROM PREVIOUS ' + (span > 1 ? span + ' YEARS' : 'YEAR') + '</span>' +
             '</p>';
     }
 
@@ -67,15 +65,46 @@ document.addEventListener('DOMContentLoaded', function () {
         return parseInt(String(el.textContent).replace(/,/g, ''), 10) || 0;
     }
 
-    var filingYearSelect = document.getElementById('filing-report-year');
+    // animateCountUp() rounds to whole numbers, so the filing-rate percentage
+    // (one decimal, e.g. 0.8%) gets its own tween from what's on screen to the
+    // new value. Honors prefers-reduced-motion and a newer call supersedes it.
+    function animateRate(el, target, duration) {
+        var from = parseFloat(el.textContent) || 0;
+        var token = el.__rateToken = (el.__rateToken || 0) + 1;
+
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            el.textContent = target + '%';
+            return;
+        }
+
+        var startTime = null;
+        function step(timestamp) {
+            if (el.__rateToken !== token) {
+                return;
+            }
+            if (startTime === null) {
+                startTime = timestamp;
+            }
+            var progress = Math.min((timestamp - startTime) / duration, 1);
+            var eased = 1 - Math.pow(1 - progress, 3);
+            if (progress < 1) {
+                el.textContent = (Math.round((from + (target - from) * eased) * 10) / 10) + '%';
+                requestAnimationFrame(step);
+            } else {
+                el.textContent = target + '%';
+            }
+        }
+        requestAnimationFrame(step);
+    }
+
+    var filingFromSelect = document.getElementById('filing-report-from');
+    var filingToSelect = document.getElementById('filing-report-to');
+    var filingPrintPeriod = document.getElementById('filing-print-period');
     var filingExportLink = document.getElementById('filing-report-export');
     var filingTbody = document.getElementById('filing-report-tbody');
     var filingTotalOnRecord = document.getElementById('filing-total-on-record');
     var filingTotalApplied = document.getElementById('filing-total-applied');
     var filingRate = document.getElementById('filing-rate');
-    var filingRateRing = document.getElementById('filing-rate-ring');
-    var filingRateBar = document.getElementById('filing-rate-bar');
-    var filingRateFraction = document.getElementById('filing-rate-fraction');
     var filingOnRecordTrend = document.getElementById('filing-on-record-trend');
     var filingAppliedTrend = document.getElementById('filing-applied-trend');
     var filingUpdatedAtRow = document.getElementById('filing-updated-at-row');
@@ -102,7 +131,6 @@ document.addEventListener('DOMContentLoaded', function () {
         },
     };
     var donutAppliedArc = document.getElementById('filing-donut-applied-arc');
-    var donutTotal = document.getElementById('filing-donut-total');
     var donutLegend = document.getElementById('filing-donut-legend');
     var insightsContainer = document.getElementById('filing-insights');
 
@@ -124,6 +152,217 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+
+    // ---- 5-year trend line chart (hand-rolled SVG, no charting library) ----
+    // Two lines on their own axes — graduates on record (right) and Honor
+    // Graduate Eligible filings (left) — because the filed count is typically
+    // ~1% of the on-record count and would be a flat line on a shared axis.
+    // Both axes use four equal intervals so the gridlines line up.
+    var trendContainer = document.getElementById('filing-trend-chart');
+    var trendSeries = config.initialTrend || [];
+    var trendSelectedYear = config.initialTo;
+    var reportRequestSeq = 0;
+
+    function niceStep(rawStep) {
+        var pow = Math.pow(10, Math.floor(Math.log10(rawStep)));
+        var n = rawStep / pow;
+        var nice = n <= 1 ? 1 : (n <= 2 ? 2 : (n <= 2.5 ? 2.5 : (n <= 5 ? 5 : 10)));
+        return nice * pow;
+    }
+
+    function niceAxisMax(value) {
+        if (value <= 0) {
+            return 4;
+        }
+        var step = Math.max(niceStep(value / 4), 1);
+        return step * 4;
+    }
+
+    // Catmull-Rom spline through the points, expressed as cubic Beziers; control
+    // points are clamped to the plot so a curve never dips below the baseline.
+    function smoothPath(points, minY, maxY) {
+        if (points.length < 2) {
+            return points.length ? 'M' + points[0].x + ',' + points[0].y : '';
+        }
+        function clampY(y) {
+            return Math.min(maxY, Math.max(minY, y));
+        }
+        var d = 'M' + points[0].x.toFixed(1) + ',' + points[0].y.toFixed(1);
+        for (var i = 0; i < points.length - 1; i++) {
+            var p0 = points[i - 1] || points[i];
+            var p1 = points[i];
+            var p2 = points[i + 1];
+            var p3 = points[i + 2] || p2;
+            var c1x = p1.x + (p2.x - p0.x) / 6;
+            var c1y = clampY(p1.y + (p2.y - p0.y) / 6);
+            var c2x = p2.x - (p3.x - p1.x) / 6;
+            var c2y = clampY(p2.y - (p3.y - p1.y) / 6);
+            d += ' C' + c1x.toFixed(1) + ',' + c1y.toFixed(1) + ' ' + c2x.toFixed(1) + ',' + c2y.toFixed(1) + ' ' + p2.x.toFixed(1) + ',' + p2.y.toFixed(1);
+        }
+        return d;
+    }
+
+    function renderTrendChart(animate) {
+        if (!trendContainer || trendSeries.length === 0) {
+            return;
+        }
+        var width = trendContainer.clientWidth;
+        var height = trendContainer.clientHeight;
+        if (width < 120) {
+            return;
+        }
+
+        var m = { top: 14, right: 56, bottom: 28, left: 48 };
+        var plotW = width - m.left - m.right;
+        var plotH = height - m.top - m.bottom;
+        var inset = 24;
+        var maxOn = niceAxisMax(Math.max.apply(null, trendSeries.map(function (p) { return p.on_record; })));
+        var maxAp = niceAxisMax(Math.max.apply(null, trendSeries.map(function (p) { return p.applied; })));
+        var baseY = m.top + plotH;
+
+        function xAt(i) {
+            return m.left + inset + (trendSeries.length === 1 ? (plotW - 2 * inset) / 2 : i * (plotW - 2 * inset) / (trendSeries.length - 1));
+        }
+        function yAt(value, max) {
+            return baseY - (value / max) * plotH;
+        }
+
+        var onPoints = trendSeries.map(function (p, i) { return { x: xAt(i), y: yAt(p.on_record, maxOn) }; });
+        var apPoints = trendSeries.map(function (p, i) { return { x: xAt(i), y: yAt(p.applied, maxAp) }; });
+        var onLine = smoothPath(onPoints, m.top, baseY);
+        var apLine = smoothPath(apPoints, m.top, baseY);
+        var lastX = onPoints[onPoints.length - 1].x;
+        var firstX = onPoints[0].x;
+
+        var svg = '<svg width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '" class="block overflow-visible">';
+        svg += '<defs>' +
+            '<linearGradient id="trend-grad-on" x1="0" y1="0" x2="0" y2="1" class="text-csc-navy-600 dark:text-csc-navy-300"><stop offset="0%" stop-color="currentColor" stop-opacity="0.28"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient>' +
+            '<linearGradient id="trend-grad-ap" x1="0" y1="0" x2="0" y2="1" class="text-emerald-500"><stop offset="0%" stop-color="currentColor" stop-opacity="0.22"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient>' +
+            '</defs>';
+
+        for (var t = 0; t <= 4; t++) {
+            var gy = m.top + (plotH * t / 4);
+            var onVal = Math.round(maxOn * (4 - t) / 4);
+            var apVal = Math.round(maxAp * (4 - t) / 4 * 10) / 10;
+            svg += '<line x1="' + m.left + '" y1="' + gy + '" x2="' + (width - m.right) + '" y2="' + gy + '" stroke="currentColor" stroke-width="1" class="text-gray-200 dark:text-white/10"/>';
+            svg += '<text x="' + (m.left - 8) + '" y="' + (gy + 4) + '" text-anchor="end" font-size="11" fill="currentColor" class="text-emerald-600 dark:text-emerald-400">' + apVal.toLocaleString('en-US') + '</text>';
+            svg += '<text x="' + (width - m.right + 8) + '" y="' + (gy + 4) + '" text-anchor="start" font-size="11" fill="currentColor" class="text-csc-navy-600 dark:text-csc-navy-300">' + onVal.toLocaleString('en-US') + '</text>';
+        }
+
+        trendSeries.forEach(function (p, i) {
+            var isSelected = p.year === trendSelectedYear;
+            svg += '<text x="' + xAt(i) + '" y="' + (height - 8) + '" text-anchor="middle" font-size="11" fill="currentColor" class="' +
+                (isSelected ? 'text-csc-navy-600 dark:text-white font-bold' : 'text-gray-500 dark:text-gray-400') + '">' + p.year + '</text>';
+        });
+
+        svg += '<g class="text-csc-navy-600 dark:text-csc-navy-300"><path data-trend-area d="' + onLine + ' L' + lastX.toFixed(1) + ',' + baseY + ' L' + firstX.toFixed(1) + ',' + baseY + ' Z" fill="url(#trend-grad-on)" stroke="none"/>' +
+            '<path data-trend-line d="' + onLine + '" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></g>';
+        svg += '<g class="text-emerald-500"><path data-trend-area d="' + apLine + ' L' + lastX.toFixed(1) + ',' + baseY + ' L' + firstX.toFixed(1) + ',' + baseY + ' Z" fill="url(#trend-grad-ap)" stroke="none"/>' +
+            '<path data-trend-line d="' + apLine + '" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></g>';
+
+        trendSeries.forEach(function (p, i) {
+            var r = p.year === trendSelectedYear ? 4.5 : 3;
+            svg += '<circle cx="' + onPoints[i].x + '" cy="' + onPoints[i].y + '" r="' + r + '" fill="currentColor" stroke="white" stroke-width="1.5" class="text-csc-navy-600 dark:text-csc-navy-300"/>';
+            svg += '<circle cx="' + apPoints[i].x + '" cy="' + apPoints[i].y + '" r="' + r + '" fill="currentColor" stroke="white" stroke-width="1.5" class="text-emerald-500"/>';
+        });
+
+        svg += '<line id="trend-hover-line" x1="0" y1="' + m.top + '" x2="0" y2="' + baseY + '" stroke="currentColor" stroke-width="1" stroke-dasharray="4 4" class="text-csc-navy-600 dark:text-csc-navy-300" style="display:none"/>' +
+            '<circle id="trend-hover-on" r="6" fill="white" stroke="currentColor" stroke-width="2.5" class="text-csc-navy-600 dark:text-csc-navy-300" style="display:none"/>' +
+            '<circle id="trend-hover-ap" r="6" fill="white" stroke="currentColor" stroke-width="2.5" class="text-emerald-500" style="display:none"/>' +
+            '<rect id="trend-hit" x="' + m.left + '" y="' + m.top + '" width="' + plotW + '" height="' + plotH + '" fill="transparent"/>';
+        svg += '</svg>';
+        svg += '<div id="trend-tooltip" class="pointer-events-none absolute z-10 hidden rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs text-white shadow-lg whitespace-nowrap dark:bg-white dark:text-gray-900"></div>';
+
+        trendContainer.innerHTML = svg;
+
+        var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (animate && !reduceMotion) {
+            trendContainer.querySelectorAll('[data-trend-line]').forEach(function (path) {
+                var len = path.getTotalLength();
+                path.style.strokeDasharray = len;
+                path.style.strokeDashoffset = len;
+                path.getBoundingClientRect();
+                path.style.transition = 'stroke-dashoffset 1200ms ease-out';
+                path.style.strokeDashoffset = 0;
+            });
+            trendContainer.querySelectorAll('[data-trend-area]').forEach(function (path) {
+                path.style.opacity = 0;
+                path.getBoundingClientRect();
+                path.style.transition = 'opacity 1200ms ease-out';
+                path.style.opacity = 1;
+            });
+        }
+
+        var hit = document.getElementById('trend-hit');
+        var hoverLine = document.getElementById('trend-hover-line');
+        var hoverOn = document.getElementById('trend-hover-on');
+        var hoverAp = document.getElementById('trend-hover-ap');
+        var tooltip = document.getElementById('trend-tooltip');
+
+        function hideHover() {
+            hoverLine.style.display = 'none';
+            hoverOn.style.display = 'none';
+            hoverAp.style.display = 'none';
+            tooltip.classList.add('hidden');
+        }
+
+        function showHover(event) {
+            var rect = trendContainer.getBoundingClientRect();
+            var px = event.clientX - rect.left;
+            var nearest = 0;
+            var best = Infinity;
+            trendSeries.forEach(function (p, i) {
+                var dist = Math.abs(xAt(i) - px);
+                if (dist < best) {
+                    best = dist;
+                    nearest = i;
+                }
+            });
+            var point = trendSeries[nearest];
+            var x = xAt(nearest);
+
+            hoverLine.setAttribute('x1', x);
+            hoverLine.setAttribute('x2', x);
+            hoverLine.style.display = '';
+            hoverOn.setAttribute('cx', x);
+            hoverOn.setAttribute('cy', onPoints[nearest].y);
+            hoverOn.style.display = '';
+            hoverAp.setAttribute('cx', x);
+            hoverAp.setAttribute('cy', apPoints[nearest].y);
+            hoverAp.style.display = '';
+
+            tooltip.innerHTML = '<div class="font-semibold mb-0.5">' + point.year + '</div>' +
+                '<div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-csc-navy-300"></span>GRADUATED: <b>' + point.on_record.toLocaleString('en-US') + '</b></div>' +
+                '<div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-400"></span>APPLIED FOR HGE: <b>' + point.applied.toLocaleString('en-US') + '</b></div>';
+            tooltip.classList.remove('hidden');
+            var tipW = tooltip.offsetWidth;
+            var left = x + 14;
+            if (left + tipW > width - 4) {
+                left = x - tipW - 14;
+            }
+            tooltip.style.left = Math.max(4, left) + 'px';
+            tooltip.style.top = Math.max(0, Math.min(onPoints[nearest].y, apPoints[nearest].y) - 20) + 'px';
+        }
+
+        hit.addEventListener('pointermove', showHover);
+        hit.addEventListener('pointerdown', showHover);
+        hit.addEventListener('pointerleave', hideHover);
+    }
+
+    if (trendContainer) {
+        renderTrendChart(true);
+
+        var trendResizeFrame = null;
+        var trendLastWidth = trendContainer.clientWidth;
+        new ResizeObserver(function () {
+            if (trendContainer.clientWidth === trendLastWidth) {
+                return;
+            }
+            trendLastWidth = trendContainer.clientWidth;
+            cancelAnimationFrame(trendResizeFrame);
+            trendResizeFrame = requestAnimationFrame(function () { renderTrendChart(false); });
+        }).observe(trendContainer);
+    }
 
     // Holds the current section's full, unfiltered school list so search/sort/
     // status-filter can re-slice it locally without a round trip — the JSON
@@ -226,28 +465,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function renderFilingReport(data) {
-        filingTotalOnRecord.textContent = Number(data.report.total_on_record).toLocaleString('en-US');
-        filingTotalApplied.textContent = Number(data.report.total_applied).toLocaleString('en-US');
-        filingRate.textContent = data.report.filing_rate + '%';
-
-        var ringRate = Math.min(100, Math.max(0, data.report.filing_rate));
-        var ringOffset = RING_CIRCUMFERENCE * (1 - ringRate / 100);
-        if (filingRateRing) {
-            filingRateRing.setAttribute('stroke-dasharray', RING_CIRCUMFERENCE.toFixed(2));
-            filingRateRing.setAttribute('stroke-dashoffset', ringOffset.toFixed(2));
-        }
-        if (filingRateBar) {
-            filingRateBar.style.width = ringRate + '%';
-        }
-        if (filingRateFraction) {
-            filingRateFraction.textContent = data.report.total_applied + ' / ' + data.report.total_on_record;
-        }
+        animateCountUp(filingTotalOnRecord, data.report.total_on_record, 1000, null, parseDisplayedNumber(filingTotalOnRecord));
+        animateCountUp(filingTotalApplied, data.report.total_applied, 1000, null, parseDisplayedNumber(filingTotalApplied));
+        animateRate(filingRate, data.report.filing_rate, 1000);
 
         if (filingOnRecordTrend) {
-            filingOnRecordTrend.innerHTML = buildTrendHtml(data.trends ? data.trends.on_record_change : null);
+            filingOnRecordTrend.innerHTML = buildTrendHtml(data.trends ? data.trends.on_record_change : null, data.span);
         }
         if (filingAppliedTrend) {
-            filingAppliedTrend.innerHTML = buildTrendHtml(data.trends ? data.trends.applied_change : null);
+            filingAppliedTrend.innerHTML = buildTrendHtml(data.trends ? data.trends.applied_change : null, data.span);
         }
 
         if (filingUpdatedAtRow && filingUpdatedAt) {
@@ -282,9 +508,6 @@ document.addEventListener('DOMContentLoaded', function () {
             donutAppliedArc.setAttribute('stroke-dasharray', DONUT_CIRCUMFERENCE.toFixed(2));
             donutAppliedArc.setAttribute('stroke-dashoffset', (DONUT_CIRCUMFERENCE - appliedLength).toFixed(2));
         }
-        if (donutTotal) {
-            animateCountUp(donutTotal, totalOnRecord, 800, null, parseDisplayedNumber(donutTotal));
-        }
         if (donutLegend) {
             var notYetApplied = totalOnRecord - data.report.total_applied;
             var notYetAppliedPercent = totalOnRecord > 0 ? Math.round((notYetApplied / totalOnRecord) * 1000) / 10 : 0;
@@ -296,6 +519,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         renderInsights(data.insights);
 
+        if (data.trend_series) {
+            trendSeries = data.trend_series;
+            trendSelectedYear = data.to;
+            renderTrendChart(true);
+        }
+
         currentSchools = data.report.schools;
         if (filingSchoolSearch) {
             filingSchoolSearch.value = '';
@@ -306,24 +535,59 @@ document.addEventListener('DOMContentLoaded', function () {
         renderSchoolTable();
     }
 
-    if (filingYearSelect) {
-        filingYearSelect.addEventListener('change', function () {
-            var year = filingYearSelect.value;
-            filingExportLink.href = config.apiBase + '/api/export_application_filing_report.php?year=' + encodeURIComponent(year);
-
-            fetch(config.apiBase + '/api/get_application_filing_report.php?year=' + encodeURIComponent(year))
-                .then(function (response) { return response.json(); })
-                .then(function (data) {
-                    if (data.status === 'success') {
-                        renderFilingReport(data);
-                    } else {
-                        showToast('error', data.message || 'THE REPORT COULD NOT BE LOADED.');
-                    }
-                })
-                .catch(function () {
-                    showToast('error', 'THE REPORT COULD NOT BE LOADED. PLEASE TRY AGAIN.');
-                });
+    // From/To range: a year can't be picked that would invert the range —
+    // the "to" options earlier than "from" and the "from" options later than
+    // "to" are disabled, so an invalid combination is never selectable.
+    function syncRangeOptions() {
+        var from = parseInt(filingFromSelect.value, 10);
+        var to = parseInt(filingToSelect.value, 10);
+        Array.prototype.forEach.call(filingToSelect.options, function (option) {
+            option.disabled = parseInt(option.value, 10) < from;
         });
+        Array.prototype.forEach.call(filingFromSelect.options, function (option) {
+            option.disabled = parseInt(option.value, 10) > to;
+        });
+    }
+
+    function loadReportRange() {
+        var from = parseInt(filingFromSelect.value, 10);
+        var to = parseInt(filingToSelect.value, 10);
+        if (from > to) {
+            to = from;
+            filingToSelect.value = String(to);
+        }
+        syncRangeOptions();
+
+        var seq = ++reportRequestSeq;
+        var query = 'from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
+        filingExportLink.href = config.apiBase + '/api/export_application_filing_report.php?' + query;
+        if (filingPrintPeriod) {
+            filingPrintPeriod.textContent = from === to ? String(from) : from + '–' + to;
+        }
+
+        fetch(config.apiBase + '/api/get_application_filing_report.php?' + query)
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (seq !== reportRequestSeq) {
+                    return;
+                }
+                if (data.status === 'success') {
+                    renderFilingReport(data);
+                } else {
+                    showToast('error', data.message || 'THE REPORT COULD NOT BE LOADED.');
+                }
+            })
+            .catch(function () {
+                if (seq === reportRequestSeq) {
+                    showToast('error', 'THE REPORT COULD NOT BE LOADED. PLEASE TRY AGAIN.');
+                }
+            });
+    }
+
+    if (filingFromSelect && filingToSelect) {
+        syncRangeOptions();
+        filingFromSelect.addEventListener('change', loadReportRange);
+        filingToSelect.addEventListener('change', loadReportRange);
     }
 
     if (filingSchoolSearch) {

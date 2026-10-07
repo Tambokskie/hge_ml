@@ -245,11 +245,12 @@ function build_latin_honor_template_xlsx(string $schoolName, string $campus): st
  *     includes/*.php files in this project don't require each other; the
  *     caller (the export endpoint) does that formatting first.
  */
-function build_application_filing_report_xlsx(array $report, int $year): string
+function build_application_filing_report_xlsx(array $report, int $fromYear, ?int $toYear = null): string
 {
+    $period = ($toYear === null || $toYear === $fromYear) ? (string) $fromYear : $fromYear . '–' . $toYear;
     $rows = [
         1 => [
-            1 => ['value' => 'APPLICATION FILING REPORT — ' . $year, 'style' => 1],
+            1 => ['value' => 'APPLICATION FILING REPORT — ' . $period, 'style' => 1],
         ],
         3 => [
             1 => ['value' => 'TOTAL ON RECORD', 'style' => 1],

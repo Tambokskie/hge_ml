@@ -12,25 +12,29 @@ header('Content-Type: application/json');
 try {
     $pdo = get_pdo();
 
-    // An invalid or missing year (a malformed/tampered query string — the
-    // page's own <select> always sends a real value) falls back to the
-    // most recent year with data rather than hard-erroring, per the design
-    // spec: a report page should always render something.
-    $year = (int) ($_GET['year'] ?? 0);
-    if ($year <= 0) {
-        $years = get_distinct_graduation_years($pdo);
-        $year = $years[0] ?? (int) date('Y');
-    }
+    // Missing/tampered from/to (the page's own selects always send real
+    // values) fall back to the default range, and an inverted or
+    // out-of-range pair is clamped — a report page should always render
+    // something coherent. The normalized range is echoed back so the page
+    // can resync its selects to what was actually used.
+    [$fromYear, $toYear] = normalize_report_year_range(
+        get_distinct_graduation_years($pdo),
+        isset($_GET['from']) ? (int) $_GET['from'] : null,
+        isset($_GET['to']) ? (int) $_GET['to'] : null
+    );
 
-    $report = get_application_filing_report($pdo, $year);
-    $tierBreakdown = get_honor_tier_breakdown_for_year($pdo, $year);
+    $report = get_application_filing_report($pdo, $fromYear, $toYear);
+    $tierBreakdown = get_honor_tier_breakdown_for_year($pdo, $fromYear, $toYear);
     $insights = get_application_filing_insights($report['schools']);
-    $updatedAt = get_latest_update_timestamp_for_year($pdo, $year);
+    $updatedAt = get_latest_update_timestamp_for_year($pdo);
 
-    $previousYearReport = get_application_filing_report($pdo, $year - 1);
+    // Trend lines compare against the period of equal length immediately
+    // before this one (the previous year when a single year is selected).
+    $span = $toYear - $fromYear + 1;
+    $previousPeriodReport = get_application_filing_report($pdo, $fromYear - $span, $fromYear - 1);
     $trends = [
-        'on_record_change' => compute_percent_change($report['total_on_record'], $previousYearReport['total_on_record']),
-        'applied_change' => compute_percent_change($report['total_applied'], $previousYearReport['total_applied']),
+        'on_record_change' => compute_percent_change($report['total_on_record'], $previousPeriodReport['total_on_record']),
+        'applied_change' => compute_percent_change($report['total_applied'], $previousPeriodReport['total_applied']),
     ];
 
     $formatSchoolDisplay = static function (array $school): array {
@@ -48,11 +52,14 @@ try {
 
     echo json_encode([
         'status' => 'success',
-        'year' => $year,
+        'from' => $fromYear,
+        'to' => $toYear,
+        'span' => $span,
         'report' => $report,
         'tier_breakdown' => $tierBreakdown,
         'insights' => $insights,
         'trends' => $trends,
+        'trend_series' => get_filing_trend($pdo, $fromYear, $toYear),
         'updated_at' => $updatedAt,
     ]);
 } catch (\Throwable $e) {

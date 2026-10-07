@@ -11,22 +11,22 @@ require_login();
 try {
     $pdo = get_pdo();
 
-    // Same invalid/missing-year fallback as api/get_application_filing_report.php
-    // — defaults to the most recent year with data rather than hard-erroring.
-    $year = (int) ($_GET['year'] ?? 0);
-    if ($year <= 0) {
-        $years = get_distinct_graduation_years($pdo);
-        $year = $years[0] ?? (int) date('Y');
-    }
+    // Same from/to normalization as the page and the JSON endpoint, so an
+    // export always covers exactly the range the report on screen shows.
+    [$fromYear, $toYear] = normalize_report_year_range(
+        get_distinct_graduation_years($pdo),
+        isset($_GET['from']) ? (int) $_GET['from'] : null,
+        isset($_GET['to']) ? (int) $_GET['to'] : null
+    );
 
-    $report = get_application_filing_report($pdo, $year);
+    $report = get_application_filing_report($pdo, $fromYear, $toYear);
     $report['schools'] = array_map(static function (array $school): array {
         $school['school_display'] = strtoupper(format_school_display_name($school['school_name'], $school['campus']));
         return $school;
     }, $report['schools']);
 
-    $bytes = build_application_filing_report_xlsx($report, $year);
-    $filename = 'APPLICATION_FILING_REPORT_' . $year . '.xlsx';
+    $bytes = build_application_filing_report_xlsx($report, $fromYear, $toYear);
+    $filename = 'APPLICATION_FILING_REPORT_' . ($fromYear === $toYear ? $fromYear : $fromYear . '-' . $toYear) . '.xlsx';
 
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment; filename="' . $filename . '"');

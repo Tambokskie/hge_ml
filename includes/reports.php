@@ -4,24 +4,27 @@
  * Per-school, year-scoped breakdown of Latin Honor graduates on record
  * versus how many have filed for Honor Graduate Eligibility (see
  * includes/graduates.php:file_application() / the graduate_applications
- * table). A school with zero Latin Honor graduates in $year is excluded
- * entirely (INNER JOIN, not LEFT JOIN) rather than shown as an all-zero
+ * table) across the graduation years $fromYear..$toYear inclusive (a single
+ * year when $toYear is omitted). A school with zero Latin Honor graduates in
+ * the range is excluded entirely (INNER JOIN, not LEFT JOIN) rather than shown as an all-zero
  * row. filing_rate is always computed here in PHP, never in SQL, and only
  * ever divides by an on_record value already confirmed > 0.
  */
-function get_application_filing_report(PDO $pdo, int $year): array
+function get_application_filing_report(PDO $pdo, int $fromYear, ?int $toYear = null): array
 {
+    $toYear = $toYear ?? $fromYear;
+
     $stmt = $pdo->prepare(
         'SELECT s.school_name, s.campus,
                 COUNT(g.id) AS on_record,
                 COUNT(ga.id) AS applied
          FROM schools s
-         JOIN latin_honor_graduates g ON g.school_id = s.id AND g.graduation_year = :year
+         JOIN latin_honor_graduates g ON g.school_id = s.id AND g.graduation_year BETWEEN :from_year AND :to_year
          LEFT JOIN graduate_applications ga ON ga.graduate_id = g.id
          GROUP BY s.id, s.school_name, s.campus
          ORDER BY s.school_name, s.campus'
     );
-    $stmt->execute(['year' => $year]);
+    $stmt->execute(['from_year' => $fromYear, 'to_year' => $toYear]);
 
     $schools = [];
     $totalOnRecord = 0;
@@ -52,27 +55,69 @@ function get_application_filing_report(PDO $pdo, int $year): array
 
 /**
  * Year-scoped sibling of includes/functions.php's get_honor_type_breakdown()
- * — same three-key shape and zero-filled defaults, but counts only one
- * graduation year rather than every graduate on file. Kept separate from
+ * — same three-key shape and zero-filled defaults, but counts only the
+ * graduation years $fromYear..$toYear (one year when $toYear is omitted)
+ * rather than every graduate on file. Kept separate from
  * the dashboard's version rather than adding a parameter to it, since the
  * dashboard's call site has no year to pass and changing that function's
  * signature would ripple into admin/dashboard.php for no reason.
  */
-function get_honor_tier_breakdown_for_year(PDO $pdo, int $year): array
+function get_honor_tier_breakdown_for_year(PDO $pdo, int $fromYear, ?int $toYear = null): array
 {
+    $toYear = $toYear ?? $fromYear;
+
     $counts = [
         'CUM LAUDE' => 0,
         'MAGNA CUM LAUDE' => 0,
         'SUMMA CUM LAUDE' => 0,
     ];
 
-    $stmt = $pdo->prepare('SELECT latin_honor, COUNT(*) AS total FROM latin_honor_graduates WHERE graduation_year = :year GROUP BY latin_honor');
-    $stmt->execute(['year' => $year]);
+    $stmt = $pdo->prepare('SELECT latin_honor, COUNT(*) AS total FROM latin_honor_graduates WHERE graduation_year BETWEEN :from_year AND :to_year GROUP BY latin_honor');
+    $stmt->execute(['from_year' => $fromYear, 'to_year' => $toYear]);
     foreach ($stmt->fetchAll() as $row) {
         $counts[$row['latin_honor']] = (int) $row['total'];
     }
 
     return $counts;
+}
+
+/**
+ * Latin Honor graduates on record vs. filed Honor Graduate Eligibility
+ * applications for every graduation year from $fromYear to $toYear inclusive
+ * (oldest first). A year with no graduates is still returned, as zeros, so
+ * the chart always has one point per year.
+ *
+ * @return array<int, array{year: int, on_record: int, applied: int}>
+ */
+function get_filing_trend(PDO $pdo, int $fromYear, int $toYear): array
+{
+    $startYear = $fromYear;
+    $endYear = $toYear;
+
+    $stmt = $pdo->prepare(
+        'SELECT g.graduation_year AS year, COUNT(g.id) AS on_record, COUNT(ga.id) AS applied
+         FROM latin_honor_graduates g
+         LEFT JOIN graduate_applications ga ON ga.graduate_id = g.id
+         WHERE g.graduation_year BETWEEN :start_year AND :end_year
+         GROUP BY g.graduation_year'
+    );
+    $stmt->execute(['start_year' => $startYear, 'end_year' => $endYear]);
+
+    $byYear = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $byYear[(int) $row['year']] = ['on_record' => (int) $row['on_record'], 'applied' => (int) $row['applied']];
+    }
+
+    $trend = [];
+    for ($year = $startYear; $year <= $endYear; $year++) {
+        $trend[] = [
+            'year' => $year,
+            'on_record' => $byYear[$year]['on_record'] ?? 0,
+            'applied' => $byYear[$year]['applied'] ?? 0,
+        ];
+    }
+
+    return $trend;
 }
 
 /**
@@ -91,18 +136,54 @@ function compute_percent_change(int $current, int $previous): ?float
 }
 
 /**
- * Most recent latin_honor_graduates.updated_at for a graduation year.
- * updated_at carries ON UPDATE CURRENT_TIMESTAMP, so this reflects the
- * latest save OR correction for that year, not just the original upload.
- * Null when the year has no graduates on record.
+ * Most recent latin_honor_graduates.updated_at — across all graduates by
+ * default (the "DATA UPDATED" line is not part of the year filter), or
+ * limited to a graduation-year range when one is given. updated_at carries
+ * ON UPDATE CURRENT_TIMESTAMP, so this reflects the latest save OR
+ * correction, not just the original upload. Null when there is no data.
  */
-function get_latest_update_timestamp_for_year(PDO $pdo, int $year): ?string
+function get_latest_update_timestamp_for_year(PDO $pdo, ?int $fromYear = null, ?int $toYear = null): ?string
 {
-    $stmt = $pdo->prepare('SELECT MAX(updated_at) FROM latin_honor_graduates WHERE graduation_year = :year');
-    $stmt->execute(['year' => $year]);
+    if ($fromYear === null) {
+        $stmt = $pdo->query('SELECT MAX(updated_at) FROM latin_honor_graduates');
+    } else {
+        $stmt = $pdo->prepare('SELECT MAX(updated_at) FROM latin_honor_graduates WHERE graduation_year BETWEEN :from_year AND :to_year');
+        $stmt->execute(['from_year' => $fromYear, 'to_year' => $toYear ?? $fromYear]);
+    }
     $result = $stmt->fetchColumn();
 
     return $result === false || $result === null ? null : $result;
+}
+
+/**
+ * Turns whatever from/to the browser sent into a valid reporting range:
+ * both clamped to the years that exist, and "to" never earlier than "from".
+ * Defaults (nothing sent) are the latest year as "to" and the 5-year
+ * period ending there as "from" — the report's original behavior. Used by
+ * the page, the JSON endpoint and the export so all three always agree.
+ *
+ * @param array<int, int> $availableYears
+ * @return array{0: int, 1: int}
+ */
+function normalize_report_year_range(array $availableYears, ?int $from, ?int $to): array
+{
+    if ($availableYears === []) {
+        $year = (int) date('Y');
+
+        return [$year, $year];
+    }
+
+    $min = min($availableYears);
+    $max = max($availableYears);
+
+    $to = ($to === null || $to <= 0) ? $max : max($min, min($max, $to));
+    $from = ($from === null || $from <= 0) ? max($min, $to - 4) : max($min, min($max, $from));
+
+    if ($from > $to) {
+        $to = $from;
+    }
+
+    return [$from, $to];
 }
 
 /**

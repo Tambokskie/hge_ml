@@ -140,4 +140,15 @@ class XlsxReadWriteTest extends TestCase
         $this->assertSame('0', $rows[9][3]);
     }
 
+    public function testApplicationFilingReportXlsxTitleShowsTheSelectedPeriod(): void
+    {
+        $report = ['total_on_record' => 0, 'total_applied' => 0, 'filing_rate' => 0.0, 'schools' => []];
+
+        $range = xlsx_read_first_sheet($this->writeTempFile(build_application_filing_report_xlsx($report, 2022, 2026)));
+        $single = xlsx_read_first_sheet($this->writeTempFile(build_application_filing_report_xlsx($report, 2025, 2025)));
+
+        $this->assertSame('APPLICATION FILING REPORT — 2022–2026', $range['rows'][1][1]);
+        $this->assertSame('APPLICATION FILING REPORT — 2025', $single['rows'][1][1]);
+    }
+
 }

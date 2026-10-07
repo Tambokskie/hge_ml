@@ -1,11 +1,9 @@
 <?php
 
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../config/gemini.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/users.php';
-require_once __DIR__ . '/../includes/app_settings.php';
 
 require_role('administrator');
 
@@ -14,10 +12,6 @@ $users = get_all_users($pdo);
 $currentUser = current_user();
 $currentPage = 'users';
 $csrfToken = csrf_token();
-$geminiKey1Status = gemini_key_display_status($pdo, 'gemini_api_key', defined('GEMINI_API_KEY') ? GEMINI_API_KEY : '');
-$geminiKey2Status = gemini_key_display_status($pdo, 'gemini_api_key_2', defined('GEMINI_API_KEY_2') ? GEMINI_API_KEY_2 : '');
-$geminiKey3Status = gemini_key_display_status($pdo, 'gemini_api_key_3', defined('GEMINI_API_KEY_3') ? GEMINI_API_KEY_3 : '');
-$geminiKey4Status = gemini_key_display_status($pdo, 'gemini_api_key_4', defined('GEMINI_API_KEY_4') ? GEMINI_API_KEY_4 : '');
 
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
@@ -38,14 +32,6 @@ include __DIR__ . '/../includes/sidebar.php';
                 <button type="button" id="create-user-btn" class="inline-flex items-center gap-1.5 rounded-xl bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-semibold px-4 py-2.5 transition-colors">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                     CREATE USER
-                </button>
-                <button type="button" id="create-db-backup-btn" class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-white/15 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium px-4 py-2.5 transition-colors">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                    CREATE DB BACKUP
-                </button>
-                <button type="button" id="configure-ai-settings-btn" class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-white/15 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium px-4 py-2.5 transition-colors">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
-                    AI EXTRACTION SETTINGS
                 </button>
             </div>
         </div>
@@ -105,13 +91,7 @@ include __DIR__ . '/../includes/sidebar.php';
 window.HGE_USERS = {
     csrfToken: <?= json_encode($csrfToken) ?>,
     apiBase: <?= json_encode(APP_BASE_URL) ?>,
-    currentUserId: <?= (int) $currentUser['id'] ?>,
-    geminiKeyStatus: {
-        key1: <?= json_encode($geminiKey1Status) ?>,
-        key2: <?= json_encode($geminiKey2Status) ?>,
-        key3: <?= json_encode($geminiKey3Status) ?>,
-        key4: <?= json_encode($geminiKey4Status) ?>
-    }
+    currentUserId: <?= (int) $currentUser['id'] ?>
 };
 </script>
 <script src="<?= e(asset_url('assets/js/users.js')) ?>"></script>

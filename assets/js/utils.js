@@ -47,8 +47,14 @@ function startExtractionProgressPolling(progressUrl, uploadId, onUpdate) {
 function animateCountUp(el, target, duration, onComplete, from) {
     var startValue = from || 0;
     var startTime = null;
+    // A newer call on the same element (e.g. year switched again mid-count)
+    // supersedes this one, so two loops never fight over the text.
+    var token = el.__countToken = (el.__countToken || 0) + 1;
 
     function step(timestamp) {
+        if (el.__countToken !== token) {
+            return;
+        }
         if (startTime === null) {
             startTime = timestamp;
         }

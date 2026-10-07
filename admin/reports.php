@@ -13,23 +13,32 @@ $currentPage = 'reports';
 $csrfToken = csrf_token();
 
 $graduationYears = get_distinct_graduation_years($pdo);
-$defaultYear = $graduationYears[0] ?? (int) date('Y');
 
-$filingReport = get_application_filing_report($pdo, $defaultYear);
-$tierBreakdown = get_honor_tier_breakdown_for_year($pdo, $defaultYear);
+// From/To dropdown options: every year from the earliest to the latest year
+// on file (a year with no records simply reports zeros). Default range is the
+// latest 5-year period, the report's original behavior.
+[$fromYear, $toYear] = normalize_report_year_range($graduationYears, null, null);
+$yearOptions = $graduationYears === [] ? [$toYear] : range(min($graduationYears), max($graduationYears));
+$periodLabel = $fromYear === $toYear ? (string) $fromYear : $fromYear . '–' . $toYear;
+$periodSpan = $toYear - $fromYear + 1;
+
+$filingReport = get_application_filing_report($pdo, $fromYear, $toYear);
+$tierBreakdown = get_honor_tier_breakdown_for_year($pdo, $fromYear, $toYear);
 $insights = get_application_filing_insights($filingReport['schools']);
-$updatedAt = get_latest_update_timestamp_for_year($pdo, $defaultYear);
+$updatedAt = get_latest_update_timestamp_for_year($pdo);
 $updatedAtDisplay = $updatedAt !== null ? strtoupper(date('F j, Y \a\t g:i A', strtotime($updatedAt))) : null;
 
-$previousYearReport = get_application_filing_report($pdo, $defaultYear - 1);
-$onRecordChange = compute_percent_change($filingReport['total_on_record'], $previousYearReport['total_on_record']);
-$appliedChange = compute_percent_change($filingReport['total_applied'], $previousYearReport['total_applied']);
+$trendSeries = get_filing_trend($pdo, $fromYear, $toYear);
+
+$previousPeriodReport = get_application_filing_report($pdo, $fromYear - $periodSpan, $fromYear - 1);
+$onRecordChange = compute_percent_change($filingReport['total_on_record'], $previousPeriodReport['total_on_record']);
+$appliedChange = compute_percent_change($filingReport['total_applied'], $previousPeriodReport['total_applied']);
 
 // Rendered twice (ON RECORD card, APPLIED card) — a page-local helper rather
 // than duplicating the same arrow/color/sign logic inline. Empty string when
 // $change is null (no prior-year baseline), so the caller's wrapper element
 // just renders empty rather than needing its own conditional.
-function render_trend_html(?float $change): string
+function render_trend_html(?float $change, int $span = 1): string
 {
     if ($change === null) {
         return '';
@@ -44,19 +53,14 @@ function render_trend_html(?float $change): string
 
     return '<p class="flex items-center gap-1 text-xs ' . $colorClass . ' mt-2">'
         . '<svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="' . $arrowPath . '" /></svg>'
-        . '<span>' . $sign . number_format(abs($change), 1) . '% FROM PREVIOUS YEAR</span>'
+        . '<span>' . $sign . number_format(abs($change), 1) . '% FROM PREVIOUS ' . ($span === 1 ? 'YEAR' : $span . ' YEARS') . '</span>'
         . '</p>';
 }
 
-// Hand-rolled SVG geometry (ring + donut), the same no-charting-library
+// Hand-rolled SVG geometry (donut), the same no-charting-library
 // convention already established by admin/dashboard.php's upload-activity
 // sparkline — computed once here in PHP; assets/js/reports.js mirrors this
 // exact arithmetic for the AJAX year-switch redraw.
-$ringRadius = 54;
-$ringCircumference = 2 * M_PI * $ringRadius;
-$ringRate = min(100, max(0, $filingReport['filing_rate']));
-$ringOffset = $ringCircumference * (1 - $ringRate / 100);
-
 $donutRadius = 50;
 $donutCircumference = 2 * M_PI * $donutRadius;
 $appliedFraction = $filingReport['total_on_record'] > 0
@@ -94,11 +98,6 @@ include __DIR__ . '/../includes/sidebar.php';
                 <div class="flex flex-wrap items-center justify-between gap-3 print:hidden">
                     <h2 class="text-lg font-bold text-csc-navy-600 dark:text-white">APPLICATION FILING REPORT</h2>
                     <div class="flex items-center gap-2">
-                        <select id="filing-report-year" class="rounded-xl border border-gray-300 dark:border-white/15 bg-white dark:bg-surface-800 text-sm px-3 py-2">
-                            <?php foreach ($graduationYears as $y): ?>
-                                <option value="<?= (int) $y ?>" <?= $y === $defaultYear ? 'selected' : '' ?>><?= (int) $y ?></option>
-                            <?php endforeach; ?>
-                        </select>
                         <div class="relative">
                             <button type="button" id="filing-export-toggle" aria-expanded="false" aria-controls="filing-export-menu" class="inline-flex items-center gap-1.5 rounded-xl bg-csc-navy-600 hover:bg-csc-navy-700 text-white text-sm font-medium px-4 py-2.5 transition-colors">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
@@ -106,7 +105,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
                             </button>
                             <div id="filing-export-menu" class="hidden absolute right-0 mt-2 w-44 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-800 shadow-lg z-10 py-1">
-                                <a id="filing-report-export" href="<?= e(APP_BASE_URL) ?>/api/export_application_filing_report.php?year=<?= (int) $defaultYear ?>" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">
+                                <a id="filing-report-export" href="<?= e(APP_BASE_URL) ?>/api/export_application_filing_report.php?from=<?= (int) $fromYear ?>&amp;to=<?= (int) $toYear ?>" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">
                                     <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
                                     EXPORT XLSX
                                 </a>
@@ -119,12 +118,29 @@ include __DIR__ . '/../includes/sidebar.php';
                     </div>
                 </div>
 
-                <p id="filing-updated-at-row" class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 mt-3 <?= $updatedAtDisplay === null ? 'hidden' : '' ?>">
-                    <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>
-                    DATA UPDATED: <span id="filing-updated-at"><?= e($updatedAtDisplay ?? '') ?></span>
-                </p>
+                <div class="flex flex-wrap items-center gap-3 mt-3">
+                    <div class="flex items-center gap-2 print:hidden">
+                        <label for="filing-report-from" class="text-xs font-semibold text-gray-500 dark:text-gray-400">FROM</label>
+                        <select id="filing-report-from" class="rounded-xl border border-gray-300 dark:border-white/15 bg-white dark:bg-surface-800 text-sm px-3 py-2">
+                            <?php foreach ($yearOptions as $y): ?>
+                                <option value="<?= (int) $y ?>" <?= $y === $fromYear ? 'selected' : '' ?> <?= $y > $toYear ? 'disabled' : '' ?>><?= (int) $y ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <label for="filing-report-to" class="text-xs font-semibold text-gray-500 dark:text-gray-400">TO</label>
+                        <select id="filing-report-to" class="rounded-xl border border-gray-300 dark:border-white/15 bg-white dark:bg-surface-800 text-sm px-3 py-2">
+                            <?php foreach ($yearOptions as $y): ?>
+                                <option value="<?= (int) $y ?>" <?= $y === $toYear ? 'selected' : '' ?> <?= $y < $fromYear ? 'disabled' : '' ?>><?= (int) $y ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <p class="hidden print:block text-xs font-semibold text-gray-700">REPORTING PERIOD: <span id="filing-print-period"><?= e($periodLabel) ?></span></p>
+                    <p id="filing-updated-at-row" class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 <?= $updatedAtDisplay === null ? 'hidden' : '' ?>">
+                        <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>
+                        DATA UPDATED: <span id="filing-updated-at"><?= e($updatedAtDisplay ?? '') ?></span>
+                    </p>
+                </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 mb-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 mb-4">
                     <div class="dashboard-stat-card items-start text-left motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
                         <div class="flex items-center gap-3 min-w-0">
                             <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
@@ -134,7 +150,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         </div>
                         <p id="filing-total-on-record" class="dashboard-stat-number" data-count-to="<?= (int) $filingReport['total_on_record'] ?>">0</p>
                         <p class="text-xs text-gray-500 dark:text-gray-500">LATIN HONOR GRADUATES</p>
-                        <div id="filing-on-record-trend"><?= render_trend_html($onRecordChange) ?></div>
+                        <div id="filing-on-record-trend"><?= render_trend_html($onRecordChange, $periodSpan) ?></div>
                     </div>
                     <div class="dashboard-stat-card items-start text-left motion-safe:animate-fade-in-up" style="animation-delay: 100ms">
                         <div class="flex items-center gap-3 min-w-0">
@@ -145,32 +161,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         </div>
                         <p id="filing-total-applied" class="dashboard-stat-number" data-count-to="<?= (int) $filingReport['total_applied'] ?>">0</p>
                         <p class="text-xs text-gray-500 dark:text-gray-500">HGE APPLICATIONS</p>
-                        <div id="filing-applied-trend"><?= render_trend_html($appliedChange) ?></div>
-                    </div>
-                    <div class="dashboard-stat-card items-start text-left motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
-                        <div class="flex items-center justify-between w-full gap-3">
-                            <div>
-                                <p class="text-xs text-gray-600 dark:text-gray-500">FILING RATE</p>
-                                <p class="text-xs text-gray-500 dark:text-gray-500 mt-0.5">OF GRADUATES APPLIED</p>
-                            </div>
-                            <div class="relative h-20 w-20 shrink-0">
-                                <svg viewBox="0 0 120 120" class="h-20 w-20 -rotate-90">
-                                    <circle cx="60" cy="60" r="<?= $ringRadius ?>" fill="none" stroke="currentColor" stroke-width="10" class="text-gray-100 dark:text-white/10" />
-                                    <circle id="filing-rate-ring" cx="60" cy="60" r="<?= $ringRadius ?>" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" class="text-sky-500 dark:text-sky-400" stroke-dasharray="<?= round($ringCircumference, 2) ?>" stroke-dashoffset="<?= round($ringOffset, 2) ?>" />
-                                </svg>
-                                <div class="absolute inset-0 flex items-center justify-center">
-                                    <span id="filing-rate" class="text-base font-bold text-csc-navy-600 dark:text-white"><?= e((string) $filingReport['filing_rate']) ?>%</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="w-full mt-3">
-                            <div class="h-1.5 w-full rounded-full bg-gray-100 dark:bg-white/10 overflow-hidden">
-                                <div id="filing-rate-bar" class="h-full rounded-full bg-sky-500 dark:bg-sky-400" style="width: <?= $ringRate ?>%"></div>
-                            </div>
-                            <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                                <span id="filing-rate-fraction"><?= (int) $filingReport['total_applied'] ?> / <?= (int) $filingReport['total_on_record'] ?></span>
-                            </p>
-                        </div>
+                        <div id="filing-applied-trend"><?= render_trend_html($appliedChange, $periodSpan) ?></div>
                     </div>
                 </div>
 
@@ -212,8 +203,8 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <circle id="filing-donut-applied-arc" cx="60" cy="60" r="<?= $donutRadius ?>" fill="none" stroke="currentColor" stroke-width="16" class="text-csc-navy-600 dark:text-csc-navy-300 motion-safe:transition-all motion-safe:duration-1000 motion-safe:ease-out" stroke-dasharray="<?= round($donutCircumference, 2) ?>" stroke-dashoffset="<?= round($donutCircumference, 2) ?>" data-target-offset="<?= round($donutCircumference - $donutAppliedLength, 2) ?>" />
                             </svg>
                             <div class="absolute inset-0 flex flex-col items-center justify-center">
-                                <span id="filing-donut-total" class="dashboard-stat-reveal text-xl font-bold text-csc-navy-600 dark:text-white" data-count-to="<?= (int) $filingReport['total_on_record'] ?>">0</span>
-                                <span class="text-[9px] text-gray-500 dark:text-gray-400 tracking-wide">TOTAL GRADUATES</span>
+                                <span id="filing-rate" class="text-xl font-bold text-csc-navy-600 dark:text-white"><?= e((string) $filingReport['filing_rate']) ?>%</span>
+                                <span class="text-[9px] text-gray-500 dark:text-gray-400 tracking-wide">FILING RATE</span>
                             </div>
                         </div>
                         <div id="filing-donut-legend" class="dashboard-stat-reveal space-y-1.5 mt-3 text-xs">
@@ -269,6 +260,22 @@ include __DIR__ . '/../includes/sidebar.php';
                             <?php endif; ?>
                         </div>
                     </div>
+                </div>
+
+                <div class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl p-4 mb-5 motion-safe:animate-fade-in-up" style="animation-delay: 900ms">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                        <div class="flex items-center gap-3">
+                            <h3 class="flex items-center gap-2 text-xs font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" /></svg>
+                                TREND
+                            </h3>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
+                            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300"></span>LATIN HONORS GRADUATED (RIGHT AXIS)</span>
+                            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>LATIN HONORS APPLIED FOR HGE (LEFT AXIS)</span>
+                        </div>
+                    </div>
+                    <div id="filing-trend-chart" class="relative w-full select-none" style="height: 260px"></div>
                 </div>
 
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-3 print:hidden">
@@ -339,7 +346,10 @@ include __DIR__ . '/../includes/sidebar.php';
 window.HGE_REPORTS = {
     apiBase: <?= json_encode(APP_BASE_URL) ?>,
     csrfToken: <?= json_encode($csrfToken) ?>,
-    initialSchools: <?= json_encode($filingSchoolsForJs) ?>
+    initialSchools: <?= json_encode($filingSchoolsForJs) ?>,
+    initialTrend: <?= json_encode($trendSeries) ?>,
+    initialFrom: <?= (int) $fromYear ?>,
+    initialTo: <?= (int) $toYear ?>
 };
 </script>
 <script src="<?= e(asset_url('assets/js/reports.js')) ?>"></script>
