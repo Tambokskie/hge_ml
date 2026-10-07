@@ -84,7 +84,7 @@ CREATE TABLE latin_honor_graduates (
 CREATE TABLE activity_log (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NULL,
-  action ENUM('login','logout','pdf_upload','pdf_delete','template_upload','record_created','record_updated','record_removed','record_draft_saved','search','user_created','user_updated','user_removed','school_created','school_updated','school_removed','application_filed','db_backup','ocr_keyword_created','ocr_keyword_removed','ai_settings_updated') NOT NULL,
+  action ENUM('login','logout','pdf_upload','pdf_delete','template_upload','record_created','record_updated','record_removed','record_restored','record_purged','record_draft_saved','search','user_created','user_updated','user_removed','school_created','school_updated','school_removed','application_filed','db_backup','ocr_keyword_created','ocr_keyword_removed','ai_settings_updated') NOT NULL,
   details TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id),
@@ -117,4 +117,25 @@ CREATE TABLE graduate_applications (
   FOREIGN KEY (graduate_id) REFERENCES latin_honor_graduates(id),
   FOREIGN KEY (applied_by) REFERENCES users(id),
   UNIQUE KEY uq_graduate_id (graduate_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE graduate_recycle_bin (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  original_id INT UNSIGNED NOT NULL,
+  upload_id INT UNSIGNED NOT NULL,
+  school_id INT UNSIGNED NOT NULL,
+  graduate_name VARCHAR(255) NOT NULL,
+  course VARCHAR(255) NOT NULL DEFAULT '',
+  latin_honor ENUM('CUM LAUDE','MAGNA CUM LAUDE','SUMMA CUM LAUDE') NOT NULL,
+  graduation_date DATE NULL,
+  graduation_year YEAR NOT NULL,
+  source ENUM('ai','ocr','text','manual') NULL DEFAULT NULL,
+  original_created_at TIMESTAMP NULL DEFAULT NULL,
+  deleted_by INT UNSIGNED NULL,
+  deleted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_reason VARCHAR(500) NOT NULL DEFAULT '',
+  deleted_via ENUM('manual','duplicate_cleanup','review_edit') NOT NULL DEFAULT 'manual',
+  FOREIGN KEY (deleted_by) REFERENCES users(id),
+  KEY idx_deleted_at (deleted_at),
+  KEY idx_original_id (original_id)
 ) ENGINE=InnoDB;

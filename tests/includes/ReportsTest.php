@@ -116,55 +116,80 @@ class ReportsTest extends TestCase
         ], $breakdown);
     }
 
-    public function testGetSchoolRankingByHonorCountOrdersDescending(): void
+    public function testComputePercentChangeOnIncrease(): void
+    {
+        $this->assertSame(20.0, compute_percent_change(120, 100));
+    }
+
+    public function testComputePercentChangeOnDecrease(): void
+    {
+        $this->assertSame(-20.0, compute_percent_change(80, 100));
+    }
+
+    public function testComputePercentChangeReturnsNullWhenPreviousIsZero(): void
+    {
+        $this->assertNull(compute_percent_change(50, 0));
+    }
+
+    public function testComputePercentChangeHandlesDropToZero(): void
+    {
+        $this->assertSame(-100.0, compute_percent_change(0, 50));
+    }
+
+    public function testGetApplicationFilingInsightsPicksTopFilingRateAndMostApplicants(): void
+    {
+        $schools = [
+            ['school_name' => 'ABC UNIVERSITY', 'campus' => 'MAIN', 'on_record' => 100, 'applied' => 5, 'filing_rate' => 5.0],
+            ['school_name' => 'XYZ COLLEGE', 'campus' => null, 'on_record' => 20, 'applied' => 9, 'filing_rate' => 45.0],
+        ];
+
+        $insights = get_application_filing_insights($schools);
+
+        $this->assertSame('XYZ COLLEGE', $insights['top_filing_rate']['school_name']);
+        $this->assertSame(45.0, $insights['top_filing_rate']['filing_rate']);
+        $this->assertSame('XYZ COLLEGE', $insights['most_applicants']['school_name']);
+        $this->assertSame(9, $insights['most_applicants']['applied']);
+    }
+
+    public function testGetApplicationFilingInsightsReturnsNullForEmptySchools(): void
+    {
+        $insights = get_application_filing_insights([]);
+
+        $this->assertNull($insights['top_filing_rate']);
+        $this->assertNull($insights['most_applicants']);
+    }
+
+    public function testGetApplicationFilingInsightsTieBreaksBySchoolNameAscending(): void
+    {
+        $schools = [
+            ['school_name' => 'XYZ COLLEGE', 'campus' => null, 'on_record' => 10, 'applied' => 5, 'filing_rate' => 50.0],
+            ['school_name' => 'ABC UNIVERSITY', 'campus' => 'MAIN', 'on_record' => 10, 'applied' => 5, 'filing_rate' => 50.0],
+        ];
+
+        $insights = get_application_filing_insights($schools);
+
+        $this->assertSame('ABC UNIVERSITY', $insights['top_filing_rate']['school_name']);
+        $this->assertSame('ABC UNIVERSITY', $insights['most_applicants']['school_name']);
+    }
+
+    public function testGetLatestUpdateTimestampForYearReturnsMostRecentUpdate(): void
     {
         $pdo = TestDb::pdo();
         $pdo->exec(
             "INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, latin_honor, graduation_year)
              VALUES (1, 1, 'JUAN DELA CRUZ', 'CUM LAUDE', 2025),
-                    (1, 1, 'MARIA SANTOS', 'CUM LAUDE', 2025),
-                    (2, 2, 'PEDRO REYES', 'CUM LAUDE', 2025)"
+                    (1, 1, 'MARIA SANTOS', 'MAGNA CUM LAUDE', 2025)"
         );
+        $pdo->exec("UPDATE latin_honor_graduates SET updated_at = '2025-06-01 10:00:00' WHERE graduate_name = 'JUAN DELA CRUZ'");
+        $pdo->exec("UPDATE latin_honor_graduates SET updated_at = '2025-07-15 14:30:00' WHERE graduate_name = 'MARIA SANTOS'");
 
-        $ranking = get_school_ranking_by_honor_count($pdo, 2025);
+        $timestamp = get_latest_update_timestamp_for_year($pdo, 2025);
 
-        $this->assertCount(2, $ranking);
-        $this->assertSame('ABC UNIVERSITY', $ranking[0]['school_name']);
-        $this->assertSame(2, $ranking[0]['honor_count']);
-        $this->assertSame('XYZ COLLEGE', $ranking[1]['school_name']);
-        $this->assertSame(1, $ranking[1]['honor_count']);
+        $this->assertSame('2025-07-15 14:30:00', $timestamp);
     }
 
-    public function testGetSchoolRankingByHonorCountTieBreaksBySchoolNameAscending(): void
+    public function testGetLatestUpdateTimestampForYearReturnsNullWhenNoData(): void
     {
-        $pdo = TestDb::pdo();
-        $pdo->exec(
-            "INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, latin_honor, graduation_year)
-             VALUES (1, 1, 'JUAN DELA CRUZ', 'CUM LAUDE', 2025),
-                    (2, 2, 'PEDRO REYES', 'CUM LAUDE', 2025)"
-        );
-
-        $ranking = get_school_ranking_by_honor_count($pdo, 2025);
-
-        $this->assertSame('ABC UNIVERSITY', $ranking[0]['school_name']);
-        $this->assertSame('XYZ COLLEGE', $ranking[1]['school_name']);
-    }
-
-    public function testGetSchoolRankingByHonorCountExcludesSchoolsWithNoGraduatesThatYear(): void
-    {
-        $pdo = TestDb::pdo();
-        $pdo->exec(
-            "INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, latin_honor, graduation_year)
-             VALUES (1, 1, 'JUAN DELA CRUZ', 'CUM LAUDE', 2024)"
-        );
-
-        $ranking = get_school_ranking_by_honor_count($pdo, 2025);
-
-        $this->assertSame([], $ranking);
-    }
-
-    public function testGetSchoolRankingByHonorCountReturnsEmptyForYearWithNoData(): void
-    {
-        $this->assertSame([], get_school_ranking_by_honor_count(TestDb::pdo(), 1999));
+        $this->assertNull(get_latest_update_timestamp_for_year(TestDb::pdo(), 1999));
     }
 }

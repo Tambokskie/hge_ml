@@ -186,8 +186,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var bodyHtml =
             '<div class="space-y-4">' +
-            modalField({ id: 'modal-graduate-name', label: 'GRADUATE NAME', required: true, icon: 'user', value: defaults.name || '' }) +
-            modalField({ id: 'modal-course', label: 'DEGREE/COURSE', icon: 'academic', value: defaults.course || '' }) +
+            modalField({ id: 'modal-graduate-name', label: 'GRADUATE NAME', required: true, icon: 'user', value: defaults.name || '', uppercase: true }) +
+            modalField({ id: 'modal-course', label: 'DEGREE/COURSE', icon: 'academic', value: defaults.course || '', uppercase: true }) +
             modalField({ id: 'modal-latin-honor', label: 'LATIN HONOR', type: 'select', icon: 'tag', optionsHtml: optionsHtml }) +
             modalField({ id: 'modal-graduation-date', label: 'DATE OF GRADUATION', type: 'date', icon: 'calendar', value: defaults.date || '' }) +
             modalField({ id: 'modal-graduation-year', label: 'YEAR GRADUATED', icon: 'hash', value: defaults.year || '' }) +
@@ -447,6 +447,30 @@ document.addEventListener('DOMContentLoaded', function () {
                                     if (data.status === 'success') {
                                         allowNavigation();
                                         showToast('success', data.message);
+
+                                        if (data.duplicate_count > 0) {
+                                            showModal({
+                                                icon: modalHeaderIcon('check'),
+                                                iconClassName: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
+                                                title: 'POSSIBLE DUPLICATES FOUND',
+                                                subtitle: 'The records were saved.',
+                                                bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300"><span class="font-medium text-gray-900 dark:text-white">' + data.duplicate_count + '</span> DUPLICATE GROUP(S) INVOLVING THIS SCHOOL WERE DETECTED. REVIEW THEM NOW OR LATER FROM LOOK-UP.</p>',
+                                                buttons: [
+                                                    {
+                                                        label: 'CONTINUE',
+                                                        className: MODAL_BTN.secondary,
+                                                        onClick: function () { window.location.href = config.viewUploadUrl; },
+                                                    },
+                                                    {
+                                                        label: 'REVIEW DUPLICATES',
+                                                        className: MODAL_BTN.primary,
+                                                        onClick: function () { window.location.href = config.apiBase + '/admin/duplicates.php?school_id=' + encodeURIComponent(data.school_id); },
+                                                    },
+                                                ],
+                                            });
+                                            return;
+                                        }
+
                                         window.location.href = config.viewUploadUrl;
                                     } else {
                                         showToast('error', data.message);

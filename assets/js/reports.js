@@ -13,37 +13,297 @@ document.addEventListener('DOMContentLoaded', function () {
             .replace(/'/g, '&#39;');
     }
 
+    var MONTH_NAMES = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+
+    // Mirrors admin/reports.php's date('F j, Y \a\t g:i A', ...) formatting,
+    // worked out from the raw "YYYY-MM-DD HH:MM:SS" string's own components
+    // rather than a JS Date object, so no browser-local-timezone reinterpretation
+    // can drift this from the server-rendered initial value.
+    function formatUpdatedAt(value) {
+        var parts = value.split(/[- :]/);
+        var year = parts[0];
+        var month = MONTH_NAMES[parseInt(parts[1], 10) - 1];
+        var day = parseInt(parts[2], 10);
+        var hour = parseInt(parts[3], 10);
+        var minute = parts[4];
+        var ampm = hour >= 12 ? 'PM' : 'AM';
+        var hour12 = hour % 12;
+        if (hour12 === 0) {
+            hour12 = 12;
+        }
+        return month + ' ' + day + ', ' + year + ' AT ' + hour12 + ':' + minute + ' ' + ampm;
+    }
+
+    // Same geometry admin/reports.php computes in PHP for the initial render —
+    // kept identical so the AJAX year-switch redraw matches pixel-for-pixel.
+    var RING_RADIUS = 54;
+    var RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+    var DONUT_RADIUS = 50;
+    var DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS;
+
+    // Mirrors admin/reports.php's render_trend_html(): same arrow path,
+    // color, and sign logic, built as an HTML string for innerHTML rather
+    // than DOM construction since a whole small subtree is replaced at once.
+    function buildTrendHtml(change) {
+        if (change === null || change === undefined) {
+            return '';
+        }
+        var isUp = change >= 0;
+        var colorClass = isUp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+        var arrowPath = isUp
+            ? 'M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941'
+            : 'M2.25 6L9 12.75l4.306-4.306a11.95 11.95 0 015.814 5.519l2.74 1.22m0 0l-5.94 2.28m5.94-2.28l-2.28-5.941';
+        var sign = isUp ? '+' : '';
+        return '<p class="flex items-center gap-1 text-xs ' + colorClass + ' mt-2">' +
+            '<svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="' + arrowPath + '" /></svg>' +
+            '<span>' + sign + Math.abs(change).toFixed(1) + '% FROM PREVIOUS YEAR</span>' +
+            '</p>';
+    }
+
+    // Reads an element's currently-displayed number back out (stripping the
+    // comma grouping formatCount()/toLocaleString() leaves behind) so a
+    // later re-count can tween from what's on screen rather than flashing to 0.
+    function parseDisplayedNumber(el) {
+        return parseInt(String(el.textContent).replace(/,/g, ''), 10) || 0;
+    }
+
     var filingYearSelect = document.getElementById('filing-report-year');
     var filingExportLink = document.getElementById('filing-report-export');
     var filingTbody = document.getElementById('filing-report-tbody');
     var filingTotalOnRecord = document.getElementById('filing-total-on-record');
     var filingTotalApplied = document.getElementById('filing-total-applied');
     var filingRate = document.getElementById('filing-rate');
-    var tierCumLaude = document.getElementById('tier-cum-laude');
-    var tierMagnaCumLaude = document.getElementById('tier-magna-cum-laude');
-    var tierSummaCumLaude = document.getElementById('tier-summa-cum-laude');
+    var filingRateRing = document.getElementById('filing-rate-ring');
+    var filingRateBar = document.getElementById('filing-rate-bar');
+    var filingRateFraction = document.getElementById('filing-rate-fraction');
+    var filingOnRecordTrend = document.getElementById('filing-on-record-trend');
+    var filingAppliedTrend = document.getElementById('filing-applied-trend');
+    var filingUpdatedAtRow = document.getElementById('filing-updated-at-row');
+    var filingUpdatedAt = document.getElementById('filing-updated-at');
+    var filingSchoolCount = document.getElementById('filing-school-count');
+    var filingSchoolSearch = document.getElementById('filing-school-search');
+    var filingSchoolSort = document.getElementById('filing-school-sort');
+    var filingSchoolStatusFilter = document.getElementById('filing-school-status-filter');
+    var tierDistributionEls = {
+        'CUM LAUDE': {
+            count: document.getElementById('tier-cum-laude'),
+            percent: document.getElementById('tier-cum-laude-percent'),
+            bar: document.getElementById('tier-cum-laude-bar'),
+        },
+        'MAGNA CUM LAUDE': {
+            count: document.getElementById('tier-magna-cum-laude'),
+            percent: document.getElementById('tier-magna-cum-laude-percent'),
+            bar: document.getElementById('tier-magna-cum-laude-bar'),
+        },
+        'SUMMA CUM LAUDE': {
+            count: document.getElementById('tier-summa-cum-laude'),
+            percent: document.getElementById('tier-summa-cum-laude-percent'),
+            bar: document.getElementById('tier-summa-cum-laude-bar'),
+        },
+    };
+    var donutAppliedArc = document.getElementById('filing-donut-applied-arc');
+    var donutTotal = document.getElementById('filing-donut-total');
+    var donutLegend = document.getElementById('filing-donut-legend');
+    var insightsContainer = document.getElementById('filing-insights');
 
-    function renderFilingReport(data) {
-        filingTotalOnRecord.textContent = data.report.total_on_record;
-        filingTotalApplied.textContent = data.report.total_applied;
-        filingRate.textContent = data.report.filing_rate + '%';
-        tierCumLaude.textContent = data.tier_breakdown['CUM LAUDE'];
-        tierMagnaCumLaude.textContent = data.tier_breakdown['MAGNA CUM LAUDE'];
-        tierSummaCumLaude.textContent = data.tier_breakdown['SUMMA CUM LAUDE'];
+    // One-time entrance reveal for the tier bars and donut arc: PHP renders
+    // them at width:0 / a fully-hidden stroke-dashoffset so the first paint
+    // is the "before" state, then this sets each to its real target a tick
+    // later so the motion-safe:transition-all classes already on those
+    // elements (admin/reports.php) animate the draw-in. Later value changes
+    // (year-switch, inside renderFilingReport()) reuse that same persistent
+    // transition for a free "tween to the new value" — no extra code needed
+    // there, same as this file's count-up treatment of the stat numbers.
+    requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+            document.querySelectorAll('.tier-bar-animated').forEach(function (bar) {
+                bar.style.width = bar.getAttribute('data-target-width') + '%';
+            });
+            if (donutAppliedArc) {
+                donutAppliedArc.setAttribute('stroke-dashoffset', donutAppliedArc.getAttribute('data-target-offset'));
+            }
+        });
+    });
 
-        if (data.report.schools.length === 0) {
-            filingTbody.innerHTML = '<tr><td colspan="4" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">NO HONOR GRADUATE RECORDS FOUND FOR THIS YEAR.</td></tr>';
+    // Holds the current section's full, unfiltered school list so search/sort/
+    // status-filter can re-slice it locally without a round trip — the JSON
+    // endpoint already returns every school for the year, unpaginated. Seeded
+    // from the server-rendered initial table so filtering works before any
+    // year-switch fetch has happened.
+    var currentSchools = config.initialSchools || [];
+
+    function schoolRowHtml(school, index) {
+        var appliedClass = school.applied > 0
+            ? 'bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/20 dark:text-csc-navy-300'
+            : 'bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400';
+        var rateClass = school.filing_rate > 0
+            ? 'bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400'
+            : 'bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400';
+
+        return '<tr class="border-b border-gray-100 dark:border-white/5">' +
+            '<td class="px-4 py-3 text-gray-400 dark:text-gray-500">' + (index + 1) + '</td>' +
+            '<td class="px-4 py-3">' + escapeHtmlLocal(String(school.school_display).toUpperCase()) + '</td>' +
+            '<td class="px-4 py-3">' + school.on_record + '</td>' +
+            '<td class="px-4 py-3"><span class="inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold ' + appliedClass + '">' + school.applied + '</span></td>' +
+            '<td class="px-4 py-3"><span class="inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold ' + rateClass + '">' + school.filing_rate + '%</span></td>' +
+            '</tr>';
+    }
+
+    function renderSchoolTable() {
+        var search = filingSchoolSearch ? filingSchoolSearch.value.trim().toUpperCase() : '';
+        var statusFilter = filingSchoolStatusFilter ? filingSchoolStatusFilter.value : 'all';
+        var sort = filingSchoolSort ? filingSchoolSort.value : 'filing_rate_desc';
+
+        var rows = currentSchools.filter(function (school) {
+            if (search && String(school.school_display).toUpperCase().indexOf(search) === -1) {
+                return false;
+            }
+            if (statusFilter === 'filed' && school.applied <= 0) {
+                return false;
+            }
+            if (statusFilter === 'not_filed' && school.applied > 0) {
+                return false;
+            }
+            return true;
+        });
+
+        rows.sort(function (a, b) {
+            switch (sort) {
+                case 'on_record_desc':
+                    return b.on_record - a.on_record || a.school_display.localeCompare(b.school_display);
+                case 'applied_desc':
+                    return b.applied - a.applied || a.school_display.localeCompare(b.school_display);
+                case 'school_name_asc':
+                    return a.school_display.localeCompare(b.school_display);
+                case 'filing_rate_desc':
+                default:
+                    return b.filing_rate - a.filing_rate || a.school_display.localeCompare(b.school_display);
+            }
+        });
+
+        if (filingSchoolCount) {
+            filingSchoolCount.textContent = rows.length + ' SCHOOL' + (rows.length === 1 ? '' : 'S');
+        }
+
+        if (rows.length === 0) {
+            filingTbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">NO HONOR GRADUATE RECORDS FOUND FOR THIS YEAR.</td></tr>';
             return;
         }
 
-        filingTbody.innerHTML = data.report.schools.map(function (school) {
-            return '<tr class="border-b border-gray-100 dark:border-white/5">' +
-                '<td class="px-4 py-3">' + escapeHtmlLocal(String(school.school_display).toUpperCase()) + '</td>' +
-                '<td class="px-4 py-3">' + school.on_record + '</td>' +
-                '<td class="px-4 py-3">' + school.applied + '</td>' +
-                '<td class="px-4 py-3">' + school.filing_rate + '%</td>' +
-                '</tr>';
-        }).join('');
+        filingTbody.innerHTML = rows.map(schoolRowHtml).join('');
+    }
+
+    function renderInsights(insights) {
+        if (!insightsContainer) {
+            return;
+        }
+        if (!insights || !insights.top_filing_rate) {
+            insightsContainer.innerHTML = '<p id="filing-insights-empty" class="text-xs text-gray-500 dark:text-gray-400">NO HONOR GRADUATE RECORDS FOUND FOR THIS YEAR.</p>';
+            return;
+        }
+
+        var topRate = insights.top_filing_rate;
+        var mostApplicants = insights.most_applicants;
+
+        insightsContainer.innerHTML =
+            '<div id="filing-insight-top-rate">' +
+            '<p class="flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-yellow-600 dark:text-yellow-400">' +
+            '<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.675A55.378 55.378 0 0012 15c-1.51 0-3.015.05-4.5.15V18.75m9 0a3 3 0 00-3-3h-3a3 3 0 00-3 3m6-9v-1.5m0 1.5a9 9 0 01-9-9V3a.75.75 0 01.75-.75h16.5a.75.75 0 01.75.75v.75a9 9 0 01-9 9z" /></svg>' +
+            'TOP FILING RATE</p>' +
+            '<p id="filing-insight-top-rate-school" class="text-sm font-semibold text-gray-800 dark:text-white mt-1">' + escapeHtmlLocal(String(topRate.school_display).toUpperCase()) + '</p>' +
+            '<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">' +
+            '<span id="filing-insight-top-rate-value" class="text-green-600 dark:text-green-400 font-semibold">' + topRate.filing_rate + '% FILING RATE</span>' +
+            ' · <span id="filing-insight-top-rate-detail">' + topRate.applied + ' OF ' + topRate.on_record + ' GRADUATES HAVE FILED</span>' +
+            '</p></div>' +
+            '<div id="filing-insight-most-applicants">' +
+            '<p class="flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">' +
+            '<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>' +
+            'MOST APPLICANTS</p>' +
+            '<p id="filing-insight-most-applicants-school" class="text-sm font-semibold text-gray-800 dark:text-white mt-1">' + escapeHtmlLocal(String(mostApplicants.school_display).toUpperCase()) + '</p>' +
+            '<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">' +
+            '<span id="filing-insight-most-applicants-value">' + mostApplicants.applied + ' APPLICATIONS</span>' +
+            '</p></div>';
+    }
+
+    function renderFilingReport(data) {
+        filingTotalOnRecord.textContent = Number(data.report.total_on_record).toLocaleString('en-US');
+        filingTotalApplied.textContent = Number(data.report.total_applied).toLocaleString('en-US');
+        filingRate.textContent = data.report.filing_rate + '%';
+
+        var ringRate = Math.min(100, Math.max(0, data.report.filing_rate));
+        var ringOffset = RING_CIRCUMFERENCE * (1 - ringRate / 100);
+        if (filingRateRing) {
+            filingRateRing.setAttribute('stroke-dasharray', RING_CIRCUMFERENCE.toFixed(2));
+            filingRateRing.setAttribute('stroke-dashoffset', ringOffset.toFixed(2));
+        }
+        if (filingRateBar) {
+            filingRateBar.style.width = ringRate + '%';
+        }
+        if (filingRateFraction) {
+            filingRateFraction.textContent = data.report.total_applied + ' / ' + data.report.total_on_record;
+        }
+
+        if (filingOnRecordTrend) {
+            filingOnRecordTrend.innerHTML = buildTrendHtml(data.trends ? data.trends.on_record_change : null);
+        }
+        if (filingAppliedTrend) {
+            filingAppliedTrend.innerHTML = buildTrendHtml(data.trends ? data.trends.applied_change : null);
+        }
+
+        if (filingUpdatedAtRow && filingUpdatedAt) {
+            if (data.updated_at) {
+                filingUpdatedAt.textContent = formatUpdatedAt(data.updated_at);
+                filingUpdatedAtRow.classList.remove('hidden');
+            } else {
+                filingUpdatedAtRow.classList.add('hidden');
+            }
+        }
+
+        var tierBreakdown = data.tier_breakdown || {};
+        var totalOnRecord = data.report.total_on_record;
+        Object.keys(tierDistributionEls).forEach(function (tierName) {
+            var els = tierDistributionEls[tierName];
+            var count = tierBreakdown[tierName] || 0;
+            var percent = totalOnRecord > 0 ? Math.round((count / totalOnRecord) * 1000) / 10 : 0;
+            if (els.count) {
+                animateCountUp(els.count, count, 800, null, parseDisplayedNumber(els.count));
+            }
+            if (els.percent) {
+                els.percent.textContent = '(' + percent + '%)';
+            }
+            if (els.bar) {
+                els.bar.style.width = percent + '%';
+            }
+        });
+
+        if (donutAppliedArc) {
+            var appliedFraction = totalOnRecord > 0 ? data.report.total_applied / totalOnRecord : 0;
+            var appliedLength = DONUT_CIRCUMFERENCE * appliedFraction;
+            donutAppliedArc.setAttribute('stroke-dasharray', DONUT_CIRCUMFERENCE.toFixed(2));
+            donutAppliedArc.setAttribute('stroke-dashoffset', (DONUT_CIRCUMFERENCE - appliedLength).toFixed(2));
+        }
+        if (donutTotal) {
+            animateCountUp(donutTotal, totalOnRecord, 800, null, parseDisplayedNumber(donutTotal));
+        }
+        if (donutLegend) {
+            var notYetApplied = totalOnRecord - data.report.total_applied;
+            var notYetAppliedPercent = totalOnRecord > 0 ? Math.round((notYetApplied / totalOnRecord) * 1000) / 10 : 0;
+            donutLegend.innerHTML =
+                '<div class="flex items-center justify-between"><span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-gray-400"></span>ON RECORD</span><span class="text-gray-700 dark:text-gray-300">' + Number(totalOnRecord).toLocaleString('en-US') + ' (100%)</span></div>' +
+                '<div class="flex items-center justify-between"><span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300"></span>APPLIED</span><span class="text-gray-700 dark:text-gray-300">' + Number(data.report.total_applied).toLocaleString('en-US') + ' (' + data.report.filing_rate + '%)</span></div>' +
+                '<div class="flex items-center justify-between"><span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-sky-200 dark:bg-sky-500/30"></span>NOT YET APPLIED</span><span class="text-gray-700 dark:text-gray-300">' + Number(notYetApplied).toLocaleString('en-US') + ' (' + notYetAppliedPercent + '%)</span></div>';
+        }
+
+        renderInsights(data.insights);
+
+        currentSchools = data.report.schools;
+        if (filingSchoolSearch) {
+            filingSchoolSearch.value = '';
+        }
+        if (filingSchoolStatusFilter) {
+            filingSchoolStatusFilter.value = 'all';
+        }
+        renderSchoolTable();
     }
 
     if (filingYearSelect) {
@@ -66,42 +326,46 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    var rankingYearSelect = document.getElementById('ranking-report-year');
-    var rankingExportLink = document.getElementById('ranking-report-export');
-    var rankingTbody = document.getElementById('ranking-report-tbody');
-
-    function renderRankingReport(data) {
-        if (data.rows.length === 0) {
-            rankingTbody.innerHTML = '<tr><td colspan="3" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">NO HONOR GRADUATE RECORDS FOUND FOR THIS YEAR.</td></tr>';
-            return;
-        }
-
-        rankingTbody.innerHTML = data.rows.map(function (row, index) {
-            return '<tr class="border-b border-gray-100 dark:border-white/5">' +
-                '<td class="px-4 py-3">' + (index + 1) + '</td>' +
-                '<td class="px-4 py-3">' + escapeHtmlLocal(String(row.school_display).toUpperCase()) + '</td>' +
-                '<td class="px-4 py-3">' + row.honor_count + '</td>' +
-                '</tr>';
-        }).join('');
+    if (filingSchoolSearch) {
+        filingSchoolSearch.addEventListener('input', renderSchoolTable);
+    }
+    if (filingSchoolSort) {
+        filingSchoolSort.addEventListener('change', renderSchoolTable);
+    }
+    if (filingSchoolStatusFilter) {
+        filingSchoolStatusFilter.addEventListener('change', renderSchoolTable);
     }
 
-    if (rankingYearSelect) {
-        rankingYearSelect.addEventListener('change', function () {
-            var year = rankingYearSelect.value;
-            rankingExportLink.href = config.apiBase + '/api/export_school_ranking_report.php?year=' + encodeURIComponent(year);
+    var filingExportToggle = document.getElementById('filing-export-toggle');
+    var filingExportMenu = document.getElementById('filing-export-menu');
+    var filingPrintBtn = document.getElementById('filing-print-btn');
 
-            fetch(config.apiBase + '/api/get_school_ranking_report.php?year=' + encodeURIComponent(year))
-                .then(function (response) { return response.json(); })
-                .then(function (data) {
-                    if (data.status === 'success') {
-                        renderRankingReport(data);
-                    } else {
-                        showToast('error', data.message || 'THE REPORT COULD NOT BE LOADED.');
-                    }
-                })
-                .catch(function () {
-                    showToast('error', 'THE REPORT COULD NOT BE LOADED. PLEASE TRY AGAIN.');
-                });
+    if (filingExportToggle && filingExportMenu) {
+        filingExportToggle.addEventListener('click', function (event) {
+            event.stopPropagation();
+            var isOpen = filingExportToggle.getAttribute('aria-expanded') === 'true';
+            filingExportToggle.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+            filingExportMenu.classList.toggle('hidden', isOpen);
+        });
+
+        document.addEventListener('click', function (event) {
+            if (!filingExportMenu.contains(event.target) && event.target !== filingExportToggle) {
+                filingExportToggle.setAttribute('aria-expanded', 'false');
+                filingExportMenu.classList.add('hidden');
+            }
         });
     }
+
+    if (filingPrintBtn) {
+        filingPrintBtn.addEventListener('click', function () {
+            if (filingExportMenu) {
+                filingExportMenu.classList.add('hidden');
+            }
+            if (filingExportToggle) {
+                filingExportToggle.setAttribute('aria-expanded', 'false');
+            }
+            window.print();
+        });
+    }
+
 });

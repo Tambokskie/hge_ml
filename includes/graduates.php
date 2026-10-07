@@ -1,6 +1,8 @@
 <?php
 
 require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/recycle_bin.php';
+require_once __DIR__ . '/duplicates.php';
 
 function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25): array
 {
@@ -50,7 +52,14 @@ function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25
     $stmt->bindValue('offset', $pagination['offset'], PDO::PARAM_INT);
     $stmt->execute();
 
-    return ['rows' => $stmt->fetchAll(), 'pagination' => $pagination];
+    $rows = $stmt->fetchAll();
+    $duplicateIds = flag_duplicates_for_rows($pdo, array_column($rows, 'id'));
+    foreach ($rows as &$row) {
+        $row['is_duplicate'] = in_array((int) $row['id'], $duplicateIds, true) ? 1 : 0;
+    }
+    unset($row);
+
+    return ['rows' => $rows, 'pagination' => $pagination];
 }
 
 function get_graduate_by_id(PDO $pdo, int $id): ?array
@@ -139,7 +148,7 @@ function get_graduates_for_upload(PDO $pdo, int $uploadId): array
 /**
  * @return array{ok: bool, error?: string}
  */
-function delete_graduate(PDO $pdo, int $id): array
+function delete_graduate(PDO $pdo, int $id, ?int $userId = null, string $reason = '', string $via = 'manual'): array
 {
     try {
         $pdo->beginTransaction();
@@ -153,8 +162,9 @@ function delete_graduate(PDO $pdo, int $id): array
             return ['ok' => false, 'error' => 'GRADUATE RECORD NOT FOUND.'];
         }
 
+        archive_graduate($pdo, $id, $userId, $reason, $via);
         $pdo->prepare('DELETE FROM latin_honor_graduates WHERE id = :id')->execute(['id' => $id]);
-        $pdo->prepare('UPDATE latin_honor_uploads SET records_extracted = GREATEST(records_extracted - 1, 0) WHERE id = :upload_id')
+        $pdo->prepare('UPDATE latin_honor_uploads SET records_extracted = IF(records_extracted > 0, records_extracted - 1, 0) WHERE id = :upload_id')
             ->execute(['upload_id' => $uploadId]);
 
         $pdo->commit();

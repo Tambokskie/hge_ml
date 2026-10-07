@@ -5,6 +5,7 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/uploads.php';
 require_once __DIR__ . '/../includes/extraction_review.php';
+require_once __DIR__ . '/../includes/duplicates.php';
 
 require_role('administrator');
 
@@ -33,7 +34,8 @@ try {
         exit;
     }
 
-    $result = save_staged_records($pdo, $uploadId, $upload['school_id'], $review['rows']);
+    $currentUser = current_user();
+    $result = save_staged_records($pdo, $uploadId, $upload['school_id'], $review['rows'], $currentUser['id'] ?? null);
 
     if ($result['status'] === 'success') {
         clear_extraction_review();
@@ -45,6 +47,11 @@ try {
             'record_created',
             'SAVED RECORDS FOR ' . $upload['school_name'] . ' (' . $upload['school_year'] . ') — ' . count($review['rows']) . ' RECORD(S)'
         );
+    }
+
+    if ($result['status'] === 'success') {
+        $result['duplicate_count'] = count_duplicates_for_upload($pdo, $uploadId);
+        $result['school_id'] = (int) $upload['school_id'];
     }
 
     echo json_encode($result);

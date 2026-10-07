@@ -33,14 +33,14 @@ try {
         exit;
     }
 
-    $result = delete_graduate($pdo, $id);
+    $currentUser = current_user();
+    $result = delete_graduate($pdo, $id, $currentUser['id'] ?? null, $reason, 'manual');
 
     if (!$result['ok']) {
         echo json_encode(['status' => 'error', 'message' => $result['error']]);
         exit;
     }
 
-    $currentUser = current_user();
     log_activity($pdo, $currentUser['id'] ?? null, 'record_removed', 'graduate_name=' . $graduate['graduate_name'] . ', reason=' . $reason);
 } catch (\Throwable $e) {
     error_log('delete_saved_graduate failed: ' . $e->getMessage());

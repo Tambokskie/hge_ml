@@ -153,7 +153,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 : '';
 
             return '<tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 motion-safe:animate-fade-in-up" ' + rowDelay + '>' +
-                '<td class="px-4 py-3">' + escapeHtml(String(row.graduate_name).toUpperCase()) + '</td>' +
+                '<td class="px-4 py-3">' + escapeHtml(String(row.graduate_name).toUpperCase()) +
+                    (parseInt(row.is_duplicate, 10) === 1
+                        ? ' <span class="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-yellow-500/15 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400" title="POSSIBLE DUPLICATE RECORD">DUPLICATE</span>'
+                        : '') + '</td>' +
                 '<td class="px-4 py-3">' + courseDisplay + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(formatSchoolDisplayName(row.school_name, row.campus).toUpperCase()) + '</td>' +
                 '<td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + honorPillClass(row.latin_honor) + '">' + escapeHtml(row.latin_honor) + '</span>' + sourceBadgeHtml + '</td>' +
@@ -272,8 +275,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var bodyHtml =
             '<div class="space-y-4">' +
-            modalField({ id: 'modal-graduate-name', label: 'GRADUATE NAME', required: true, icon: 'user', value: defaults.name || '' }) +
-            modalField({ id: 'modal-course', label: 'DEGREE/COURSE', icon: 'academic', value: defaults.course || '' }) +
+            modalField({ id: 'modal-graduate-name', label: 'GRADUATE NAME', required: true, icon: 'user', value: defaults.name || '', uppercase: true }) +
+            modalField({ id: 'modal-course', label: 'DEGREE/COURSE', icon: 'academic', value: defaults.course || '', uppercase: true }) +
             modalField({ id: 'modal-latin-honor', label: 'LATIN HONOR', type: 'select', icon: 'tag', optionsHtml: optionsHtml }) +
             modalField({ id: 'modal-graduation-date', label: 'DATE OF GRADUATION', type: 'date', icon: 'calendar', value: defaults.date || '' }) +
             modalField({ id: 'modal-graduation-year', label: 'YEAR GRADUATED', icon: 'hash', value: defaults.year || '' }) +
@@ -322,7 +325,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var submitting = false;
         var bodyHtml =
             '<div class="space-y-4">' +
-            '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">PERMANENTLY DELETE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(defaults.name) + '</span>? THIS CANNOT BE UNDONE.</p>' +
+            '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">MOVE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(defaults.name) + '</span> TO THE RECYCLE BIN? AN ADMINISTRATOR CAN RESTORE IT LATER.</p>' +
             modalField({ id: 'modal-delete-reason', label: 'REASON FOR REMOVAL', required: true, icon: 'pen', placeholder: 'E.G. DUPLICATE ENTRY', uppercase: true, note: 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.' }) +
             '</div>';
 

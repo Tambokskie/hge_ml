@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/recycle_bin.php';
+
 function derive_fallback_year(string $schoolYear): ?int
 {
     if (preg_match_all('/\d{4}/', $schoolYear, $matches) && !empty($matches[0])) {
@@ -212,7 +214,7 @@ function mass_update_staged_graduation_date(int $uploadId, string $date): array
  * makes the function safe for both a first-time save (no existing rows, so
  * every row inserts exactly as before) and a later edit of saved records.
  */
-function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows): array
+function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows, ?int $savedBy = null): array
 {
     if (empty($rows)) {
         return ['status' => 'error', 'message' => 'THERE ARE NO RECORDS TO SAVE.'];
@@ -273,6 +275,9 @@ function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows
 
         $removedIds = array_diff($existingIds, $keptIds);
         if (!empty($removedIds)) {
+            foreach ($removedIds as $removedId) {
+                archive_graduate($pdo, (int) $removedId, $savedBy, 'REMOVED DURING RE-REVIEW OF SAVED RECORDS', 'review_edit');
+            }
             $placeholders = implode(',', array_fill(0, count($removedIds), '?'));
             $pdo->prepare("DELETE FROM latin_honor_graduates WHERE id IN ({$placeholders})")->execute(array_values($removedIds));
         }

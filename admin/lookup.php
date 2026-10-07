@@ -114,6 +114,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         </button>
                         <?php if ($isAdmin): ?>
                         <button type="button" id="bulk-update-date-btn" class="inline-flex items-center gap-1.5 rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-medium px-4 py-2.5 transition-colors">UPDATE GRADUATION DATE</button>
+                        <a href="<?= e(APP_BASE_URL) ?>/admin/duplicates.php" class="inline-flex items-center gap-1.5 rounded-xl border border-yellow-500/40 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/10 text-sm font-medium px-4 py-2.5 transition-colors">FIND DUPLICATES</a>
                         <?php endif; ?>
                     </div>
                     <span id="lookup-records-found" class="inline-flex items-center rounded-full bg-gray-100 dark:bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400 <?= (!$hasFilters || $searchFailed) ? 'hidden' : '' ?>">
@@ -153,7 +154,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <tbody id="lookup-results-tbody">
                             <?php foreach ($searchResult['rows'] as $rowIndex => $row): ?>
                                 <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 motion-safe:animate-fade-in-up" style="animation-delay: <?= (int) ($rowIndex * 50) ?>ms">
-                                    <td class="px-4 py-3"><?= e_upper($row['graduate_name']) ?></td>
+                                    <td class="px-4 py-3"><?= e_upper($row['graduate_name']) ?><?php if (!empty($row['is_duplicate'])): ?> <span class="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-yellow-500/15 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400" title="POSSIBLE DUPLICATE RECORD">DUPLICATE</span><?php endif; ?></td>
                                     <td class="px-4 py-3"><?= ($row['course'] ?? '') !== '' ? e_upper($row['course']) : '—' ?></td>
                                     <td class="px-4 py-3"><?= e_upper(format_school_display_name($row['school_name'], $row['campus'])) ?></td>
                                     <td class="px-4 py-3">

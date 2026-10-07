@@ -76,28 +76,60 @@ function get_honor_tier_breakdown_for_year(PDO $pdo, int $year): array
 }
 
 /**
- * Schools ranked by Latin Honor graduate count for one graduation year,
- * descending, with an alphabetical tiebreak so two schools tied on count
- * always render in the same order rather than one that varies between
- * page loads. Same zero-graduates-that-year exclusion as
- * get_application_filing_report() (INNER JOIN, not LEFT JOIN).
+ * Percent change of $current relative to $previous, rounded to one decimal.
+ * Null when $previous is 0 — there is no prior-year baseline to compare
+ * against, so the caller shows no trend line rather than a misleading 0%
+ * or a division by zero.
  */
-function get_school_ranking_by_honor_count(PDO $pdo, int $year): array
+function compute_percent_change(int $current, int $previous): ?float
 {
-    $stmt = $pdo->prepare(
-        'SELECT s.school_name, s.campus, COUNT(g.id) AS honor_count
-         FROM schools s
-         JOIN latin_honor_graduates g ON g.school_id = s.id AND g.graduation_year = :year
-         GROUP BY s.id, s.school_name, s.campus
-         ORDER BY honor_count DESC, s.school_name ASC, s.campus ASC'
-    );
-    $stmt->execute(['year' => $year]);
+    if ($previous === 0) {
+        return null;
+    }
 
-    return array_map(static function (array $row): array {
-        return [
-            'school_name' => $row['school_name'],
-            'campus' => $row['campus'],
-            'honor_count' => (int) $row['honor_count'],
-        ];
-    }, $stmt->fetchAll());
+    return round(($current - $previous) / $previous * 100, 1);
+}
+
+/**
+ * Most recent latin_honor_graduates.updated_at for a graduation year.
+ * updated_at carries ON UPDATE CURRENT_TIMESTAMP, so this reflects the
+ * latest save OR correction for that year, not just the original upload.
+ * Null when the year has no graduates on record.
+ */
+function get_latest_update_timestamp_for_year(PDO $pdo, int $year): ?string
+{
+    $stmt = $pdo->prepare('SELECT MAX(updated_at) FROM latin_honor_graduates WHERE graduation_year = :year');
+    $stmt->execute(['year' => $year]);
+    $result = $stmt->fetchColumn();
+
+    return $result === false || $result === null ? null : $result;
+}
+
+/**
+ * Pure (no PDO) — takes the already-fetched $schools array from
+ * get_application_filing_report() rather than re-querying. Finds the
+ * school with the highest filing_rate and the school with the highest
+ * applied count; ties broken by school_name ascending. Both keys are
+ * null when $schools is empty.
+ */
+function get_application_filing_insights(array $schools): array
+{
+    if ($schools === []) {
+        return ['top_filing_rate' => null, 'most_applicants' => null];
+    }
+
+    $byFilingRate = $schools;
+    usort($byFilingRate, static function (array $a, array $b): int {
+        return $b['filing_rate'] <=> $a['filing_rate'] ?: $a['school_name'] <=> $b['school_name'];
+    });
+
+    $byApplied = $schools;
+    usort($byApplied, static function (array $a, array $b): int {
+        return $b['applied'] <=> $a['applied'] ?: $a['school_name'] <=> $b['school_name'];
+    });
+
+    return [
+        'top_filing_rate' => $byFilingRate[0],
+        'most_applicants' => $byApplied[0],
+    ];
 }
