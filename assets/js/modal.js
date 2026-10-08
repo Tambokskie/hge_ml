@@ -9,10 +9,20 @@ function showModal(config) {
     box.className = 'w-full max-w-md rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 overflow-hidden'
         + (hasFormHeader ? '' : (config.icon ? ' text-center p-6' : ' p-6'));
 
+    var closed = false;
+    var shown = false;
+
     function close() {
+        if (closed) {
+            return;
+        }
+        closed = true;
         document.removeEventListener('keydown', onKeydown);
 
-        if (prefersReducedMotion) {
+        // Closed before the fade-in even started (a fast server reply to a
+        // loading modal): there is no transition to wait for, and the pending
+        // fade-in below must not run, so remove it now.
+        if (prefersReducedMotion || !shown) {
             overlay.remove();
             return;
         }
@@ -26,6 +36,10 @@ function showModal(config) {
                 overlay.remove();
             }
         }, { once: true });
+
+        // transitionend never fires if no transition runs (hidden tab, or the
+        // opacity was already 0); a stuck overlay would block the whole page.
+        setTimeout(function () { overlay.remove(); }, 400);
     }
 
     function onKeydown(event) {
@@ -138,6 +152,10 @@ function showModal(config) {
 
         requestAnimationFrame(function () {
             requestAnimationFrame(function () {
+                if (closed) {
+                    return;
+                }
+                shown = true;
                 overlay.style.opacity = '1';
                 box.style.opacity = '1';
                 box.style.transform = 'scale(1) translateY(0)';

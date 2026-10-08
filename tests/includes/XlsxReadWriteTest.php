@@ -151,4 +151,25 @@ class XlsxReadWriteTest extends TestCase
         $this->assertSame('APPLICATION FILING REPORT — 2025', $single['rows'][1][1]);
     }
 
+    public function testZipContainerIsOneExcelAccepts(): void
+    {
+        // Excel refuses PharData-built archives (version-needed 0, per-entry
+        // extra field); it needs a standard container: version 20, deflate,
+        // no extra fields, correct CRCs, [Content_Types].xml first.
+        $bytes = xlsx_zip_parts(['[Content_Types].xml' => str_repeat('<a/>', 200), 'xl/workbook.xml' => '<b/>']);
+
+        $local = unpack('vversion/vflags/vmethod/vtime/vdate/Vcrc/Vcsize/Vsize/vnamelen/vextralen', substr($bytes, 4, 26));
+        $this->assertSame("PK\x03\x04", substr($bytes, 0, 4));
+        $this->assertSame(20, $local['version']);
+        $this->assertSame(8, $local['method']);
+        $this->assertSame(0, $local['extralen']);
+        $this->assertSame(crc32(str_repeat('<a/>', 200)), $local['crc']);
+        $this->assertSame(800, $local['size']);
+        $this->assertSame('[Content_Types].xml', substr($bytes, 30, $local['namelen']));
+
+        $eocd = unpack('vdisk/vcd/ventries/vtotal/Vsize/Voffset/vcomment', substr($bytes, strrpos($bytes, "PK\x05\x06") + 4, 18));
+        $this->assertSame(2, $eocd['entries']);
+        $this->assertSame(2, $eocd['total']);
+    }
+
 }

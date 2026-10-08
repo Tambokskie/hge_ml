@@ -151,34 +151,39 @@ function xlsx_styles_xml(): string
 
 /**
  * Zips the given "package path" => "xml content" map into a valid .xlsx
- * file and returns its raw bytes. Uses PharData rather than ZipArchive
- * because ext-zip is not installed in this environment.
+ * file and returns its raw bytes. Written by hand (deflate + a minimal ZIP
+ * container) rather than with ZipArchive, which is not installed here, or
+ * PharData, whose archives declare "version needed" 0 and carry an extra
+ * field per entry — Excel refuses to open files packaged that way.
+ * Entries are written in the order given ([Content_Types].xml first).
  */
 function xlsx_zip_parts(array $parts): string
 {
-    $tmpPath = tempnam(sys_get_temp_dir(), 'hge_xlsx_') . '.zip';
-    if (file_exists($tmpPath)) {
-        unlink($tmpPath);
+    $dosTime = 0;
+    $dosDate = ((2026 - 1980) << 9) | (1 << 5) | 1;
+    $body = '';
+    $central = '';
+    $count = 0;
+
+    foreach ($parts as $name => $data) {
+        $name = (string) $name;
+        $data = (string) $data;
+        $deflated = gzdeflate($data, 6);
+        if ($deflated === false) {
+            throw new \RuntimeException('Could not compress xlsx part.');
+        }
+        $crc = crc32($data);
+        $offset = strlen($body);
+
+        // 20 = version needed (2.0), 0x0800 = UTF-8 names, 8 = deflate
+        $body .= "PK\x03\x04" . pack('vvvvvVVVvv', 20, 0x0800, 8, $dosTime, $dosDate, $crc, strlen($deflated), strlen($data), strlen($name), 0)
+            . $name . $deflated;
+        $central .= "PK\x01\x02" . pack('vvvvvvVVVvvvvvVV', 20, 20, 0x0800, 8, $dosTime, $dosDate, $crc, strlen($deflated), strlen($data), strlen($name), 0, 0, 0, 0, 0, $offset)
+            . $name;
+        $count++;
     }
 
-    try {
-        $archive = new PharData($tmpPath, 0, null, Phar::ZIP);
-        foreach ($parts as $path => $content) {
-            $archive->addFromString($path, $content);
-        }
-        unset($archive);
-
-        $bytes = file_get_contents($tmpPath);
-        if ($bytes === false) {
-            throw new \RuntimeException('Could not read generated xlsx archive.');
-        }
-
-        return $bytes;
-    } finally {
-        if (is_file($tmpPath)) {
-            @unlink($tmpPath);
-        }
-    }
+    return $body . $central . "PK\x05\x06" . pack('vvvvVVv', 0, 0, $count, $count, strlen($central), strlen($body), 0);
 }
 
 /**
@@ -292,5 +297,100 @@ function build_application_filing_report_xlsx(array $report, int $fromYear, ?int
         'xl/_rels/workbook.xml.rels' => xlsx_workbook_rels_xml(),
         'xl/styles.xml' => xlsx_styles_xml(),
         'xl/worksheets/sheet1.xml' => $sheetXml,
+    ]);
+}
+
+/**
+ * Template for the ADMIN page's bulk update of HGE applications. The column
+ * names match the source system's own export (CoEIssueDate, LName, FName, MI,
+ * MName, ExtName) so an export can be uploaded as-is; the instruction block
+ * above the header row is skipped by the parser (it finds the header itself).
+ */
+function build_bulk_hge_template_xlsx(): string
+{
+    $rows = [
+        1 => [1 => ['value' => 'BULK UPDATE OF HGE APPLICATIONS — ONE ROW PER APPLICANT', 'style' => 1]],
+        2 => [1 => ['value' => 'CoEIssueDate = DATE APPLIED (e.g. 4/2/2024 or 2024-04-02). LName, FName AND CoEIssueDate ARE REQUIRED.', 'style' => 2]],
+        3 => [1 => ['value' => 'MI AND MName ARE OPTIONAL. ENTER _ IN MI / MName WHEN THE APPLICANT HAS NO MIDDLE NAME. ExtName IS JR., SR., II, III OR IV (OPTIONAL).', 'style' => 2]],
+        4 => [1 => ['value' => 'DO NOT CHANGE OR REMOVE THE HEADER ROW BELOW. KEEP ALL DATA ON THIS FIRST SHEET.', 'style' => 2]],
+        6 => [
+            1 => ['value' => 'CoEIssueDate', 'style' => 1],
+            2 => ['value' => 'LName', 'style' => 1],
+            3 => ['value' => 'FName', 'style' => 1],
+            4 => ['value' => 'MI', 'style' => 1],
+            5 => ['value' => 'MName', 'style' => 1],
+            6 => ['value' => 'ExtName', 'style' => 1],
+        ],
+    ];
+
+    for ($i = 0; $i < 50; $i++) {
+        $rows[7 + $i][1] = ['value' => '', 'style' => 3];
+    }
+
+    return xlsx_zip_parts([
+        '[Content_Types].xml' => xlsx_content_types_xml(),
+        '_rels/.rels' => xlsx_package_rels_xml(),
+        'xl/workbook.xml' => xlsx_workbook_xml('tbl_HGE'),
+        'xl/_rels/workbook.xml.rels' => xlsx_workbook_rels_xml(),
+        'xl/styles.xml' => xlsx_styles_xml(),
+        'xl/worksheets/sheet1.xml' => xlsx_build_sheet_xml($rows, [1 => 16, 2 => 24, 3 => 26, 4 => 8, 5 => 24, 6 => 10]),
+    ]);
+}
+
+/**
+ * Companion file of the bulk update preview: everything that was NOT filed
+ * automatically and needs a human look (uncertain matches), plus rows that
+ * could not be read at all.
+ *
+ * @param array<int, array{reason: string, person: array, saved_names: array<int, string>}> $review
+ * @param array<int, array{row: int, message: string, name: string}> $invalid
+ */
+function build_bulk_hge_review_xlsx(array $review, array $invalid): string
+{
+    $rows = [
+        1 => [1 => ['value' => 'BULK UPDATE — ITEMS NEEDING REVIEW (NOTHING IN THIS FILE WAS FILED)', 'style' => 1]],
+        3 => [
+            1 => ['value' => 'ROW IN FILE', 'style' => 1],
+            2 => ['value' => 'DATE APPLIED', 'style' => 1],
+            3 => ['value' => 'LAST NAME', 'style' => 1],
+            4 => ['value' => 'FIRST NAME', 'style' => 1],
+            5 => ['value' => 'MI', 'style' => 1],
+            6 => ['value' => 'MIDDLE NAME', 'style' => 1],
+            7 => ['value' => 'EXT', 'style' => 1],
+            8 => ['value' => 'ISSUE', 'style' => 1],
+            9 => ['value' => 'POSSIBLE SAVED RECORDS', 'style' => 1],
+        ],
+    ];
+
+    $rowNum = 4;
+    foreach ($review as $item) {
+        $person = $item['person'];
+        $rows[$rowNum++] = [
+            1 => ['value' => (string) $person['row'], 'type' => 'n'],
+            2 => ['value' => (string) $person['date']],
+            3 => ['value' => (string) $person['last']],
+            4 => ['value' => (string) $person['first']],
+            5 => ['value' => (string) $person['mi']],
+            6 => ['value' => (string) $person['middle']],
+            7 => ['value' => (string) $person['ext']],
+            8 => ['value' => (string) $item['reason']],
+            9 => ['value' => implode(' || ', $item['saved_names'])],
+        ];
+    }
+    foreach ($invalid as $item) {
+        $rows[$rowNum++] = [
+            1 => ['value' => (string) $item['row'], 'type' => 'n'],
+            3 => ['value' => (string) $item['name']],
+            8 => ['value' => 'ROW NOT READ — ' . $item['message']],
+        ];
+    }
+
+    return xlsx_zip_parts([
+        '[Content_Types].xml' => xlsx_content_types_xml(),
+        '_rels/.rels' => xlsx_package_rels_xml(),
+        'xl/workbook.xml' => xlsx_workbook_xml('REVIEW'),
+        'xl/_rels/workbook.xml.rels' => xlsx_workbook_rels_xml(),
+        'xl/styles.xml' => xlsx_styles_xml(),
+        'xl/worksheets/sheet1.xml' => xlsx_build_sheet_xml($rows, [1 => 12, 2 => 14, 3 => 22, 4 => 22, 5 => 6, 6 => 20, 7 => 6, 8 => 60, 9 => 70]),
     ]);
 }

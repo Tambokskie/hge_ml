@@ -17,7 +17,7 @@ class SchemaTest extends TestCase
         $tables = $pdo->query('SHOW TABLES')->fetchAll(\PDO::FETCH_COLUMN);
 
         $this->assertEqualsCanonicalizing(
-            ['users', 'schools', 'latin_honor_uploads', 'extraction_review_drafts', 'latin_honor_graduates', 'activity_log', 'graduate_applications', 'ocr_course_keywords', 'app_settings', 'graduate_recycle_bin'],
+            ['users', 'schools', 'latin_honor_uploads', 'extraction_review_drafts', 'latin_honor_graduates', 'activity_log', 'graduate_applications', 'ocr_course_keywords', 'app_settings', 'graduate_recycle_bin', 'bulk_hge_review_items'],
             $tables
         );
     }
