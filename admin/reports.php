@@ -29,6 +29,7 @@ $updatedAt = get_latest_update_timestamp_for_year($pdo);
 $updatedAtDisplay = $updatedAt !== null ? strtoupper(date('F j, Y \a\t g:i A', strtotime($updatedAt))) : null;
 
 $trendSeries = get_filing_trend($pdo, $fromYear, $toYear);
+$trendMonthly = get_filing_trend_monthly($pdo, $fromYear, $toYear);
 
 $previousPeriodReport = get_application_filing_report($pdo, $fromYear - $periodSpan, $fromYear - 1);
 $onRecordChange = compute_percent_change($filingReport['total_on_record'], $previousPeriodReport['total_on_record']);
@@ -269,13 +270,18 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" /></svg>
                                 TREND
                             </h3>
+                            <div class="inline-flex rounded-lg border border-gray-200 dark:border-white/10 p-0.5 text-[11px] font-semibold" role="group" aria-label="TREND GROUPING">
+                                <button type="button" data-trend-mode="year" aria-pressed="true" class="px-2.5 py-1 rounded-md text-gray-600 dark:text-gray-400 aria-pressed:bg-csc-navy-600 aria-pressed:text-white">PER YEAR</button>
+                                <button type="button" data-trend-mode="month" aria-pressed="false" class="px-2.5 py-1 rounded-md text-gray-600 dark:text-gray-400 aria-pressed:bg-csc-navy-600 aria-pressed:text-white">PER MONTH</button>
+                            </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
-                            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300"></span>LATIN HONORS GRADUATED (RIGHT AXIS)</span>
-                            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>LATIN HONORS APPLIED FOR HGE (LEFT AXIS)</span>
+                            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300"></span>LATIN HONORS GRADUATED</span>
+                            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>LATIN HONORS APPLIED FOR HGE</span>
                         </div>
                     </div>
                     <div id="filing-trend-chart" class="relative w-full select-none" style="height: 260px"></div>
+                    <p id="filing-trend-note" class="hidden mt-2 text-[11px] text-gray-500 dark:text-gray-400"></p>
                 </div>
 
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-3 print:hidden">
@@ -348,6 +354,7 @@ window.HGE_REPORTS = {
     csrfToken: <?= json_encode($csrfToken) ?>,
     initialSchools: <?= json_encode($filingSchoolsForJs) ?>,
     initialTrend: <?= json_encode($trendSeries) ?>,
+    initialTrendMonthly: <?= json_encode($trendMonthly) ?>,
     initialFrom: <?= (int) $fromYear ?>,
     initialTo: <?= (int) $toYear ?>
 };

@@ -121,6 +121,56 @@ function get_filing_trend(PDO $pdo, int $fromYear, int $toYear): array
 }
 
 /**
+ * Month-by-month sibling of get_filing_trend(): one point per calendar month
+ * from January of $fromYear to December of $toYear (oldest first, empty months
+ * zero-filled). A graduate is placed in the month of its graduation_date, within
+ * its graduation_year (the same year bucket get_filing_trend() uses, so the
+ * months of a year add up to that year's point). Graduates saved without a
+ * graduation_date have no month — they are returned separately as 'undated'
+ * rather than dropped, so months + undated always equals the yearly totals.
+ *
+ * @return array{months: array<int, array{year: int, month: int, on_record: int, applied: int}>, undated: array{on_record: int, applied: int}}
+ */
+function get_filing_trend_monthly(PDO $pdo, int $fromYear, int $toYear): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT g.graduation_year AS year, MONTH(g.graduation_date) AS month,
+                COUNT(g.id) AS on_record, COUNT(ga.id) AS applied
+         FROM latin_honor_graduates g
+         LEFT JOIN graduate_applications ga ON ga.graduate_id = g.id
+         WHERE g.graduation_year BETWEEN :start_year AND :end_year
+         GROUP BY g.graduation_year, MONTH(g.graduation_date)'
+    );
+    $stmt->execute(['start_year' => $fromYear, 'end_year' => $toYear]);
+
+    $byMonth = [];
+    $undated = ['on_record' => 0, 'applied' => 0];
+    foreach ($stmt->fetchAll() as $row) {
+        $counts = ['on_record' => (int) $row['on_record'], 'applied' => (int) $row['applied']];
+        if ($row['month'] === null) {
+            $undated['on_record'] += $counts['on_record'];
+            $undated['applied'] += $counts['applied'];
+            continue;
+        }
+        $byMonth[(int) $row['year'] . '-' . (int) $row['month']] = $counts;
+    }
+
+    $months = [];
+    for ($year = $fromYear; $year <= $toYear; $year++) {
+        for ($month = 1; $month <= 12; $month++) {
+            $months[] = [
+                'year' => $year,
+                'month' => $month,
+                'on_record' => $byMonth[$year . '-' . $month]['on_record'] ?? 0,
+                'applied' => $byMonth[$year . '-' . $month]['applied'] ?? 0,
+            ];
+        }
+    }
+
+    return ['months' => $months, 'undated' => $undated];
+}
+
+/**
  * Percent change of $current relative to $previous, rounded to one decimal.
  * Null when $previous is 0 — there is no prior-year baseline to compare
  * against, so the caller shows no trend line rather than a misleading 0%

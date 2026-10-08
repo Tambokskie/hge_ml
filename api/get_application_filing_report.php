@@ -60,6 +60,7 @@ try {
         'insights' => $insights,
         'trends' => $trends,
         'trend_series' => get_filing_trend($pdo, $fromYear, $toYear),
+        'trend_monthly' => get_filing_trend_monthly($pdo, $fromYear, $toYear),
         'updated_at' => $updatedAt,
     ]);
 } catch (\Throwable $e) {
