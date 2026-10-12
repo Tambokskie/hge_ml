@@ -309,6 +309,11 @@ document.addEventListener('DOMContentLoaded', function () {
             html += '<button type="button" id="bulk-hge-confirm-btn" class="inline-flex items-center gap-1.5 rounded-xl bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-semibold px-4 py-2.5 transition-colors">' +
                 modalButtonIcon('check') + '<span>' + confirmLabel + '</span></button>';
         }
+        if (counts.review > 0) {
+            html += '<button type="button" id="bulk-hge-review-now-btn" class="inline-flex items-center gap-1.5 rounded-xl border border-yellow-500/50 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/10 text-sm font-semibold px-4 py-2.5 transition-colors">' +
+                '<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" /></svg>' +
+                '<span>REVIEW ' + formatCount(counts.review) + ' NOW</span></button>';
+        }
         if (needsAttention > 0) {
             html += '<a href="' + config.apiBase + '/api/bulk_hge_review_report.php?token=' + encodeURIComponent(data.token) + '" class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-white/15 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium px-4 py-2.5 transition-colors">' +
                 modalButtonIcon('download') + '<span>DOWNLOAD REVIEW FILE (' + formatCount(needsAttention) + ')</span></a>';
@@ -316,8 +321,14 @@ document.addEventListener('DOMContentLoaded', function () {
         html += '<button type="button" id="bulk-hge-cancel-btn" class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-white/15 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium px-4 py-2.5 transition-colors">START OVER</button>' +
             '</div>';
 
-        if (counts.to_file === 0) {
+        if (counts.to_file === 0 && counts.review === 0) {
+            html += '<p class="mt-4 text-sm font-semibold text-gray-700 dark:text-gray-300">NOTHING NEW TO FILE OR REVIEW FROM THIS FILE.</p>';
+        } else if (counts.to_file === 0) {
             html += '<p class="mt-4 text-sm text-gray-500 dark:text-gray-400">NO NEW APPLICATIONS CAN BE FILED AUTOMATICALLY FROM THIS FILE.</p>';
+        }
+        if (counts.handled > 0) {
+            html += '<p class="mt-4 text-sm text-gray-600 dark:text-gray-400"><strong>' + formatCount(counts.handled) + '</strong> UNCERTAIN APPLICANT(S) IN THIS FILE WERE ALREADY HANDLED ' +
+                '(FILED OR DISMISSED FROM THE NEEDS REVIEW LIST EARLIER), SO THEY ARE NOT RAISED AGAIN.</p>';
         }
         if (counts.review > 0) {
             html += '<p class="mt-4 text-sm text-gray-600 dark:text-gray-400">WHEN YOU CONFIRM, THE <strong>' + formatCount(counts.review) + '</strong> UNCERTAIN APPLICANT(S) ARE SAVED IN THE ' +
@@ -336,22 +347,31 @@ document.addEventListener('DOMContentLoaded', function () {
                 confirmBulkApply(data);
             });
         }
+        // The uncertain applicants are only saved (and so only listed below) once the preview is confirmed.
+        var reviewNowBtn = document.getElementById('bulk-hge-review-now-btn');
+        if (reviewNowBtn) {
+            reviewNowBtn.addEventListener('click', function () {
+                confirmBulkApply(data);
+            });
+        }
     }
 
     function confirmBulkApply(data) {
         var submitting = false;
 
+        var filing = data.counts.to_file > 0;
+
         showModal({
             icon: modalHeaderIcon('check'),
-            title: 'FILE ' + formatCount(data.counts.to_file) + ' APPLICATION(S)?',
-            subtitle: 'Each matched graduate is marked as applied using the date in your file.',
-            bodyHtml: '<p>' + formatCount(data.counts.to_file) + ' APPLICATION(S) WILL BE RECORDED. GRADUATES THAT ARE ALREADY FILED ARE NOT CHANGED.' +
+            title: filing ? 'FILE ' + formatCount(data.counts.to_file) + ' APPLICATION(S)?' : 'SAVE ' + formatCount(data.counts.review) + ' FOR REVIEW?',
+            subtitle: filing ? 'Each matched graduate is marked as applied using the date in your file.' : 'Nothing is filed. You decide each one in the NEEDS REVIEW list.',
+            bodyHtml: '<p>' + (filing ? formatCount(data.counts.to_file) + ' APPLICATION(S) WILL BE RECORDED. GRADUATES THAT ARE ALREADY FILED ARE NOT CHANGED.' : 'NO APPLICATIONS WILL BE FILED FROM THIS FILE.') +
                 (data.counts.review > 0 ? ' THE ' + formatCount(data.counts.review) + ' UNCERTAIN APPLICANT(S) ARE NOT FILED; THEY ARE SAVED IN THE NEEDS REVIEW LIST FOR YOU TO ACT ON.' : '') +
                 (data.counts.invalid > 0 ? ' THE ' + formatCount(data.counts.invalid) + ' UNREADABLE ROW(S) ARE SKIPPED.' : '') + '</p>',
             buttons: [
                 { label: 'CANCEL', className: MODAL_BTN.secondary },
                 {
-                    label: 'CONFIRM & FILE',
+                    label: filing ? 'CONFIRM & FILE' : 'SAVE & REVIEW',
                     icon: modalButtonIcon('check'),
                     className: MODAL_BTN.primary,
                     onClick: function (modalClose) {
@@ -375,7 +395,12 @@ document.addEventListener('DOMContentLoaded', function () {
                                         (result.skipped > 0 ? ', ' + formatCount(result.skipped) + ' SKIPPED BECAUSE THEY WERE ALREADY FILED' : '') + '.' +
                                         (result.review_added + result.review_updated > 0 ? ' <strong>' + formatCount(result.review_added + result.review_updated) + '</strong> APPLICANT(S) WERE SAVED IN THE NEEDS REVIEW LIST BELOW.' : '') + '</p>';
                                     bulkResult.classList.remove('hidden');
-                                    loadBulkReview();
+                                    var savedForReview = result.review_added + result.review_updated > 0;
+                                    loadBulkReview().then(function () {
+                                        if (savedForReview) {
+                                            scrollToBulkReview();
+                                        }
+                                    });
                                 } else {
                                     showToast('error', result.message);
                                     bulkReset();
@@ -412,8 +437,34 @@ document.addEventListener('DOMContentLoaded', function () {
             action + '</div>';
     }
 
+    // "GO TO NEEDS REVIEW (n)" in the card's top row: shown while items are
+    // waiting, and scrolls to the list below (which can be far down the page
+    // under a long preview).
+    var bulkGotoBtn = document.getElementById('bulk-hge-goto-review-btn');
+    var bulkGotoLabel = document.getElementById('bulk-hge-goto-review-label');
+
+    function scrollToBulkReview() {
+        if (!bulkReviewBox || bulkReviewBox.classList.contains('hidden')) {
+            return;
+        }
+        var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        bulkReviewBox.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+        bulkReviewBox.classList.add('ring-2', 'ring-yellow-400/70', 'rounded-xl');
+        setTimeout(function () {
+            bulkReviewBox.classList.remove('ring-2', 'ring-yellow-400/70', 'rounded-xl');
+        }, 1800);
+    }
+
+    if (bulkGotoBtn) {
+        bulkGotoBtn.addEventListener('click', scrollToBulkReview);
+    }
+
     function renderBulkReview(data) {
         bulkReviewItems = {};
+        if (bulkGotoBtn) {
+            bulkGotoBtn.classList.toggle('hidden', !data.total);
+            bulkGotoLabel.textContent = 'GO TO NEEDS REVIEW (' + formatCount(data.total || 0) + ')';
+        }
         if (!data.total) {
             bulkReviewBox.classList.add('hidden');
             bulkReviewBox.innerHTML = '';
@@ -454,9 +505,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function loadBulkReview() {
         if (!bulkReviewBox) {
-            return;
+            return Promise.resolve();
         }
-        fetch(config.apiBase + '/api/bulk_hge_review_list.php')
+        return fetch(config.apiBase + '/api/bulk_hge_review_list.php')
             .then(function (response) {
                 return response.json();
             })

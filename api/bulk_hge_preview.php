@@ -5,6 +5,7 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/duplicates.php';
 require_once __DIR__ . '/../includes/bulk_hge.php';
+require_once __DIR__ . '/../includes/bulk_hge_review.php';
 
 require_role('administrator');
 
@@ -43,7 +44,32 @@ try {
         exit;
     }
 
-    $preview = bulk_hge_build_preview(get_pdo(), $parsed['people'], $parsed['errors']);
+    $pdo = get_pdo();
+    $preview = bulk_hge_build_preview($pdo, $parsed['people'], $parsed['errors']);
+
+    // Uncertain applicants an administrator already filed or dismissed (or whose
+    // records are all filed for that date) are never raised again, so they are
+    // not "needs review": counting them would offer a review that is not there.
+    $handled = 0;
+    try {
+        $verdicts = bulk_hge_review_classify($pdo, $preview['review']);
+        $open = [];
+        foreach ($preview['review'] as $i => $item) {
+            if ($verdicts[$i] === 'open') {
+                $open[] = $item;
+            } else {
+                $handled++;
+            }
+        }
+        $preview['review'] = $open;
+        $preview['counts']['review'] = count($open);
+    } catch (\PDOException $e) {
+        // Review table not created yet: confirming reports that; the preview still works.
+        if (bulk_hge_review_missing_table_message($e) === null) {
+            throw $e;
+        }
+    }
+    $preview['counts']['handled'] = $handled;
 } catch (\Throwable $e) {
     error_log('bulk_hge_preview failed: ' . $e->getMessage());
     http_response_code(500);

@@ -91,6 +91,10 @@ include __DIR__ . '/../includes/sidebar.php';
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                         UPLOAD &amp; PREVIEW
                     </button>
+                    <button type="button" id="bulk-hge-goto-review-btn" class="hidden inline-flex items-center gap-1.5 rounded-xl border border-yellow-500/50 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/10 text-sm font-semibold px-4 py-2.5 transition-colors">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" /></svg>
+                        <span id="bulk-hge-goto-review-label">GO TO NEEDS REVIEW</span>
+                    </button>
                 </div>
 
                 <div id="bulk-hge-result" class="hidden mt-6 border-t border-gray-100 dark:border-white/10 pt-6"></div>

@@ -238,12 +238,28 @@ class BulkHgeReviewTest extends TestCase
         $this->assertSame(1, bulk_hge_review_list(TestDb::pdo())['total']);
     }
 
-    public function testAnItemStaysWhileAnotherPossibleRecordIsNotFiled(): void
+    public function testAnItemClosesWhenAnyPossibleRecordIsAlreadyFiledForThatDate(): void
     {
+        // Same name on two campuses: one is already filed for the very date in the
+        // file, so someone already acted on this applicant - the unfiled twin must
+        // not keep asking for action.
         $filed = $this->addGraduate('LOPEZ, MARK T.', 1, 1);
-        $open = $this->addGraduate('LOPEZ, MARK T.', 2, 2);
+        $twin = $this->addGraduate('LOPEZ, MARK T.', 2, 2);
+        bulk_hge_review_save(TestDb::pdo(), [['status' => 'ambiguous', 'person' => $this->person('Lopez', 'Mark', 'T', 'Tan', '2025-07-30'), 'candidate_ids' => [$filed, $twin]]], 1, 'file.xls');
+        $this->assertSame(1, bulk_hge_review_list(TestDb::pdo())['total'], 'waits while nothing is filed');
+
         $this->applyOn($filed, '2025-07-30');
-        bulk_hge_review_save(TestDb::pdo(), [['status' => 'ambiguous', 'person' => $this->person('Lopez', 'Mark', 'T', 'Tan', '2025-07-30'), 'candidate_ids' => [$filed, $open]]], 1, 'file.xls');
+
+        $this->assertSame(0, bulk_hge_review_list(TestDb::pdo())['total']);
+        $this->assertSame(1, count($this->applications()), 'closing it files nothing for the twin');
+    }
+
+    public function testAnItemStaysWhenNoPossibleRecordIsFiledForThatDate(): void
+    {
+        $a = $this->addGraduate('LOPEZ, MARK T.', 1, 1);
+        $b = $this->addGraduate('LOPEZ, MARK T.', 2, 2);
+        $this->applyOn($a, '2023-03-03'); // a different date says nothing about this row
+        bulk_hge_review_save(TestDb::pdo(), [['status' => 'ambiguous', 'person' => $this->person('Lopez', 'Mark', 'T', 'Tan', '2025-07-30'), 'candidate_ids' => [$a, $b]]], 1, 'file.xls');
 
         $this->assertSame(1, bulk_hge_review_list(TestDb::pdo())['total']);
     }
@@ -257,6 +273,45 @@ class BulkHgeReviewTest extends TestCase
         TestDb::pdo()->exec("DELETE FROM latin_honor_graduates WHERE id = {$gone}");
 
         $this->assertSame(0, bulk_hge_review_list(TestDb::pdo())['total']);
+    }
+
+    public function testClassifyTellsNewWaitingResolvedAndSettledApplicantsApart(): void
+    {
+        $a = $this->addGraduate('LOPEZ, MARK T.', 1, 1);
+        $b = $this->addGraduate('LOPEZ, MARK T.', 2, 2);
+        $entry = fn (string $first, array $ids, string $date = '2025-07-30'): array => [
+            'status' => 'ambiguous', 'person' => $this->person('Lopez', $first, 'T', 'Tan', $date), 'candidate_ids' => $ids,
+        ];
+        // Dated differently from the application filed below, so these two are not settled by it.
+        $new = $entry('Mark', [$a, $b], '2025-08-15');
+        $waiting = $entry('Marco', [$a, $b], '2025-08-15');
+        $filedBefore = $entry('Marcus', [$a, $b]);
+        $dismissedBefore = $entry('Marcel', [$a, $b]);
+        bulk_hge_review_save(TestDb::pdo(), [$waiting, $filedBefore, $dismissedBefore], 1, 'old.xls');
+        $items = bulk_hge_review_list(TestDb::pdo())['items'];
+        $this->assertTrue(bulk_hge_review_file(TestDb::pdo(), $items[1]['id'], $a, 1)['ok']);
+        $this->assertTrue(bulk_hge_review_dismiss(TestDb::pdo(), $items[2]['id'], 1)['ok']);
+        $settled = $entry('Markus', [$a], '2025-07-30');
+        $settledViaTwin = $entry('Markos', [$a, $b], '2025-07-30'); // $a is filed for this date, $b is not
+
+        $verdicts = bulk_hge_review_classify(TestDb::pdo(), [$new, $waiting, $filedBefore, $dismissedBefore, $settled, $settledViaTwin]);
+
+        $this->assertSame(['open', 'open', 'resolved', 'resolved', 'settled', 'settled'], array_values($verdicts));
+    }
+
+    public function testConfirmingAPreviewOfOnlyHandledApplicantsSavesNothing(): void
+    {
+        $grad = $this->addGraduate('Ma. April Rose F. Gambol');
+        $entry = ['status' => 'claimed', 'person' => $this->person('Gambol', 'Ma. April Rose', 'F', 'Florino', '2025-07-30'), 'candidate_ids' => [$grad]];
+        bulk_hge_review_save(TestDb::pdo(), [$entry], 1, 'old.xls');
+        bulk_hge_review_dismiss(TestDb::pdo(), bulk_hge_review_list(TestDb::pdo())['items'][0]['id'], 1);
+
+        $verdicts = bulk_hge_review_classify(TestDb::pdo(), [$entry]);
+        $counts = bulk_hge_review_save(TestDb::pdo(), [$entry], 1, 'again.xls');
+
+        $this->assertSame(['resolved'], array_values($verdicts));
+        $this->assertSame(['added' => 0, 'updated' => 0, 'skipped' => 1], $counts);
+        $this->assertSame(0, bulk_hge_review_pending_count(TestDb::pdo()));
     }
 
     public function testSavingSkipsAnApplicantWhoseRecordIsAlreadyFiledForThatDate(): void

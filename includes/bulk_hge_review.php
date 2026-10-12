@@ -81,27 +81,26 @@ function bulk_hge_review_applied_dates(PDO $pdo, array $ids): array
 }
 
 /**
- * True when there is nothing left for an administrator to decide: every
- * possible saved record that still exists already has an application filed for
- * the very date the file gives (and at least one exists).
+ * True when someone has already acted on this applicant, so there is nothing
+ * left for an administrator to decide: ANY possible saved record that still
+ * exists already has an application filed for the very date the file gives.
+ * A person applies once, so a same-named twin on another campus (or a typo'd
+ * second spelling) that is still unfiled does not keep the item open - the
+ * application the file describes is already recorded. A record filed for a
+ * DIFFERENT date does not count: that is not evidence about this row.
  *
  * @param int[] $candidateIds
  * @param array<int, ?string> $appliedDates  from bulk_hge_review_applied_dates()
  */
 function bulk_hge_review_is_settled(array $candidateIds, array $appliedDates, string $date): bool
 {
-    $existing = 0;
     foreach ($candidateIds as $id) {
-        if (!array_key_exists((int) $id, $appliedDates)) {
-            continue;
-        }
-        $existing++;
-        if ($appliedDates[(int) $id] !== $date) {
-            return false;
+        if (($appliedDates[(int) $id] ?? null) === $date) {
+            return true;
         }
     }
 
-    return $existing > 0;
+    return false;
 }
 
 /**
@@ -148,6 +147,56 @@ function bulk_hge_review_close_settled(PDO $pdo): int
 }
 
 /**
+ * What saving a review entry would do, one verdict per entry (same keys):
+ *  - 'resolved': the person already has an item an administrator filed or
+ *    dismissed, so they are never raised again;
+ *  - 'settled': nothing left to decide (see bulk_hge_review_is_settled());
+ *  - 'open': still needs an administrator (a new item, or one already waiting).
+ * The preview counts only 'open' entries as needing review, so what it
+ * promises is exactly what bulk_hge_review_save() then saves.
+ *
+ * @param array<int, array> $review  'review' from bulk_hge_build_preview()
+ * @return array<int, string>
+ */
+function bulk_hge_review_classify(PDO $pdo, array $review): array
+{
+    $keys = [];
+    $candidateIds = [];
+    foreach ($review as $i => $item) {
+        $keys[$i] = bulk_hge_person_key($item['person']);
+        foreach ($item['candidate_ids'] as $id) {
+            $candidateIds[] = (int) $id;
+        }
+    }
+
+    $statuses = [];
+    foreach (array_chunk(array_values(array_unique($keys)), 500) as $chunk) {
+        $stmt = $pdo->prepare(
+            'SELECT person_key, status FROM bulk_hge_review_items WHERE person_key IN (' . implode(',', array_fill(0, count($chunk), '?')) . ')'
+        );
+        $stmt->execute($chunk);
+        foreach ($stmt->fetchAll() as $row) {
+            $statuses[$row['person_key']] = $row['status'];
+        }
+    }
+
+    $appliedDates = $candidateIds === [] ? [] : bulk_hge_review_applied_dates($pdo, $candidateIds);
+
+    $verdicts = [];
+    foreach ($review as $i => $item) {
+        if (isset($statuses[$keys[$i]]) && $statuses[$keys[$i]] !== 'pending') {
+            $verdicts[$i] = 'resolved';
+        } elseif (bulk_hge_review_is_settled($item['candidate_ids'], $appliedDates, (string) $item['person']['date'])) {
+            $verdicts[$i] = 'settled';
+        } else {
+            $verdicts[$i] = 'open';
+        }
+    }
+
+    return $verdicts;
+}
+
+/**
  * Saves the uncertain applicants of a confirmed preview. One item per person:
  * a person already waiting is refreshed (the earlier date is kept), and a
  * person an admin already filed or dismissed - or whose possible records are
@@ -158,13 +207,7 @@ function bulk_hge_review_close_settled(PDO $pdo): int
  */
 function bulk_hge_review_save(PDO $pdo, array $review, int $userId, string $filename): array
 {
-    $allCandidates = [];
-    foreach ($review as $item) {
-        foreach ($item['candidate_ids'] as $id) {
-            $allCandidates[] = (int) $id;
-        }
-    }
-    $appliedDates = $allCandidates === [] ? [] : bulk_hge_review_applied_dates($pdo, $allCandidates);
+    $verdicts = bulk_hge_review_classify($pdo, $review);
 
     $select = $pdo->prepare('SELECT id, status FROM bulk_hge_review_items WHERE person_key = :person_key');
     $insert = $pdo->prepare(
@@ -185,12 +228,12 @@ function bulk_hge_review_save(PDO $pdo, array $review, int $userId, string $file
     $skipped = 0;
     $filename = mb_substr($filename, 0, 100);
 
-    foreach ($review as $item) {
-        $person = $item['person'];
-        if (bulk_hge_review_is_settled($item['candidate_ids'], $appliedDates, (string) $person['date'])) {
+    foreach ($review as $i => $item) {
+        if ($verdicts[$i] !== 'open') {
             $skipped++;
             continue;
         }
+        $person = $item['person'];
         $key = bulk_hge_person_key($person);
         $candidates = json_encode(array_values(array_map('intval', $item['candidate_ids'])));
 
