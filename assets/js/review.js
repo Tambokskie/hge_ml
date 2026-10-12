@@ -528,19 +528,27 @@ document.addEventListener('DOMContentLoaded', function () {
     var saveBtn = document.getElementById('save-records-btn');
 
     function duplicateGroupHtml(group) {
+        // A saved copy that already has a filed application PREVAILS over the
+        // copies in this review, so those are pre-ticked for removal.
+        var prevails = (group.saved || []).some(function (saved) { return saved.has_applied; });
         var stagedHtml = group.staged.map(function (row) {
             var details = [row.course || '—', row.latin_honor, row.graduation_year].filter(Boolean).join(' · ');
             return '<label class="flex items-start gap-2 py-1 cursor-pointer">' +
-                '<input type="checkbox" class="dup-remove-checkbox mt-0.5 h-4 w-4 rounded border-gray-300 dark:border-white/20 text-csc-navy-600" data-row-index="' + row.row_index + '">' +
+                '<input type="checkbox" class="dup-remove-checkbox mt-0.5 h-4 w-4 rounded border-gray-300 dark:border-white/20 text-csc-navy-600" data-row-index="' + row.row_index + '"' + (prevails ? ' checked' : '') + '>' +
                 '<span><span class="font-semibold">NO. ' + row.row_number + '</span> — ' + escapeHtml(details) + '</span></label>';
         }).join('');
 
-        var savedHtml = '';
-        if (group.saved) {
-            var savedDetails = [group.saved.course || '—', group.saved.latin_honor].filter(Boolean).join(' · ');
-            savedHtml = '<p class="mt-1 rounded-md bg-orange-500/10 px-2 py-1 text-xs text-orange-700 dark:text-orange-400">' +
-                'ALREADY SAVED FROM ' + escapeHtml(group.saved.original_filename) + ' (UPLOADED ' + escapeHtml(group.saved.uploaded_on) + ') — ' + escapeHtml(savedDetails) + '</p>';
-        }
+        // Saved copies are matched by name + course at ANY school and year, so each
+        // note names its school and year; they belong to that school's list.
+        var savedHtml = (group.saved || []).map(function (saved) {
+            var savedDetails = [saved.course || '—', saved.latin_honor, saved.graduation_year].filter(Boolean).join(' · ');
+            var appliedTag = saved.has_applied
+                ? ' <strong>— APPLIED ' + escapeHtml(saved.applied_on_label || '') + ': THIS RECORD PREVAILS</strong>'
+                : '';
+            return '<p class="mt-1 rounded-md ' + (saved.has_applied ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-orange-500/10 text-orange-700 dark:text-orange-400') + ' px-2 py-1 text-xs">' +
+                'ALREADY SAVED AT ' + escapeHtml(saved.school || '—') + ' — ' + escapeHtml(saved.graduate_name) + ' · ' + escapeHtml(savedDetails) +
+                ' (FROM ' + escapeHtml(saved.original_filename) + ', UPLOADED ' + escapeHtml(saved.uploaded_on) + ')' + appliedTag + '</p>';
+        }).join('');
 
         return '<div class="rounded-lg border border-gray-200 dark:border-white/10 px-3 py-2">' +
             '<p class="text-sm font-bold text-gray-900 dark:text-white uppercase">' + escapeHtml(group.name) + '</p>' +
@@ -548,7 +556,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Shown by SAVE RECORDS when the same name appears more than once in this
-    // review, or already exists on file for this school and year. The admin
+    // review, or already exists on file for this school and year or at another school. The admin
     // removes the unwanted staged rows, saves anyway (two different people can
     // share a name), or cancels back to the review view — nothing is saved by
     // this modal itself.
@@ -561,9 +569,9 @@ document.addEventListener('DOMContentLoaded', function () {
             icon: modalHeaderIcon('warning'),
             iconClassName: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
             title: 'POSSIBLE DUPLICATE NAMES FOUND',
-            subtitle: groups.length + ' name(s) appear more than once or already exist on file. Nothing has been saved yet.',
+            subtitle: groups.length + ' name(s) appear more than once or already exist on file, at this or another school. Nothing has been saved yet.',
             bodyHtml: '<div class="space-y-4">' +
-                '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">TICK THE RECORDS FROM THIS REVIEW THAT SHOULD BE REMOVED, OR SAVE ANYWAY IF THEY ARE DIFFERENT PEOPLE. CANCEL TO GO BACK TO THE REVIEW.</p>' +
+                '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">TICK THE RECORDS FROM THIS REVIEW THAT SHOULD BE REMOVED, OR SAVE ANYWAY IF THEY ARE DIFFERENT PEOPLE. A SAVED RECORD THAT ALREADY HAS AN APPLICATION PREVAILS, SO ITS DUPLICATES HERE ARE PRE-TICKED. CANCEL TO GO BACK TO THE REVIEW.</p>' +
                 '<div class="max-h-72 space-y-2 overflow-y-auto pr-1">' + groups.map(duplicateGroupHtml).join('') + '</div>' +
                 modalField({ id: 'modal-dup-remove-reason', label: 'REASON FOR REMOVAL', optional: true, icon: 'pen', placeholder: 'E.G. DUPLICATE ENTRIES', uppercase: true, value: 'DUPLICATE ENTRY', note: 'ONLY NEEDED WHEN REMOVING RECORDS. PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.' }) +
                 '</div>',

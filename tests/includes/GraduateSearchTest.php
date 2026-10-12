@@ -421,55 +421,77 @@ class GraduateSearchTest extends TestCase
         $this->assertNotNull(get_graduate_by_id(TestDb::pdo(), $id));
     }
 
-    // --- find_possible_duplicate_graduates() — the review-page duplicate-upload flag ---
+    // --- find_saved_duplicates_by_name() — the review-page duplicate flag ---
 
-    public function testFindPossibleDuplicateGraduatesMatchesByName(): void
+    public function testFindSavedDuplicatesMatchesByNameAndCourse(): void
     {
-        // Upload 1 and upload 3 (see setUp) are both school_id=1, school_year='2025'
-        // — the exact "re-uploaded for the same school+year" scenario.
+        // Upload 1 and upload 3 (see setUp) are both school_id=1, school_year='2025'.
         $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025, 'BS Computer Science');
 
-        $existing = find_possible_duplicate_graduates(TestDb::pdo(), 1, '2025', 3);
+        $existing = find_saved_duplicates_by_name(TestDb::pdo(), 3);
 
-        $this->assertArrayHasKey('JUAN DELA CRUZ', $existing);
-        $this->assertSame(1, $existing['JUAN DELA CRUZ']['upload_id']);
-        $this->assertSame('BS Computer Science', $existing['JUAN DELA CRUZ']['course']);
+        $key = duplicate_group_key(['graduate_name' => 'Juan Dela Cruz', 'course' => 'BS Computer Science']);
+        $this->assertArrayHasKey($key, $existing);
+        $this->assertSame('BS Computer Science', $existing[$key][0]['course']);
+        $this->assertNotSame('', $existing[$key][0]['original_filename']);
     }
 
-    public function testFindPossibleDuplicateGraduatesIgnoresCasePunctuationAndWhitespace(): void
+    public function testFindSavedDuplicatesIgnoresCasePunctuationAndWhitespace(): void
     {
-        $this->insertGraduate(1, 1, 'Dela Cruz, Juan  M.', 'CUM LAUDE', '2025-06-15', 2025);
+        $this->insertGraduate(1, 1, 'Dela Cruz, Juan  M.', 'CUM LAUDE', '2025-06-15', 2025, 'BSA');
 
-        $existing = find_possible_duplicate_graduates(TestDb::pdo(), 1, '2025', 3);
+        $existing = find_saved_duplicates_by_name(TestDb::pdo(), 3);
 
-        $this->assertArrayHasKey('DELA CRUZ JUAN M', $existing);
-        $this->assertSame(normalize_name_for_matching('dela cruz juan m'), 'DELA CRUZ JUAN M');
+        $this->assertArrayHasKey(duplicate_group_key(['graduate_name' => 'DELA CRUZ JUAN M', 'course' => 'bsa']), $existing);
     }
 
-    public function testFindPossibleDuplicateGraduatesExcludesTheGivenUploadId(): void
+    public function testFindSavedDuplicatesMatchesWhateverTheCourseIsCalled(): void
+    {
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025, 'Bachelor of Science in Accountancy');
+
+        $existing = find_saved_duplicates_by_name(TestDb::pdo(), 3);
+
+        $this->assertArrayHasKey(duplicate_group_key(['graduate_name' => 'Juan Dela Cruz']), $existing);
+        $this->assertSame('Bachelor of Science in Accountancy', $existing['JUAN DELA CRUZ'][0]['course']);
+    }
+
+    public function testFindSavedDuplicatesListsTheAppliedCopyFirstAndFlagsIt(): void
+    {
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025, 'BSA');
+        $this->insertGraduate(2, 2, 'Juan Dela Cruz', 'CUM LAUDE', '2024-06-15', 2024, 'BSIT');
+        $appliedId = (int) TestDb::pdo()->lastInsertId();
+        TestDb::pdo()->exec("INSERT INTO graduate_applications (graduate_id, applied_by, application_date) VALUES ({$appliedId}, 1, '2026-06-03')");
+
+        $matches = find_saved_duplicates_by_name(TestDb::pdo(), 3)['JUAN DELA CRUZ'];
+
+        $this->assertSame(['BSIT', 'BSA'], array_column($matches, 'course'), 'the applied copy prevails, so it is first');
+        $this->assertSame([true, false], array_column($matches, 'has_applied'));
+        $this->assertSame(['2026-06-03', null], array_column($matches, 'applied_on'));
+    }
+
+    public function testFindSavedDuplicatesExcludesTheGivenUploadId(): void
     {
         // A row already belonging to the upload being reviewed (e.g.
         // reopening an already-reviewed upload for editing) must never flag
         // itself as a duplicate of itself.
         $this->insertGraduate(3, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025);
 
-        $existing = find_possible_duplicate_graduates(TestDb::pdo(), 1, '2025', 3);
-
-        $this->assertSame([], $existing);
+        $this->assertSame([], find_saved_duplicates_by_name(TestDb::pdo(), 3));
     }
 
-    public function testFindPossibleDuplicateGraduatesScopesToSchoolAndYear(): void
+    public function testFindSavedDuplicatesIsNotLimitedToTheSameSchoolOrYear(): void
     {
-        // Upload 2 is a different school+year (school_id=2, '2024').
-        $this->insertGraduate(2, 2, 'Juan Dela Cruz', 'CUM LAUDE', '2024-06-15', 2024);
+        // Upload 2 is a different school+year (school_id=2, '2024'): still a match.
+        $this->insertGraduate(2, 2, 'Juan Dela Cruz', 'MAGNA CUM LAUDE', '2024-06-15', 2024, 'BSA');
 
-        $existing = find_possible_duplicate_graduates(TestDb::pdo(), 1, '2025', 3);
+        $existing = find_saved_duplicates_by_name(TestDb::pdo(), 3);
 
-        $this->assertSame([], $existing);
+        $this->assertCount(1, $existing);
+        $this->assertSame(2024, array_values($existing)[0][0]['graduation_year']);
     }
 
-    public function testFindPossibleDuplicateGraduatesReturnsEmptyArrayWhenNothingOnFile(): void
+    public function testFindSavedDuplicatesReturnsEmptyArrayWhenNothingOnFile(): void
     {
-        $this->assertSame([], find_possible_duplicate_graduates(TestDb::pdo(), 1, '2025', 3));
+        $this->assertSame([], find_saved_duplicates_by_name(TestDb::pdo(), 3));
     }
 }

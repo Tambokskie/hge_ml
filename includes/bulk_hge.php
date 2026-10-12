@@ -1,6 +1,6 @@
 <?php
 
-// Callers must also load includes/duplicates.php (duplicate_group_key()) and
+// Callers must also load includes/duplicates.php (duplicate_exact_copy_key()) and
 // includes/functions.php (format_school_display_name()).
 
 const BULK_HGE_MAX_BYTES = 10485760;
@@ -298,7 +298,7 @@ function bulk_hge_load_graduate_index(PDO $pdo): array
             'tokens' => $parsed['tokens'],
             'ext' => $parsed['ext'],
             'applied' => (int) $row['applied'] === 1,
-            'group_key' => duplicate_group_key($row),
+            'group_key' => duplicate_exact_copy_key($row),
         ];
         foreach (array_unique($parsed['tokens']) as $token) {
             $index[$token][] = $id;

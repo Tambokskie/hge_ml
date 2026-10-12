@@ -38,7 +38,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
             <div>
                 <h1 class="text-2xl font-bold text-csc-navy-600 dark:text-white">DUPLICATE RECORDS</h1>
-                <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">RECORDS WITH THE SAME SCHOOL, GRADUATION YEAR, LATIN HONOR, NAME, AND COURSE. CHOOSE WHICH EXTRA COPIES TO REMOVE — THEY GO TO THE RECYCLE BIN AND CAN BE RESTORED.</p>
+                <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">RECORDS WITH THE SAME NAME, AT ANY SCHOOL, COURSE AND YEAR. A RECORD THAT ALREADY HAS A FILED APPLICATION PREVAILS: IT IS THE ONE KEPT AND CANNOT BE REMOVED. CHOOSE WHICH EXTRA COPIES TO REMOVE — THEY GO TO THE RECYCLE BIN AND CAN BE RESTORED.</p>
             </div>
         </div>
 
@@ -93,7 +93,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 dark:border-white/5 px-4 py-3">
                             <div>
                                 <p class="text-sm font-semibold text-gray-900 dark:text-white"><?= e_upper($first['graduate_name']) ?></p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400"><?= e_upper($first['course'] !== '' ? $first['course'] : '—') ?> · <?= e_upper(format_school_display_name($first['school_name'], $first['campus'])) ?> · <?= e($first['latin_honor']) ?> · <?= (int) $first['graduation_year'] ?></p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400"><?= count($group['members']) ?> RECORDS WITH THIS NAME</p>
                             </div>
                             <span class="text-xs font-semibold text-gray-500 dark:text-gray-400"><?= count($group['members']) ?> COPIES</span>
                         </div>
@@ -111,6 +111,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                                 title="<?= $isLocked ? 'HAS A FILED APPLICATION — CANNOT BE REMOVED' : ($isKeeper ? 'SUGGESTED COPY TO KEEP' : 'MOVE TO RECYCLE BIN') ?>">
                                         </td>
                                         <td class="px-2 py-2.5 text-xs text-gray-500 dark:text-gray-400">#<?= (int) $member['id'] ?></td>
+                                        <td class="px-2 py-2.5 text-xs text-gray-900 dark:text-white"><?= e_upper(format_school_display_name($member['school_name'], $member['campus'])) ?> · <?= e_upper($member['course'] !== '' ? $member['course'] : '—') ?> · <?= e($member['latin_honor']) ?> · <?= (int) $member['graduation_year'] ?></td>
                                         <td class="px-2 py-2.5 text-xs text-gray-600 dark:text-gray-300"><?= e($member['original_filename']) ?> (UPLOAD <?= (int) $member['upload_number'] ?>)</td>
                                         <td class="px-2 py-2.5 text-xs text-gray-600 dark:text-gray-300"><?= $member['graduation_date'] ? e_upper(date('M j, Y', strtotime($member['graduation_date']))) : '—' ?></td>
                                         <td class="px-2 py-2.5 text-right">

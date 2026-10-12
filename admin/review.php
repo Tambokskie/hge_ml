@@ -65,19 +65,23 @@ $courseOptions = array_values(array_unique(array_filter(array_map(
 ))));
 sort($courseOptions);
 
-// Flags a staged row whose name matches something already saved for this
-// same school+year under a different upload — see the doc comment on
-// find_possible_duplicate_graduates() for why this is a hint, not an
+// Flags a staged row whose NAME matches something already saved at any
+// school or year under a different upload — see the doc comment on
+// find_saved_duplicates_by_name() for why this is a hint, not an
 // automatic dedup. Keyed by row index so the table below can render a badge
 // without a second pass over $rows.
-$existingGraduatesByName = find_possible_duplicate_graduates($pdo, (int) $upload['school_id'], $upload['school_year'], $uploadId);
+$existingByKey = find_saved_duplicates_by_name($pdo, $uploadId);
 $duplicateMatches = [];
 foreach ($rows as $index => $row) {
-    $key = normalize_name_for_matching($row['graduate_name']);
-    if ($key !== '' && isset($existingGraduatesByName[$key])) {
-        $match = $existingGraduatesByName[$key];
-        $match['exact_match'] = mb_strtoupper(trim($row['course'] ?? '')) === mb_strtoupper(trim($match['course']))
-            && mb_strtoupper($row['latin_honor']) === mb_strtoupper($match['latin_honor']);
+    if (normalize_name_for_matching((string) $row['graduate_name']) === '') {
+        continue;
+    }
+    $key = duplicate_group_key($row);
+    if (isset($existingByKey[$key])) {
+        // Copies that already have a filed application come first: they prevail.
+        $match = $existingByKey[$key][0];
+        // The name matches; the same course on top of that makes it a "likely" duplicate.
+        $match['exact_match'] = normalize_duplicate_text((string) ($row['course'] ?? '')) === normalize_duplicate_text($match['course']);
         $duplicateMatches[$index] = $match;
     }
 }
@@ -236,8 +240,8 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <?php if ($dup !== null): ?>
                                         <br>
                                         <span class="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-orange-500/15 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400"
-                                            title="ON FILE FROM: <?= e($dup['original_filename']) ?> (UPLOADED <?= e_upper(date('M j, Y', strtotime($dup['uploaded_at']))) ?>) — <?= e_upper($dup['course']) ?>, <?= e($dup['latin_honor']) ?>">
-                                            ⚠ <?= $dup['exact_match'] ? 'LIKELY DUPLICATE' : 'POSSIBLE DUPLICATE' ?>
+                                            title="ON FILE AT <?= e_upper($dup['school'] !== '' ? $dup['school'] : '—') ?> FROM: <?= e($dup['original_filename']) ?> (UPLOADED <?= e_upper(date('M j, Y', strtotime($dup['uploaded_at']))) ?>) — <?= e_upper($dup['course']) ?>, <?= e($dup['latin_honor']) ?><?= $dup['has_applied'] ? ' — APPLIED ' . e_upper(date('M j, Y', strtotime($dup['applied_on']))) . ' (THAT RECORD PREVAILS)' : '' ?>">
+                                            ⚠ <?= $dup['has_applied'] ? 'DUPLICATE OF AN APPLIED RECORD' : ($dup['exact_match'] ? 'LIKELY DUPLICATE' : 'POSSIBLE DUPLICATE') ?>
                                         </span>
                                     <?php endif; ?>
                                 </td>

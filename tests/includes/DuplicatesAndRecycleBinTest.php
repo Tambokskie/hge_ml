@@ -58,15 +58,76 @@ class DuplicatesAndRecycleBinTest extends TestCase
         $this->assertCount(1, find_duplicate_groups(TestDb::pdo()));
     }
 
-    public function testDifferentCourseHonorYearOrSchoolAreNotDuplicates(): void
+    public function testOnlyTheNameDecidesADuplicate(): void
+    {
+        // Course, honor, year AND school do not matter - the course is written many ways.
+        $first = $this->addGraduate(1, 1, 'SAME NAME', 'BSIT');
+        $b = $this->addGraduate(1, 1, 'SAME NAME', 'Bachelor of Science in Information Technology', 'MAGNA CUM LAUDE', 2024);
+        $c = $this->addGraduate(3, 2, 'SAME NAME', 'BSA');
+        $this->addGraduate(1, 1, 'ANOTHER NAME', 'BSIT');
+
+        $groups = find_duplicate_groups(TestDb::pdo());
+
+        $this->assertCount(1, $groups);
+        $this->assertSame([$first, $b, $c], array_map(static fn ($m) => (int) $m['id'], $groups[0]['members']));
+    }
+
+    public function testTheCopyWithAFiledApplicationPrevailsWhateverItsSchoolCourseOrAge(): void
+    {
+        $pdo = TestDb::pdo();
+        $oldest = $this->addGraduate(1, 1, 'PREVAILING PERSON', 'BSIT');
+        $middle = $this->addGraduate(2, 1, 'PREVAILING PERSON', 'BSA');
+        $applied = $this->addGraduate(3, 2, 'PREVAILING PERSON', 'Bachelor of Arts');
+        $pdo->exec("INSERT INTO graduate_applications (graduate_id, applied_by, application_date) VALUES ({$applied}, 1, '2026-06-03')");
+
+        $members = find_duplicate_groups($pdo)[0]['members'];
+        $this->assertSame([$applied, $oldest, $middle], array_map(static fn ($m) => (int) $m['id'], $members), 'the applied copy is first (kept) even though it is newest');
+
+        // The cleanup tool keeps it and bins the others - and can never remove it.
+        $refused = remove_duplicate_graduates($pdo, [$applied], 1, 'DUPLICATE ENTRY');
+        $result = remove_duplicate_graduates($pdo, [$oldest, $middle], 1, 'DUPLICATE ENTRY');
+
+        $this->assertSame(0, $refused['removed']);
+        $this->assertSame(2, $result['removed']);
+        $this->assertNotNull(get_graduate_by_id($pdo, $applied));
+        $this->assertNull(get_graduate_by_id($pdo, $oldest));
+    }
+
+    public function testSchoolAndYearFiltersOnlyChooseWhichGroupsToShow(): void
     {
         $this->addGraduate(1, 1, 'SAME NAME', 'BSA');
-        $this->addGraduate(1, 1, 'SAME NAME', 'BSIT');
-        $this->addGraduate(1, 1, 'SAME NAME', 'BSA', 'MAGNA CUM LAUDE');
-        $this->addGraduate(1, 1, 'SAME NAME', 'BSA', 'CUM LAUDE', 2024);
-        $this->addGraduate(3, 2, 'SAME NAME', 'BSA');
+        $this->addGraduate(3, 2, 'SAME NAME', 'BSA', 'CUM LAUDE', 2024);
 
-        $this->assertSame([], find_duplicate_groups(TestDb::pdo()));
+        $atSchoolTwo = find_duplicate_groups(TestDb::pdo(), 2);
+        $this->assertCount(1, $atSchoolTwo);
+        $this->assertCount(2, $atSchoolTwo[0]['members'], 'still lists every copy, including the one at the other school');
+        $this->assertCount(1, find_duplicate_groups(TestDb::pdo(), null, 2024));
+        $this->assertSame([], find_duplicate_groups(TestDb::pdo(), 2, 2030));
+        $this->assertSame([], find_duplicate_groups(TestDb::pdo(), 99));
+    }
+
+    public function testDuplicatesAcrossSchoolsAreFlaggedAndCounted(): void
+    {
+        $a = $this->addGraduate(1, 1, 'TWIN PERSON', 'BSIT');
+        $b = $this->addGraduate(3, 2, 'TWIN PERSON', 'BSIT');
+
+        $this->assertEqualsCanonicalizing([$a, $b], flag_duplicates_for_rows(TestDb::pdo(), [$a, $b]));
+        $this->assertSame(1, count_duplicates_for_upload(TestDb::pdo(), 1));
+        $this->assertSame(1, count_duplicates_for_upload(TestDb::pdo(), 3));
+    }
+
+    public function testRemovingTheCopyAtAnotherSchoolKeepsOneAndBinsTheOther(): void
+    {
+        $keep = $this->addGraduate(1, 1, 'TWIN PERSON', 'BSIT');
+        $extra = $this->addGraduate(3, 2, 'TWIN PERSON', 'BSIT');
+
+        $result = remove_duplicate_graduates(TestDb::pdo(), [$extra], 1, 'DUPLICATE ENTRY');
+        $refused = remove_duplicate_graduates(TestDb::pdo(), [$keep], 1, 'DUPLICATE ENTRY');
+
+        $this->assertSame(1, $result['removed']);
+        $this->assertNotNull(get_graduate_by_id(TestDb::pdo(), $keep));
+        $this->assertNull(get_graduate_by_id(TestDb::pdo(), $extra));
+        $this->assertSame(0, $refused['removed'], 'the last remaining copy is never removed');
     }
 
     public function testKeeperIsCopyWithFiledApplicationElseOldest(): void

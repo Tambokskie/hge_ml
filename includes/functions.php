@@ -388,7 +388,7 @@ function validate_removal_reason(string $reason): array
 
 /**
  * Comparison key for the possible-duplicate-graduate check (see
- * find_possible_duplicate_graduates() in includes/graduates.php) — not a
+ * find_saved_duplicates_by_name() in includes/graduates.php) — not a
  * display value. Two independent extractions of the same underlying name
  * (one PDF read by AI, another re-uploaded and OCR'd) can differ in case,
  * whitespace, or punctuation ("DELA CRUZ, JUAN" vs "Dela Cruz Juan") without

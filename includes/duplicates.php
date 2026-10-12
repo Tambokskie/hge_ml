@@ -1,10 +1,16 @@
 <?php
 
 /**
- * Two saved graduates are duplicates only when school, graduation year,
- * Latin honor, name and course all match after normalization — deliberately
- * conservative so two different people are never grouped. The date is NOT
- * part of the key (OCR frequently drops it).
+ * Two graduates are duplicates when their NAME matches after normalization
+ * (case, spacing and punctuation ignored) - wherever they are saved: the
+ * course, school, graduation year, Latin honor and date are NOT part of the
+ * key. The same person is often on two schools' lists (another campus, or a
+ * list uploaded under the wrong school), the same course is written many ways
+ * ("BSIT" vs "Bachelor of Science in Information Technology"), and OCR drops
+ * dates and mangles honors, so any of those would only hide real duplicates.
+ *
+ * Among copies, the one that already has a filed application PREVAILS (see
+ * group_duplicates()): it is the one kept, and it is never removed.
  */
 function normalize_duplicate_text(string $value): string
 {
@@ -15,6 +21,17 @@ function normalize_duplicate_text(string $value): string
 }
 
 function duplicate_group_key(array $row): string
+{
+    return normalize_duplicate_text((string) $row['graduate_name']);
+}
+
+/**
+ * The strict "exact copy" key: school, year, honor, name and course all match.
+ * Used only by the bulk update of applications to collapse copies of one record
+ * (see bulk_hge_collapse_duplicates()), where merging two different schools'
+ * records would silently file an application against the wrong one.
+ */
+function duplicate_exact_copy_key(array $row): string
 {
     return implode('|', [
         (int) $row['school_id'],
@@ -70,7 +87,8 @@ function fetch_duplicate_candidates(PDO $pdo, ?array $schoolIds = null, ?array $
 /**
  * Buckets candidate rows by duplicate key and keeps only buckets with 2+
  * members. Each group's members are ordered keeper-first: a copy that has a
- * filed application wins, otherwise the oldest (lowest id).
+ * filed application PREVAILS over the others (an application is the system's
+ * confirmation of a record), otherwise the oldest (lowest id) wins.
  *
  * @return array<int, array{key: string, members: array}>
  */
@@ -102,36 +120,42 @@ function group_duplicates(array $rows): array
 }
 
 /**
+ * Every duplicate group. Groups span schools and years, so the optional school
+ * / year filters only choose which groups to SHOW: a group is kept when at
+ * least one of its copies is at that school / in that year, and it is still
+ * listed with all of its copies.
+ *
  * @return array<int, array{key: string, members: array}>
  */
 function find_duplicate_groups(PDO $pdo, ?int $schoolId = null, ?int $year = null): array
 {
-    $rows = fetch_duplicate_candidates(
-        $pdo,
-        $schoolId !== null ? [$schoolId] : null,
-        $year !== null ? [$year] : null
-    );
+    $groups = group_duplicates(fetch_duplicate_candidates($pdo));
 
-    return group_duplicates($rows);
+    if ($schoolId === null && $year === null) {
+        return $groups;
+    }
+
+    return array_values(array_filter($groups, static function (array $group) use ($schoolId, $year): bool {
+        foreach ($group['members'] as $member) {
+            if (($schoolId === null || (int) $member['school_id'] === $schoolId)
+                && ($year === null || (int) $member['graduation_year'] === $year)) {
+                return true;
+            }
+        }
+
+        return false;
+    }));
 }
 
 /**
  * Number of duplicate groups that include at least one record from this
- * upload — the post-save "N possible duplicates" check. Scoped to the
- * upload's school so it stays cheap.
+ * upload — the post-save "N possible duplicates" check. The copies may be at
+ * any school, so every group is considered.
  */
 function count_duplicates_for_upload(PDO $pdo, int $uploadId): int
 {
-    $stmt = $pdo->prepare('SELECT school_id FROM latin_honor_uploads WHERE id = :id');
-    $stmt->execute(['id' => $uploadId]);
-    $schoolId = $stmt->fetchColumn();
-
-    if ($schoolId === false) {
-        return 0;
-    }
-
     $count = 0;
-    foreach (find_duplicate_groups($pdo, (int) $schoolId) as $group) {
+    foreach (find_duplicate_groups($pdo) as $group) {
         foreach ($group['members'] as $member) {
             if ((int) $member['upload_id'] === $uploadId) {
                 $count++;
@@ -145,7 +169,8 @@ function count_duplicates_for_upload(PDO $pdo, int $uploadId): int
 
 /**
  * Which of the given graduate ids (one Look-Up page of results) belong to a
- * duplicate group. One grouped scan over those rows' schools/years.
+ * duplicate group. One lean scan of every saved name (a copy can be
+ * at any school), grouped by duplicate_group_key().
  *
  * @param array<int, int> $graduateIds
  * @return array<int, int>
@@ -157,22 +182,18 @@ function flag_duplicates_for_rows(PDO $pdo, array $graduateIds): array
         return [];
     }
 
-    $placeholders = implode(',', array_fill(0, count($graduateIds), '?'));
-    $stmt = $pdo->prepare("SELECT DISTINCT school_id, graduation_year FROM latin_honor_graduates WHERE id IN ({$placeholders})");
-    $stmt->execute($graduateIds);
-    $pairs = $stmt->fetchAll();
-
-    $schoolIds = array_values(array_unique(array_map(static fn ($p) => (int) $p['school_id'], $pairs)));
-    $years = array_values(array_unique(array_map(static fn ($p) => (int) $p['graduation_year'], $pairs)));
-
-    $flagged = [];
-    foreach (group_duplicates(fetch_duplicate_candidates($pdo, $schoolIds, $years)) as $group) {
-        foreach ($group['members'] as $member) {
-            $flagged[(int) $member['id']] = true;
-        }
+    $keysById = [];
+    $perKey = [];
+    foreach ($pdo->query('SELECT id, graduate_name, course FROM latin_honor_graduates') as $row) {
+        $key = duplicate_group_key($row);
+        $keysById[(int) $row['id']] = $key;
+        $perKey[$key] = ($perKey[$key] ?? 0) + 1;
     }
 
-    return array_values(array_intersect($graduateIds, array_keys($flagged)));
+    return array_values(array_filter(
+        $graduateIds,
+        static fn (int $id): bool => isset($keysById[$id]) && $perKey[$keysById[$id]] > 1
+    ));
 }
 
 /**
@@ -194,12 +215,7 @@ function remove_duplicate_graduates(PDO $pdo, array $graduateIds, ?int $userId, 
         return ['removed' => 0, 'skipped' => []];
     }
 
-    $placeholders = implode(',', array_fill(0, count($graduateIds), '?'));
-    $stmt = $pdo->prepare("SELECT DISTINCT school_id FROM latin_honor_graduates WHERE id IN ({$placeholders})");
-    $stmt->execute($graduateIds);
-    $schoolIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
-
-    $groups = group_duplicates(fetch_duplicate_candidates($pdo, $schoolIds));
+    $groups = group_duplicates(fetch_duplicate_candidates($pdo));
 
     $removed = 0;
     $skipped = [];
@@ -239,27 +255,27 @@ function remove_duplicate_graduates(PDO $pdo, array $graduateIds, ?int $userId, 
 
 /**
  * The pre-save check on admin/review.php (SAVE RECORDS): groups of staged rows
- * that share a name, either with another staged row of the same upload or with
- * a record already saved for the same school and year under a different upload.
- * Name-only on purpose (see normalize_name_for_matching()) - it is a prompt for
- * a human to decide, not an automatic dedup, so two different people who share
- * a name are shown too and can still be saved.
+ * that are duplicates by NAME (see duplicate_group_key()) of another
+ * staged row of the same upload, or of a record already saved anywhere - any
+ * school, any year - under a different upload. It is a prompt for a human to
+ * decide, not an automatic dedup, so two different people who share a name are
+ * shown too and can still be saved. A saved copy that already has a filed
+ * application prevails (it comes first in 'saved', flagged has_applied).
  *
  * Callers must also load includes/functions.php.
  *
  * @param array<int, array> $rows  staged rows ($review['rows'])
- * @param array<string, array> $savedByName  find_possible_duplicate_graduates()
- * @return array<int, array{name: string, staged: array<int, array>, saved: ?array}>
+ * @param array<string, array<int, array>> $savedByKey  find_saved_duplicates_by_name()
+ * @return array<int, array{name: string, staged: array<int, array>, saved: array<int, array>}>
  */
-function find_staged_duplicate_groups(array $rows, array $savedByName): array
+function find_staged_duplicate_groups(array $rows, array $savedByKey): array
 {
     $buckets = [];
     foreach ($rows as $index => $row) {
-        $key = normalize_name_for_matching((string) ($row['graduate_name'] ?? ''));
-        if ($key === '') {
+        if (normalize_name_for_matching((string) ($row['graduate_name'] ?? '')) === '') {
             continue;
         }
-        $buckets[$key][] = [
+        $buckets[duplicate_group_key($row)][] = [
             'row_index' => (int) $index,
             'row_number' => (int) $index + 1,
             'name' => (string) $row['graduate_name'],
@@ -271,8 +287,8 @@ function find_staged_duplicate_groups(array $rows, array $savedByName): array
 
     $groups = [];
     foreach ($buckets as $key => $staged) {
-        $saved = $savedByName[$key] ?? null;
-        if (count($staged) < 2 && $saved === null) {
+        $saved = $savedByKey[$key] ?? [];
+        if (count($staged) < 2 && $saved === []) {
             continue;
         }
         $groups[] = ['name' => $staged[0]['name'], 'staged' => $staged, 'saved' => $saved];

@@ -35,13 +35,16 @@ try {
         exit;
     }
 
-    $saved = find_possible_duplicate_graduates($pdo, (int) $upload['school_id'], (string) $upload['school_year'], $uploadId);
+    // Duplicates are NAME matches, wherever they are saved (any school, any year).
+    $saved = find_saved_duplicates_by_name($pdo, $uploadId);
     $groups = find_staged_duplicate_groups($review['rows'], $saved);
 
     foreach ($groups as &$group) {
-        if ($group['saved'] !== null) {
-            $group['saved']['uploaded_on'] = date('M j, Y', strtotime((string) $group['saved']['uploaded_at']));
+        foreach ($group['saved'] as &$match) {
+            $match['uploaded_on'] = date('M j, Y', strtotime((string) $match['uploaded_at']));
+            $match['applied_on_label'] = $match['applied_on'] !== null ? date('M j, Y', strtotime($match['applied_on'])) : null;
         }
+        unset($match);
     }
     unset($group);
 
