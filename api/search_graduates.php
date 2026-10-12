@@ -20,7 +20,9 @@ $filters = [
     'name' => $name,
 ];
 
-$hasFilters = $schoolId !== null || $year !== null || $name !== '';
+// Same as admin/lookup.php: ALL YEARS is the default year filter, so a search with
+// nothing filled in lists everything instead of asking for a filter first.
+$hasFilters = true;
 
 try {
     if (!$hasFilters) {

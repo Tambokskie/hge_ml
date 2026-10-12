@@ -12,19 +12,15 @@ $pdo = get_pdo();
 $schools = get_active_schools_list($pdo);
 $years = get_distinct_graduation_years($pdo);
 
-$isFreshLoad = empty($_GET);
-
 $schoolId = (isset($_GET['school_id']) && (int) $_GET['school_id'] > 0) ? (int) $_GET['school_id'] : null;
 $year = (isset($_GET['year']) && (int) $_GET['year'] > 0) ? (int) $_GET['year'] : null;
 $name = trim((string) ($_GET['name'] ?? ''));
 $page = max(1, (int) ($_GET['page'] ?? 1));
 
-if ($isFreshLoad) {
-    $year = (int) date('Y');
-}
-
 $filters = ['school_id' => $schoolId, 'graduation_year' => $year, 'name' => $name];
-$hasFilters = $isFreshLoad || $schoolId !== null || $year !== null || $name !== '';
+// The year filter defaults to ALL YEARS, so a search with nothing filled in is a
+// valid search that lists everything: there is always a search to run.
+$hasFilters = true;
 
 $currentUser = current_user();
 $currentPage = 'lookup';
