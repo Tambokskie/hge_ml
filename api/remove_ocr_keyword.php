@@ -19,11 +19,11 @@ try {
     $pdo = get_pdo();
     $id = (int) ($_POST['id'] ?? 0);
 
-    $result = remove_ocr_course_keyword($pdo, $id);
+    $result = remove_ocr_course_keyword($pdo, $id, current_user()['id'] ?? null);
 
     if ($result['status'] === 'success') {
         try {
-            log_activity($pdo, current_user()['id'] ?? null, 'ocr_keyword_removed', 'keyword=' . $result['keyword']);
+            log_activity($pdo, current_user()['id'] ?? null, 'ocr_keyword_removed', 'keyword=' . $result['keyword'] . ' (moved to recycle bin)');
         } catch (\Throwable $logError) {
             error_log('Activity log failed: ' . $logError->getMessage());
         }

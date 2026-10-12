@@ -30,7 +30,7 @@ try {
 
     if ($result['status'] === 'success') {
         try {
-            log_activity($pdo, $currentUser['id'] ?? null, 'school_removed', 'school_id=' . $schoolId . ', school_name=' . $result['school_name']);
+            log_activity($pdo, $currentUser['id'] ?? null, 'school_removed', 'school_id=' . $schoolId . ', school_name=' . $result['school_name'] . ' (moved to recycle bin)');
         } catch (\Throwable $logError) {
             error_log('Activity log failed: ' . $logError->getMessage());
         }

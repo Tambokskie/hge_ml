@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/recycle_bin_items.php';
+
 function get_ocr_course_keywords(PDO $pdo): array
 {
     $stmt = $pdo->query('SELECT id, keyword, created_at FROM ocr_course_keywords ORDER BY keyword ASC');
@@ -39,17 +42,35 @@ function add_ocr_course_keyword(PDO $pdo, string $keyword, int $userId): array
     return ['status' => 'success', 'message' => 'COURSE/DEGREE KEYWORD ADDED.', 'id' => (int) $pdo->lastInsertId(), 'keyword' => $keyword];
 }
 
-function remove_ocr_course_keyword(PDO $pdo, int $id): array
+function remove_ocr_course_keyword(PDO $pdo, int $id, ?int $userId = null): array
 {
-    $stmt = $pdo->prepare('SELECT keyword FROM ocr_course_keywords WHERE id = :id');
+    $stmt = $pdo->prepare('SELECT * FROM ocr_course_keywords WHERE id = :id');
     $stmt->execute(['id' => $id]);
-    $keyword = $stmt->fetchColumn();
+    $row = $stmt->fetch();
 
-    if ($keyword === false) {
+    if ($row === false) {
         return ['status' => 'error', 'message' => 'COURSE/DEGREE KEYWORD NOT FOUND.'];
     }
+    $keyword = (string) $row['keyword'];
 
-    $pdo->prepare('DELETE FROM ocr_course_keywords WHERE id = :id')->execute(['id' => $id]);
+    // Moved to the recycle bin, not destroyed.
+    try {
+        $pdo->beginTransaction();
+        archive_item($pdo, 'ocr_keyword', $id, $keyword, 'OCR COURSE/DEGREE KEYWORD', ['keyword' => $row], $userId, 'KEYWORD REMOVED');
+        $pdo->prepare('DELETE FROM ocr_course_keywords WHERE id = :id')->execute(['id' => $id]);
+        $pdo->commit();
+    } catch (\Throwable $e) {
+        try {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+        } catch (\Throwable $rollbackError) {
+            error_log('remove_ocr_course_keyword rollback failed: ' . $rollbackError->getMessage());
+        }
+        error_log('remove_ocr_course_keyword failed: ' . $e->getMessage());
+
+        return ['status' => 'error', 'message' => recycle_bin_missing_table_message($e) ?? 'THE KEYWORD COULD NOT BE REMOVED. PLEASE TRY AGAIN.'];
+    }
 
     return ['status' => 'success', 'message' => 'COURSE/DEGREE KEYWORD REMOVED.', 'keyword' => $keyword];
 }

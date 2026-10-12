@@ -290,7 +290,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                     </span>
                                     <span class="min-w-0 flex-1">
                                         <span class="block text-sm font-semibold text-csc-red-600 dark:text-csc-red-400">REMOVE FILE</span>
-                                        <span class="block text-xs text-gray-500 dark:text-gray-500">DELETE THIS UPLOAD (CANNOT BE UNDONE).</span>
+                                        <span class="block text-xs text-gray-500 dark:text-gray-500">DELETE THIS UPLOAD (MOVES TO THE RECYCLE BIN).</span>
                                     </span>
                                     <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-red-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
                                 </button>

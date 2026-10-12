@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/recycle_bin_items.php';
 
 function find_existing_upload(PDO $pdo, int $schoolId, string $schoolYear): ?array
 {
@@ -278,7 +279,7 @@ function handle_upload_request(PDO $pdo, array $post, array $files, int $uploade
 /**
  * @return array{ok: bool, error?: string}
  */
-function delete_upload(PDO $pdo, int $uploadId): array
+function delete_upload(PDO $pdo, int $uploadId, ?int $userId = null): array
 {
     $upload = get_upload_by_id($pdo, $uploadId);
     if ($upload === null) {
@@ -289,27 +290,66 @@ function delete_upload(PDO $pdo, int $uploadId): array
         return ['ok' => false, 'error' => 'THIS UPLOAD HAS EXTRACTED RECORDS AND CANNOT BE DELETED.'];
     }
 
+    // The upload row, its saved draft and its stored file go to the recycle
+    // bin (the file is moved, not deleted) instead of being destroyed; any
+    // graduate rows still attached are binned as graduates. Restore puts all
+    // of it back; only "delete permanently" removes it for good.
+    $binFile = null;
     try {
+        $binFile = recycle_bin_move_file_in((string) ($upload['file_path'] ?? ''));
+
         $pdo->beginTransaction();
+
+        $rowStmt = $pdo->prepare('SELECT * FROM latin_honor_uploads WHERE id = :id');
+        $rowStmt->execute(['id' => $uploadId]);
+        $row = $rowStmt->fetch();
+
+        $draftStmt = $pdo->prepare('SELECT * FROM extraction_review_drafts WHERE upload_id = :id');
+        $draftStmt->execute(['id' => $uploadId]);
+        $draft = $draftStmt->fetch();
+        if ($draft !== false) {
+            unset($draft['id']);
+        }
+
+        $gradStmt = $pdo->prepare('SELECT id FROM latin_honor_graduates WHERE upload_id = :id');
+        $gradStmt->execute(['id' => $uploadId]);
+        foreach ($gradStmt->fetchAll(PDO::FETCH_COLUMN) as $graduateId) {
+            archive_graduate($pdo, (int) $graduateId, $userId, 'UPLOAD DELETED', 'manual');
+        }
+
+        archive_item(
+            $pdo,
+            'upload',
+            $uploadId,
+            (string) $upload['original_filename'],
+            format_school_display_name((string) $upload['school_name'], $upload['campus'] ?? null) . ' · SY ' . $upload['school_year'] . ' · UPLOAD #' . $row['upload_number'],
+            ['upload' => $row, 'draft' => $draft === false ? null : $draft],
+            $userId,
+            'UPLOAD DELETED',
+            $binFile
+        );
+
         $pdo->prepare('DELETE FROM latin_honor_graduates WHERE upload_id = :id')->execute(['id' => $uploadId]);
         $pdo->prepare('DELETE FROM extraction_review_drafts WHERE upload_id = :id')->execute(['id' => $uploadId]);
         $pdo->prepare('DELETE FROM latin_honor_uploads WHERE id = :id')->execute(['id' => $uploadId]);
         $pdo->commit();
     } catch (\Throwable $e) {
         try {
-            $pdo->rollBack();
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
         } catch (\Throwable $rollbackError) {
             error_log('delete_upload rollback failed: ' . $rollbackError->getMessage());
         }
+        if ($binFile !== null) {
+            recycle_bin_move_file_back($binFile, (string) $upload['file_path']);
+        }
         error_log('delete_upload failed: ' . $e->getMessage());
-        return ['ok' => false, 'error' => 'THE UPLOAD COULD NOT BE DELETED. PLEASE TRY AGAIN.'];
+
+        return ['ok' => false, 'error' => recycle_bin_missing_table_message($e) ?? 'THE UPLOAD COULD NOT BE DELETED. PLEASE TRY AGAIN.'];
     }
 
-    if (!empty($upload['file_path']) && is_file($upload['file_path'])) {
-        @unlink($upload['file_path']);
-    }
-
-    return ['ok' => true];
+    return ['ok' => true, 'filename' => (string) $upload['original_filename'], 'school' => (string) $upload['school_name'], 'school_year' => (string) $upload['school_year']];
 }
 
 function update_upload_extraction_status(PDO $pdo, int $uploadId, string $status, int $recordsExtracted): void

@@ -56,7 +56,15 @@ class DeleteUploadTest extends TestCase
         $this->assertFalse($result['ok']);
     }
 
-    public function testDeletesTheAssociatedPdfFileFromDisk(): void
+    protected function tearDown(): void
+    {
+        // delete_upload() moves the file into storage/recycle_bin; do not leave test files there.
+        foreach (glob(recycle_bin_dir() . '/*_hge_delete_upload_test_*') ?: [] as $leftover) {
+            @unlink($leftover);
+        }
+    }
+
+    public function testMovesTheAssociatedPdfFileOutOfItsFolderInsteadOfDestroyingIt(): void
     {
         $tmpFile = sys_get_temp_dir() . '/hge_delete_upload_test_' . uniqid() . '.pdf';
         file_put_contents($tmpFile, 'fake pdf content');
@@ -66,6 +74,8 @@ class DeleteUploadTest extends TestCase
 
         $this->assertTrue($result['ok']);
         $this->assertFileDoesNotExist($tmpFile);
+        $binFile = TestDb::pdo()->query('SELECT bin_file FROM recycle_bin_items')->fetchColumn();
+        $this->assertSame('fake pdf content', file_get_contents(recycle_bin_dir() . '/' . $binFile));
     }
 
     public function testAlsoRemovesAnyGraduateRowsLinkedToTheUpload(): void

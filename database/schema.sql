@@ -140,6 +140,22 @@ CREATE TABLE graduate_recycle_bin (
   KEY idx_original_id (original_id)
 ) ENGINE=InnoDB;
 
+CREATE TABLE recycle_bin_items (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  item_type ENUM('upload','school','user','ocr_keyword') NOT NULL,
+  original_id INT UNSIGNED NOT NULL,
+  label VARCHAR(255) NOT NULL,
+  details VARCHAR(500) NOT NULL DEFAULT '',
+  payload LONGTEXT NOT NULL,
+  bin_file VARCHAR(255) NULL DEFAULT NULL,
+  deleted_by INT UNSIGNED NULL,
+  deleted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_reason VARCHAR(500) NOT NULL DEFAULT '',
+  FOREIGN KEY (deleted_by) REFERENCES users(id),
+  KEY idx_item_type (item_type),
+  KEY idx_deleted_at (deleted_at)
+) ENGINE=InnoDB;
+
 CREATE TABLE bulk_hge_review_items (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   person_key CHAR(40) NOT NULL,

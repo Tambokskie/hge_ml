@@ -37,7 +37,7 @@ class TestDb
     {
         $pdo = self::pdo();
         $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
-        foreach (['bulk_hge_review_items', 'graduate_recycle_bin', 'graduate_applications', 'activity_log', 'ocr_course_keywords', 'app_settings', 'latin_honor_graduates', 'extraction_review_drafts', 'latin_honor_uploads', 'schools', 'users'] as $table) {
+        foreach (['bulk_hge_review_items', 'recycle_bin_items', 'graduate_recycle_bin', 'graduate_applications', 'activity_log', 'ocr_course_keywords', 'app_settings', 'latin_honor_graduates', 'extraction_review_drafts', 'latin_honor_uploads', 'schools', 'users'] as $table) {
             $pdo->exec("DROP TABLE IF EXISTS `{$table}`");
         }
         $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
@@ -56,7 +56,7 @@ class TestDb
     {
         $pdo = self::pdo();
         $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
-        foreach (['bulk_hge_review_items', 'graduate_recycle_bin', 'graduate_applications', 'activity_log', 'ocr_course_keywords', 'app_settings', 'latin_honor_graduates', 'extraction_review_drafts', 'latin_honor_uploads', 'schools', 'users'] as $table) {
+        foreach (['bulk_hge_review_items', 'recycle_bin_items', 'graduate_recycle_bin', 'graduate_applications', 'activity_log', 'ocr_course_keywords', 'app_settings', 'latin_honor_graduates', 'extraction_review_drafts', 'latin_honor_uploads', 'schools', 'users'] as $table) {
             $pdo->exec("TRUNCATE TABLE `{$table}`");
         }
         $pdo->exec('SET FOREIGN_KEY_CHECKS=1');

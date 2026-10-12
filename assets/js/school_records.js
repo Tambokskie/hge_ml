@@ -80,8 +80,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     icon: modalHeaderIcon('trash'),
                     iconClassName: 'bg-csc-red-600/10 text-csc-red-600 dark:text-csc-red-400',
                     title: 'DELETE UPLOAD',
-                    subtitle: 'This action permanently deletes the upload and its source PDF. This cannot be undone.',
-                    bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">PERMANENTLY DELETE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(label) + '</span> AND ITS SOURCE PDF?</p>',
+                    subtitle: 'The upload and its source PDF move to the Recycle Bin, where they can be restored.',
+                    bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">MOVE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(label) + '</span> AND ITS SOURCE PDF TO THE RECYCLE BIN?</p>',
                     buttons: [
                         { label: 'CANCEL', className: MODAL_BTN.secondary },
                         {

@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/recycle_bin_items.php';
+
 function get_all_users(PDO $pdo): array
 {
     $stmt = $pdo->query('SELECT id, name, username, email, role, status FROM users ORDER BY name ASC');
@@ -110,6 +113,25 @@ function remove_user(PDO $pdo, int $id, int $requestingUserId, string $password)
 
     try {
         $pdo->beginTransaction();
+
+        // Moved to the recycle bin, not destroyed (restore brings the account
+        // back under the same id and re-attaches its activity-log entries).
+        $rowStmt = $pdo->prepare('SELECT * FROM users WHERE id = :id');
+        $rowStmt->execute(['id' => $id]);
+        $row = $rowStmt->fetch();
+        $logStmt = $pdo->prepare('SELECT id FROM activity_log WHERE user_id = :id');
+        $logStmt->execute(['id' => $id]);
+        archive_item(
+            $pdo,
+            'user',
+            $id,
+            (string) $target['name'],
+            '@' . $row['username'] . ' · ' . $row['email'] . ' · ' . mb_strtoupper((string) $row['role']),
+            ['user' => $row, 'activity_ids' => array_map('intval', $logStmt->fetchAll(PDO::FETCH_COLUMN))],
+            $requestingUserId,
+            'USER REMOVED'
+        );
+
         // activity_log.user_id is nullable specifically to allow this: the
         // audit trail survives the account being removed, just with its
         // actor anonymized, rather than blocking removal on login history
@@ -119,12 +141,14 @@ function remove_user(PDO $pdo, int $id, int $requestingUserId, string $password)
         $pdo->commit();
     } catch (\Throwable $e) {
         try {
-            $pdo->rollBack();
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
         } catch (\Throwable $rollbackError) {
             error_log('remove_user rollback failed: ' . $rollbackError->getMessage());
         }
         error_log('remove_user failed: ' . $e->getMessage());
-        return ['status' => 'error', 'message' => 'THE USER COULD NOT BE REMOVED. PLEASE TRY AGAIN.'];
+        return ['status' => 'error', 'message' => recycle_bin_missing_table_message($e) ?? 'THE USER COULD NOT BE REMOVED. PLEASE TRY AGAIN.'];
     }
 
     return ['status' => 'success', 'message' => 'USER REMOVED.', 'name' => $target['name']];

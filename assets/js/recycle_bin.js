@@ -60,9 +60,9 @@ document.addEventListener('DOMContentLoaded', function () {
         showModal({
             icon: modalHeaderIcon('check'),
             iconClassName: 'bg-green-500/10 text-green-600 dark:text-green-400',
-            title: 'RESTORE RECORDS',
-            subtitle: 'The selected records go back to the Look-Up list exactly as they were.',
-            bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">RESTORE <span class="font-medium text-gray-900 dark:text-white">' + ids.length + '</span> RECORD(S)?</p>',
+            title: 'RESTORE ITEMS',
+            subtitle: 'The selected items go back exactly as they were.',
+            bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">RESTORE <span class="font-medium text-gray-900 dark:text-white">' + ids.length + '</span> ITEM(S)?</p>',
             buttons: [
                 { label: 'CANCEL', className: MODAL_BTN.secondary },
                 {
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 }
                             })
                             .catch(function () {
-                                showToast('error', 'THE RECORDS COULD NOT BE RESTORED. PLEASE TRY AGAIN.');
+                                showToast('error', 'THE ITEMS COULD NOT BE RESTORED. PLEASE TRY AGAIN.');
                             });
                     },
                 },
@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var submitting = false;
         var bodyHtml =
             '<div class="space-y-4">' +
-            '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">PERMANENTLY DELETE <span class="font-medium text-gray-900 dark:text-white">' + ids.length + '</span> RECORD(S)? THIS CANNOT BE UNDONE.</p>' +
+            '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">PERMANENTLY DELETE <span class="font-medium text-gray-900 dark:text-white">' + ids.length + '</span> ITEM(S)? THIS CANNOT BE UNDONE.</p>' +
             modalField({ id: 'modal-purge-reason', label: 'REASON FOR DELETION', required: true, icon: 'pen', placeholder: 'E.G. CONFIRMED DUPLICATE', uppercase: true, note: 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.' }) +
             '</div>';
 
@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', function () {
             icon: modalHeaderIcon('trash'),
             iconClassName: 'bg-csc-red-600/10 text-csc-red-600 dark:text-csc-red-400',
             title: 'DELETE PERMANENTLY',
-            subtitle: 'State why these records are being deleted for good. This will be recorded in the activity log.',
+            subtitle: 'State why these items are being deleted for good. This will be recorded in the activity log.',
             bodyHtml: bodyHtml,
             buttons: [
                 { label: 'CANCEL', className: MODAL_BTN.secondary },

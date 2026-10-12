@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var displayName = target.campus !== '' ? target.name + '-' + target.campus : target.name;
         var bodyHtml =
             '<div class="space-y-4">' +
-            '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">PERMANENTLY REMOVE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(displayName) + '</span>? THIS CANNOT BE UNDONE.</p>' +
+            '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">REMOVE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(displayName) + '</span>? IT MOVES TO THE RECYCLE BIN, WHERE IT CAN BE RESTORED.</p>' +
             modalField({ id: 'modal-remove-password', label: 'ENTER YOUR PASSWORD TO CONFIRM', required: true, type: 'password', icon: 'lock' }) +
             '</div>';
 
@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function () {
             icon: modalHeaderIcon('trash'),
             iconClassName: 'bg-csc-red-600/10 text-csc-red-600 dark:text-csc-red-400',
             title: 'REMOVE SCHOOL',
-            subtitle: 'This action permanently deletes the school and cannot be undone.',
+            subtitle: 'The school moves to the Recycle Bin, where it can be restored.',
             bodyHtml: bodyHtml,
             buttons: [
                 { label: 'CANCEL', className: MODAL_BTN.secondary },

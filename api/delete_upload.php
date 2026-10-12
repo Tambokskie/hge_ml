@@ -19,15 +19,20 @@ $uploadId = (int) ($_POST['upload_id'] ?? 0);
 
 try {
     $pdo = get_pdo();
-    $result = delete_upload($pdo, $uploadId);
+    $currentUser = current_user();
+    $result = delete_upload($pdo, $uploadId, $currentUser['id'] ?? null);
 
     if (!$result['ok']) {
         echo json_encode(['status' => 'error', 'message' => $result['error']]);
         exit;
     }
 
-    $currentUser = current_user();
-    log_activity($pdo, $currentUser['id'] ?? null, 'pdf_delete', 'upload_id=' . $uploadId);
+    log_activity(
+        $pdo,
+        $currentUser['id'] ?? null,
+        'pdf_delete',
+        'upload_id=' . $uploadId . ', file=' . $result['filename'] . ', school=' . $result['school'] . ' (' . $result['school_year'] . ') (moved to recycle bin)'
+    );
 } catch (\Throwable $e) {
     error_log('delete_upload endpoint failed: ' . $e->getMessage());
     http_response_code(500);

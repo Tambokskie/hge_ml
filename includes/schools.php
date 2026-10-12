@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/recycle_bin_items.php';
+
 function find_or_create_school(PDO $pdo, string $schoolName): array
 {
     $name = trim($schoolName);
@@ -232,8 +235,36 @@ function remove_school(PDO $pdo, int $id, int $requestingUserId, string $passwor
         return ['status' => 'error', 'message' => 'CANNOT REMOVE — THIS SCHOOL HAS ' . $uploadCount . ' UPLOAD(S) AND ' . $graduateCount . ' GRADUATE RECORD(S).'];
     }
 
-    $deleteStmt = $pdo->prepare('DELETE FROM schools WHERE id = :id');
-    $deleteStmt->execute(['id' => $id]);
+    // Moved to the recycle bin, not destroyed: restoring brings it back under the same id.
+    try {
+        $pdo->beginTransaction();
+        $rowStmt = $pdo->prepare('SELECT * FROM schools WHERE id = :id');
+        $rowStmt->execute(['id' => $id]);
+        $row = $rowStmt->fetch();
+        archive_item(
+            $pdo,
+            'school',
+            $id,
+            format_school_display_name((string) $schoolName, $row['campus'] ?? null),
+            (string) ($row['address'] ?? ''),
+            ['school' => $row],
+            $requestingUserId,
+            'SCHOOL REMOVED'
+        );
+        $pdo->prepare('DELETE FROM schools WHERE id = :id')->execute(['id' => $id]);
+        $pdo->commit();
+    } catch (\Throwable $e) {
+        try {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+        } catch (\Throwable $rollbackError) {
+            error_log('remove_school rollback failed: ' . $rollbackError->getMessage());
+        }
+        error_log('remove_school failed: ' . $e->getMessage());
+
+        return ['status' => 'error', 'message' => recycle_bin_missing_table_message($e) ?? 'THE SCHOOL COULD NOT BE REMOVED. PLEASE TRY AGAIN.'];
+    }
 
     return ['status' => 'success', 'message' => 'SCHOOL REMOVED.', 'school_name' => $schoolName];
 }

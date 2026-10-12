@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             showModal({
                 title: 'REMOVE COURSE KEYWORD',
-                bodyHtml: '<p class="text-sm text-gray-700 dark:text-gray-300">REMOVE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(keyword) + '</span> FROM THE OCR COURSE KEYWORD LIST? FUTURE EXTRACTIONS WILL NO LONGER RECOGNIZE IT.</p>',
+                bodyHtml: '<p class="text-sm text-gray-700 dark:text-gray-300">REMOVE <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(keyword) + '</span> FROM THE OCR COURSE KEYWORD LIST? FUTURE EXTRACTIONS WILL NO LONGER RECOGNIZE IT UNLESS YOU RESTORE IT FROM THE RECYCLE BIN.</p>',
                 buttons: [
                     { label: 'CANCEL', className: 'rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5' },
                     {
