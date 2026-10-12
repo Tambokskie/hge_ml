@@ -25,12 +25,21 @@ require_once __DIR__ . '/../extractors/TemplateExtractor.php';
 // extraction when a chunk fails. A document that completes in one chunk
 // still finishes in a single click; a longer one needs one
 // "Continue Extraction" click per additional chunk.
-const AI_EXTRACTION_CHUNK_PAGE_SIZE = 3;
+const AI_EXTRACTION_CHUNK_PAGE_SIZE = 2;
+
+// Time limits for one extraction request. Apache's own Timeout is 300s, so PHP
+// stays under it, and the AI part gets a budget just inside PHP's limit (the rest
+// is for saving the rows): a slow Google answers with a clean "took too long"
+// message instead of PHP killing the script mid-request. A dense chunk was
+// measured at ~90s, so single requests are allowed 180s (GeminiExtractor).
+const EXTRACTION_MAX_EXECUTION_SECONDS = 280;
+const AI_EXTRACTION_BUDGET_SECONDS = 255;
 
 require_role('administrator');
 
 header('Content-Type: application/json');
-ini_set('max_execution_time', 120);
+ini_set('max_execution_time', EXTRACTION_MAX_EXECUTION_SECONDS);
+$requestStartedAt = microtime(true);
 
 if (!csrf_verify($_POST['csrf_token'] ?? null)) {
     http_response_code(400);
@@ -155,10 +164,11 @@ try {
                 // resolve_gemini_api_keys() prefers a key saved via Settings ->
                 // AI Extraction (admin/users.php) over the env-var default.
                 $geminiExtractor = new GeminiExtractor(resolve_gemini_api_keys($pdo));
+                $geminiExtractor->setDeadline($requestStartedAt + AI_EXTRACTION_BUDGET_SECONDS);
                 write_extraction_progress($uploadId, 15, 'SENDING PAGES ' . $chunkFirst . '-' . $chunkLast . ' TO AI...');
                 $result = $geminiExtractor->extract($chunkFilePath);
 
-                if ($result['status'] === 'failed' && !GeminiExtractor::isQuotaExhausted() && empty($result['unreachable'])) {
+                if ($result['status'] === 'failed' && !GeminiExtractor::isQuotaExhausted() && empty($result['unreachable']) && empty($result['timed_out'])) {
                     // Today's estimated AI usage still has room and Google was
                     // actually reachable, so this wasn't a quota or connectivity
                     // problem — most likely a transient overload or a one-off
@@ -180,7 +190,9 @@ try {
                         ? "TODAY'S FREE AI EXTRACTION QUOTA HAS BEEN USED UP."
                         : ($aiUnreachable
                             ? 'THE AI EXTRACTION SERVICE COULD NOT BE REACHED.'
-                            : 'AI EXTRACTION WAS UNABLE TO PROCESS THESE PAGES.');
+                            : (!empty($result['timed_out'])
+                                ? 'THE AI TOOK TOO LONG TO ANSWER FOR THESE PAGES.'
+                                : 'AI EXTRACTION WAS UNABLE TO PROCESS THESE PAGES.'));
                     echo json_encode([
                         'status' => 'error',
                         'message' => $reason . ' PAGES ' . $chunkFirst . '-' . $chunkLast . ' WERE NOT EXTRACTED. PLEASE TRY AGAIN.',

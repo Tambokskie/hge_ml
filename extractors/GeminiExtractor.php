@@ -12,11 +12,15 @@ require_once __DIR__ . '/ExtractorInterface.php';
  * or a transient network condition, not something a different key routes
  * around, but tried as a last resort after this key's own retries are
  * exhausted). `httpCode` is null for a transport-level failure, since no
- * response ever came back.
+ * response ever came back. `timedOut` is true when the request ran out of
+ * time (curl's own timeout, or the caller's time budget) rather than failing
+ * outright: Google may well have been working on it, and a dense chunk can
+ * simply take longer than the limit, so it is told apart from a connection
+ * that never got through.
  */
 class RetryableGeminiApiException extends \RuntimeException
 {
-    public function __construct(string $message, public readonly ?int $httpCode)
+    public function __construct(string $message, public readonly ?int $httpCode, public readonly bool $timedOut = false)
     {
         parent::__construct($message);
     }
@@ -65,10 +69,21 @@ class GeminiExtractor implements ExtractorInterface
 
     private const DEFAULT_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
+    /**
+     * Longest a single request to Google may take. A dense 2-3 page chunk
+     * (~120 rows of structured output) was measured at ~90s, so the old 90s
+     * limit hung up just before the answer arrived on every try.
+     */
+    public const REQUEST_TIMEOUT_SECONDS = 180;
+
+    /** A new request is not started with less than this left in the time budget. */
+    public const MIN_ATTEMPT_SECONDS = 30;
+
     /** @var string[] */
     private array $apiKeys;
     private string $model;
     private string $apiBaseUrl;
+    private ?float $deadline = null;
 
     /**
      * @param string[]|string|null $apiKeys One key, several (tried in order —
@@ -99,21 +114,52 @@ class GeminiExtractor implements ExtractorInterface
     }
 
     /**
-     * @return array{status: 'ok'|'failed', rows: array<int, array<string, mixed>>, unreachable: bool}
+     * Gives every request (and retry) made by extract() a shared time budget:
+     * no request is started, or allowed to run, past this unix time. The
+     * caller sets it just inside its own PHP/Apache limit, so a slow Google
+     * answers with a clean "took too long" failure instead of PHP killing
+     * the script mid-request.
+     */
+    public function setDeadline(float $unixTime): void
+    {
+        $this->deadline = $unixTime;
+    }
+
+    /**
+     * Pure. How many seconds the next request may run: the normal limit, cut
+     * to whatever is left of the time budget, or null when too little is left
+     * to be worth starting (see MIN_ATTEMPT_SECONDS).
+     */
+    public static function requestTimeoutFor(?float $deadline, float $now): ?int
+    {
+        if ($deadline === null) {
+            return self::REQUEST_TIMEOUT_SECONDS;
+        }
+
+        $remaining = (int) floor($deadline - $now);
+
+        return $remaining < self::MIN_ATTEMPT_SECONDS ? null : min(self::REQUEST_TIMEOUT_SECONDS, $remaining);
+    }
+
+    /**
+     * @return array{status: 'ok'|'failed', rows: array<int, array<string, mixed>>, unreachable: bool, timed_out: bool}
      *     `unreachable` is true only when every configured key's final
      *     attempt was a transport-level failure (no response from Google at
      *     all) — the signal api/extract_pdf.php uses to decide whether
-     *     retrying AI extraction is even worth attempting.
+     *     retrying AI extraction is even worth attempting. `timed_out` is
+     *     true when the last failure was Google not answering within the
+     *     time limit (an immediate retry will not help; the chunk is just
+     *     slow).
      */
     public function extract(string $filePath): array
     {
         if (empty($this->apiKeys)) {
-            return ['status' => 'failed', 'rows' => [], 'unreachable' => false];
+            return ['status' => 'failed', 'rows' => [], 'unreachable' => false, 'timed_out' => false];
         }
 
         $pdfBytes = @file_get_contents($filePath);
         if ($pdfBytes === false) {
-            return ['status' => 'failed', 'rows' => [], 'unreachable' => false];
+            return ['status' => 'failed', 'rows' => [], 'unreachable' => false, 'timed_out' => false];
         }
 
         $payload = self::buildGeminiRequestPayload(base64_encode($pdfBytes));
@@ -128,15 +174,17 @@ class GeminiExtractor implements ExtractorInterface
             if ($e instanceof RetryableGeminiApiException && $e->httpCode === 429) {
                 self::markQuotaExhausted();
             }
-            $unreachable = $e instanceof RetryableGeminiApiException && $e->httpCode === null;
-            return ['status' => 'failed', 'rows' => [], 'unreachable' => $unreachable];
+            $timedOut = $e instanceof RetryableGeminiApiException && $e->timedOut;
+            // A timeout is not "could not be reached": Google was there, just slow.
+            $unreachable = $e instanceof RetryableGeminiApiException && $e->httpCode === null && !$timedOut;
+            return ['status' => 'failed', 'rows' => [], 'unreachable' => $unreachable, 'timed_out' => $timedOut];
         }
 
         self::clearQuotaExhausted();
 
         $rows = self::parseGeminiResponseRows($decoded);
 
-        return ['status' => empty($rows) ? 'failed' : 'ok', 'rows' => $rows, 'unreachable' => false];
+        return ['status' => empty($rows) ? 'failed' : 'ok', 'rows' => $rows, 'unreachable' => false, 'timed_out' => false];
     }
 
     /**
@@ -224,12 +272,23 @@ class GeminiExtractor implements ExtractorInterface
 
         foreach ($this->apiKeys as $apiKey) {
             for ($attempt = 1; $attempt <= $maxAttemptsPerKey; $attempt++) {
+                if (self::requestTimeoutFor($this->deadline, microtime(true)) === null) {
+                    // Out of time budget: stop here with a clean failure rather
+                    // than start a request PHP would kill halfway through.
+                    throw $lastError !== null && $lastError->timedOut
+                        ? $lastError
+                        : new RetryableGeminiApiException('time budget for the AI request is used up', null, true);
+                }
+
                 try {
                     return $this->requestOnce($payload, $apiKey);
                 } catch (RetryableGeminiApiException $e) {
                     $lastError = $e;
-                    if ($e->httpCode === 429) {
-                        continue 2; // this key is out of quota — next key, no wait
+                    if ($e->httpCode === 429 || $e->timedOut) {
+                        // 429: this key is out of quota. A timeout: repeating the same
+                        // request on the same key would only wait as long again. Either
+                        // way, on to the next key (if any time is left), no pause.
+                        continue 2;
                     }
                     if ($attempt < $maxAttemptsPerKey) {
                         usleep(500000 * $attempt); // 503: 0.5s, then 1s, same key
@@ -260,13 +319,21 @@ class GeminiExtractor implements ExtractorInterface
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
             CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_TIMEOUT => 90,
+            CURLOPT_CONNECTTIMEOUT => 20,
+            CURLOPT_TIMEOUT => self::requestTimeoutFor($this->deadline, microtime(true)) ?? self::MIN_ATTEMPT_SECONDS,
         ]);
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlErrno = curl_errno($ch);
         $curlError = curl_error($ch);
+        $connectTime = (float) curl_getinfo($ch, CURLINFO_CONNECT_TIME);
         curl_close($ch);
+
+        if ($curlErrno === CURLE_OPERATION_TIMEDOUT && $connectTime > 0) {
+            // Connected, but no complete answer in time — slow, not unreachable.
+            // (A timeout before the connection was made is a plain transport failure.)
+            throw new RetryableGeminiApiException("curl error ({$curlErrno}): {$curlError}", null, true);
+        }
 
         if ($curlErrno !== 0 || $response === false) {
             // Never reached Google at all (timeout/DNS/connection reset) —
