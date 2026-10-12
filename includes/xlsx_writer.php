@@ -338,6 +338,30 @@ function build_bulk_hge_template_xlsx(): string
 }
 
 /**
+ * Template for admin/review.php's UPLOAD EXCEL: just the header row
+ * (see review_import_header_aliases()), one graduate per row beneath it.
+ */
+function build_review_import_template_xlsx(): string
+{
+    $rows = [
+        1 => [
+            1 => ['value' => 'Name of Honor Graduate', 'style' => 1],
+            2 => ['value' => 'Course', 'style' => 1],
+            3 => ['value' => 'Honors Received', 'style' => 1],
+            4 => ['value' => 'Date of Graduation', 'style' => 1],
+        ],
+    ];
+
+    return xlsx_zip_parts([
+        '[Content_Types].xml' => xlsx_content_types_xml(),
+        '_rels/.rels' => xlsx_package_rels_xml(),
+        'xl/workbook.xml' => xlsx_workbook_xml('HONOR GRADUATES'),
+        'xl/_rels/workbook.xml.rels' => xlsx_workbook_rels_xml(),
+        'xl/styles.xml' => xlsx_styles_xml(),
+        'xl/worksheets/sheet1.xml' => xlsx_build_sheet_xml($rows, [1 => 42, 2 => 42, 3 => 20, 4 => 22]),
+    ]);
+}
+/**
  * Companion file of the bulk update preview: everything that was NOT filed
  * automatically and needs a human look (uncertain matches), plus rows that
  * could not be read at all.

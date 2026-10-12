@@ -47,6 +47,15 @@ try {
             'record_created',
             'SAVED RECORDS FOR ' . $upload['school_name'] . ' (' . $upload['school_year'] . ') — ' . count($review['rows']) . ' RECORD(S)'
         );
+
+        if (($result['removed_count'] ?? 0) > 0) {
+            log_activity(
+                $pdo,
+                $currentUser['id'] ?? null,
+                'record_removed',
+                $result['removed_count'] . ' RECORD(S) REMOVED DURING RE-REVIEW OF ' . $upload['school_name'] . ' (' . $upload['school_year'] . ') (moved to recycle bin)'
+            );
+        }
     }
 
     if ($result['status'] === 'success') {

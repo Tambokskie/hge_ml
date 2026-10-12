@@ -304,7 +304,7 @@ function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows
         return ['status' => 'error', 'message' => 'THE RECORDS COULD NOT BE SAVED. PLEASE TRY AGAIN.'];
     }
 
-    return ['status' => 'success', 'message' => count($rows) . ' RECORD(S) SAVED SUCCESSFULLY.'];
+    return ['status' => 'success', 'message' => count($rows) . ' RECORD(S) SAVED SUCCESSFULLY.', 'removed_count' => count($removedIds ?? [])];
 }
 
 /**
@@ -368,4 +368,22 @@ function get_extraction_draft(PDO $pdo, int $uploadId): ?array
 function delete_extraction_draft(PDO $pdo, int $uploadId): void
 {
     $pdo->prepare('DELETE FROM extraction_review_drafts WHERE upload_id = :upload_id')->execute(['upload_id' => $uploadId]);
+}
+
+/**
+ * Adds rows to the end of an upload's staged review (the bulk upload from
+ * Excel on admin/review.php). Existing staged rows are left untouched.
+ *
+ * @param array<int, array> $newRows  staged rows (see set_staged_row())
+ */
+function append_staged_rows(int $uploadId, array $newRows): array
+{
+    $review = get_extraction_review($uploadId);
+    if ($review === null) {
+        return ['ok' => false, 'error' => 'NO ACTIVE REVIEW SESSION FOR THIS UPLOAD.'];
+    }
+
+    $_SESSION['extraction_review']['rows'] = array_merge($review['rows'], array_values($newRows));
+
+    return ['ok' => true, 'added' => count($newRows)];
 }

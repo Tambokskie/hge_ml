@@ -6,7 +6,7 @@ function showModal(config) {
     overlay.className = 'fixed inset-0 z-40 flex items-center justify-center bg-black/60 px-4';
 
     var box = document.createElement('div');
-    box.className = 'w-full max-w-md rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 overflow-hidden'
+    box.className = 'w-full ' + (config.widthClass || 'max-w-md') + ' rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 overflow-hidden'
         + (hasFormHeader ? '' : (config.icon ? ' text-center p-6' : ' p-6'));
 
     var closed = false;

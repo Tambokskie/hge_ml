@@ -158,6 +158,8 @@ include __DIR__ . '/../includes/sidebar.php';
                     class="rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-medium px-4 py-2.5 transition-colors">MASS UPDATE DATE</button>
                 <button type="button" id="multiple-deletion-btn"
                     class="rounded-xl border border-csc-red-500/40 text-csc-red-600 dark:text-csc-red-400 hover:bg-csc-red-500/10 text-sm font-medium px-4 py-2.5 transition-colors">MULTIPLE DELETION</button>
+                <button type="button" id="import-excel-btn"
+                    class="rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-medium px-4 py-2.5 transition-colors">UPLOAD EXCEL</button>
                 <?php if (strtolower((string) pathinfo($upload['stored_filename'], PATHINFO_EXTENSION)) === 'xlsx'): ?>
                     <a href="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $uploadId ?>" download="<?= e($upload['original_filename']) ?>"
                        class="rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-medium px-4 py-2.5 transition-colors inline-flex items-center">DOWNLOAD UPLOADED TEMPLATE</a>
@@ -177,6 +179,11 @@ include __DIR__ . '/../includes/sidebar.php';
                     <button type="submit"
                         class="rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-medium px-4 py-2.5 transition-colors">CANCEL</button>
                 </form>
+                <a href="<?= e(APP_BASE_URL) ?>/api/download_review_import_template.php" download
+                   class="rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-medium px-4 py-2.5 transition-colors ml-auto inline-flex items-center gap-1.5">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                    DOWNLOAD TEMPLATE
+                </a>
             </div>
         </div>
 

@@ -236,3 +236,47 @@ function remove_duplicate_graduates(PDO $pdo, array $graduateIds, ?int $userId, 
 
     return ['removed' => $removed, 'skipped' => $skipped];
 }
+
+/**
+ * The pre-save check on admin/review.php (SAVE RECORDS): groups of staged rows
+ * that share a name, either with another staged row of the same upload or with
+ * a record already saved for the same school and year under a different upload.
+ * Name-only on purpose (see normalize_name_for_matching()) - it is a prompt for
+ * a human to decide, not an automatic dedup, so two different people who share
+ * a name are shown too and can still be saved.
+ *
+ * Callers must also load includes/functions.php.
+ *
+ * @param array<int, array> $rows  staged rows ($review['rows'])
+ * @param array<string, array> $savedByName  find_possible_duplicate_graduates()
+ * @return array<int, array{name: string, staged: array<int, array>, saved: ?array}>
+ */
+function find_staged_duplicate_groups(array $rows, array $savedByName): array
+{
+    $buckets = [];
+    foreach ($rows as $index => $row) {
+        $key = normalize_name_for_matching((string) ($row['graduate_name'] ?? ''));
+        if ($key === '') {
+            continue;
+        }
+        $buckets[$key][] = [
+            'row_index' => (int) $index,
+            'row_number' => (int) $index + 1,
+            'name' => (string) $row['graduate_name'],
+            'course' => (string) ($row['course'] ?? ''),
+            'latin_honor' => (string) ($row['latin_honor'] ?? ''),
+            'graduation_year' => (string) ($row['graduation_year'] ?? ''),
+        ];
+    }
+
+    $groups = [];
+    foreach ($buckets as $key => $staged) {
+        $saved = $savedByName[$key] ?? null;
+        if (count($staged) < 2 && $saved === null) {
+            continue;
+        }
+        $groups[] = ['name' => $staged[0]['name'], 'staged' => $staged, 'saved' => $saved];
+    }
+
+    return $groups;
+}
