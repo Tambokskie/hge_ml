@@ -294,12 +294,15 @@ document.addEventListener('DOMContentLoaded', function () {
     var schoolsSearch = document.getElementById('uploaded-schools-search');
     var schoolsList = document.getElementById('uploaded-schools-list');
     var schoolsEmpty = document.getElementById('uploaded-schools-empty');
+    var schoolsMore = document.getElementById('uploaded-schools-more');
     if (schoolsSearch && schoolsList) {
+        // Only the first few schools are listed by default (the rest carry
+        // data-extra="1"); a search looks through every school.
         schoolsSearch.addEventListener('input', function () {
             var query = schoolsSearch.value.trim().toUpperCase();
             var visibleCount = 0;
             schoolsList.querySelectorAll('.uploaded-school-item').forEach(function (item) {
-                var visible = query === '' || item.dataset.search.indexOf(query) !== -1;
+                var visible = query === '' ? item.dataset.extra !== '1' : item.dataset.search.indexOf(query) !== -1;
                 item.classList.toggle('hidden', !visible);
                 if (visible) {
                     visibleCount++;
@@ -308,7 +311,41 @@ document.addEventListener('DOMContentLoaded', function () {
             if (schoolsEmpty) {
                 schoolsEmpty.classList.toggle('hidden', visibleCount !== 0);
             }
+            if (schoolsMore) {
+                schoolsMore.classList.toggle('hidden', query !== '');
+            }
         });
+
+        // Clicking a school opens its details (read-only) instead of leaving the page.
+        schoolsList.addEventListener('click', function (event) {
+            var button = event.target.closest('.uploaded-school-open');
+            if (button) {
+                openSchoolDetailsModal(button.dataset);
+            }
+        });
+    }
+
+    function openSchoolDetailsModal(school) {
+        var readOnly = ' readonly tabindex="-1" style="cursor: default"';
+        var status = (school.status || '').toUpperCase();
+        showModal({
+            icon: modalHeaderIcon('building'),
+            title: 'SCHOOL DETAILS',
+            subtitle: 'Details of this school.',
+            bodyHtml: '<div class="space-y-4">' +
+                modalField({ id: 'school-detail-name', label: 'SCHOOL NAME', icon: 'building', value: (school.name || '—').toUpperCase(), attrs: readOnly }) +
+                modalField({ id: 'school-detail-address', label: 'ADDRESS', icon: 'location', value: (school.address || '—').toUpperCase(), attrs: readOnly }) +
+                modalField({ id: 'school-detail-campus', label: 'CAMPUS', optional: true, icon: 'building', value: (school.campus || '—').toUpperCase(), attrs: readOnly }) +
+                modalField({ id: 'school-detail-status', label: 'STATUS', icon: 'tag', value: status || '—', attrs: readOnly }) +
+                '</div>',
+            buttons: [
+                { label: 'CLOSE', className: MODAL_BTN.secondary },
+            ],
+        });
+        // showModal() focuses the first field; nothing here is editable, so don't.
+        if (document.activeElement && document.activeElement.blur) {
+            document.activeElement.blur();
+        }
     }
 });
 

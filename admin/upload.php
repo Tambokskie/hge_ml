@@ -14,6 +14,8 @@ require_role('administrator');
 $pdo = get_pdo();
 $activeSchools = get_active_schools_list($pdo);
 $uploadedSchools = get_schools_with_uploads($pdo);
+// The SCHOOLS card lists this many by default; the search box still finds every school.
+$schoolListLimit = 20;
 $currentUser = current_user();
 $currentPage = 'upload';
 $csrfToken = csrf_token();
@@ -265,11 +267,18 @@ include __DIR__ . '/../includes/sidebar.php';
                 <?php if (empty($uploadedSchools)): ?>
                     <p class="text-sm text-gray-600 dark:text-gray-500 text-center py-6">NO SCHOOLS UPLOADED YET.</p>
                 <?php else: ?>
-                    <ul id="uploaded-schools-list" class="mt-3 flex-1 min-h-0 divide-y divide-gray-100 dark:divide-white/5 overflow-y-auto">
-                        <?php foreach ($uploadedSchools as $school): ?>
-                            <?php $displayName = format_school_display_name($school['school_name'], $school['campus']); ?>
-                            <li class="uploaded-school-item" data-search="<?= e_upper($displayName . ' ' . $school['address']) ?>">
-                                <a href="<?= e(APP_BASE_URL) ?>/admin/schools.php" class="flex items-center gap-3 py-4 first:pt-0 last:pb-0 group">
+                    <ul id="uploaded-schools-list" data-limit="<?= (int) $schoolListLimit ?>" class="mt-3 flex-1 min-h-0 divide-y divide-gray-100 dark:divide-white/5 overflow-y-auto">
+                        <?php foreach ($uploadedSchools as $index => $school): ?>
+                            <?php
+                            $displayName = format_school_display_name($school['school_name'], $school['campus']);
+                            $isExtra = $index >= $schoolListLimit;
+                            ?>
+                            <li class="uploaded-school-item<?= $isExtra ? ' hidden' : '' ?>" data-extra="<?= $isExtra ? '1' : '0' ?>" data-search="<?= e_upper($displayName . ' ' . $school['address']) ?>">
+                                <button type="button" class="uploaded-school-open flex w-full items-center gap-3 py-4 first:pt-0 last:pb-0 group text-left"
+                                    data-name="<?= e($school['school_name']) ?>"
+                                    data-address="<?= e($school['address']) ?>"
+                                    data-campus="<?= e((string) $school['campus']) ?>"
+                                    data-status="<?= e($school['status']) ?>">
                                     <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
                                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
                                     </span>
@@ -278,10 +287,13 @@ include __DIR__ . '/../includes/sidebar.php';
                                         <p class="text-xs text-gray-400 dark:text-gray-600 mt-0.5 truncate"><?= $school['address'] !== '' ? e_upper($school['address']) : '—' ?></p>
                                     </span>
                                     <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-navy-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-                                </a>
+                                </button>
                             </li>
                         <?php endforeach; ?>
                     </ul>
+                    <?php if (count($uploadedSchools) > $schoolListLimit): ?>
+                        <p id="uploaded-schools-more" class="mt-3 text-center text-xs text-gray-500 dark:text-gray-500">SHOWING <?= (int) $schoolListLimit ?> OF <?= count($uploadedSchools) ?> SCHOOLS. SEARCH TO FIND THE OTHERS.</p>
+                    <?php endif; ?>
                     <p id="uploaded-schools-empty" class="hidden text-sm text-gray-500 dark:text-gray-400 text-center py-6">NO SCHOOLS MATCH YOUR SEARCH.</p>
                     <a href="<?= e(APP_BASE_URL) ?>/admin/schools.php" class="mt-4 flex items-center justify-center gap-1.5 text-xs font-semibold text-csc-navy-600 dark:text-csc-navy-300 hover:underline">
                         VIEW ALL SCHOOLS

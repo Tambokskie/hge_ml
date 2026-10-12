@@ -95,7 +95,7 @@ function get_active_schools_list(PDO $pdo): array
 
 function get_schools_with_uploads(PDO $pdo): array
 {
-    $sql = "SELECT s.school_name, s.campus, s.address
+    $sql = "SELECT s.id, s.school_name, s.campus, s.address, s.status
             FROM schools s
             WHERE EXISTS (SELECT 1 FROM latin_honor_uploads u WHERE u.school_id = s.id)
             ORDER BY s.school_name ASC";
