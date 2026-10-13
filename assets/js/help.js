@@ -369,6 +369,38 @@ document.addEventListener('DOMContentLoaded', function () {
         if (heading) { heading.focus({ preventScroll: true }); }
     });
 
+    // ---- screenshots: click to enlarge ----
+    var lightbox = document.getElementById('help-lightbox');
+    var lightboxImg = document.getElementById('help-lightbox-img');
+    var lightboxCaption = document.getElementById('help-lightbox-caption');
+    if (lightbox && typeof lightbox.showModal === 'function') {
+        Array.prototype.forEach.call(document.querySelectorAll('[data-help-zoom]'), function (button) {
+            button.addEventListener('click', function () {
+                // Two versions sit in the button (light and dark); the visible one is the match for the theme.
+                var shown = Array.prototype.filter.call(button.querySelectorAll('img'), function (img) { return img.offsetParent !== null; })[0] || button.querySelector('img');
+                var figure = button.closest('figure');
+                var caption = figure ? figure.querySelector('figcaption') : null;
+                lightboxImg.src = shown.currentSrc || shown.src;
+                lightboxImg.alt = shown.alt;
+                lightboxCaption.textContent = caption ? caption.textContent : shown.alt;
+                lightbox.showModal();
+                lightbox.scrollTop = 0;
+            });
+        });
+        document.getElementById('help-lightbox-close').addEventListener('click', function () { lightbox.close(); });
+        // A click on the dimmed area around the picture closes it too.
+        lightbox.addEventListener('click', function (event) {
+            if (event.target === lightbox) { lightbox.close(); }
+        });
+    } else {
+        // No <dialog> support: the screenshot opens in its own tab instead.
+        Array.prototype.forEach.call(document.querySelectorAll('[data-help-zoom]'), function (button) {
+            button.addEventListener('click', function () {
+                var shown = Array.prototype.filter.call(button.querySelectorAll('img'), function (img) { return img.offsetParent !== null; })[0] || button.querySelector('img');
+                window.open(shown.currentSrc || shown.src, '_blank', 'noopener');
+            });
+        });
+    }
     renderSeen();
     route(false);
     updateTop();

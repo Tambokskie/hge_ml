@@ -353,6 +353,59 @@ $calloutKinds = [
     ],
 ];
 
+/**
+ * Screenshots shown in the guide, keyed by chapter id (placed after the chapter's
+ * intro) or "chapter-id#N" (placed under that part's heading, N counting from 0).
+ * Each entry is [file name without -light/-dark.webp, alt text, caption]. The images
+ * live in assets/images/help/ and show made-up sample data only.
+ */
+$helpFigures = [
+    'getting-started' => [['dashboard', 'The dashboard, with the menu on the left and the moon button at the top right', 'After you sign in you land on the dashboard. The menu on the left leads to every page you can use, and the moon button at the top right switches between the light and dark look.']],
+    'dashboard' => [['dashboard', 'The dashboard with its summary cards, two charts and the latest uploads', 'The cards at the top, the two charts and the list of the latest uploads described in the steps below.']],
+    'lookup#0' => [['lookup', 'The Honor Graduate Look-Up page with its search boxes and a list of results', 'Search by school, graduation year or name, then read each result row. The eye icon opens the record and the green check records an application.']],
+    'lookup#2' => [['lookup-apply', 'The Honor graduate eligible window asking for the date of application', 'Check the date of application, then click Confirm.']],
+    'lookup#3' => [['lookup-admin', 'The Look-Up page as an administrator sees it, with extra buttons and icons', 'An administrator also sees the pencil and trash icons on each row and the Update graduation date and Find duplicates buttons.']],
+    'reports' => [['reports', 'The Reports page with the filing summary, the charts and the trend line', 'The summary cards, the charts and the trend line. Use Per year or Per month above the trend to change how it is grouped.']],
+    'upload-pdf' => [['upload-pdf', 'The upload page with the PDF file tab selected', 'Choose the school, type the school year and add the PDF, then click Upload & extract records.']],
+    'upload-template' => [['upload-template', 'The upload page with the Excel template tab selected', 'On the Excel template tab, download the template, fill it in, then choose the finished file and upload it.']],
+    'review#0' => [['review', 'The review screen with the extracted rows and the buttons above the table', 'Check each row, fix what is wrong, and use the buttons above the table to change the list. Nothing is saved until you click Save records.']],
+    'school-records' => [
+        ['school-records', 'The School records page listing uploaded lists and their status', 'Every uploaded list with its status. A pending list shows how long it has been waiting.'],
+        ['view-upload', 'The upload details page of a saved list, with the re-extract buttons', 'The details page of a list that is already saved, with the Re-extract buttons and the quick actions on the right.'],
+    ],
+    'bulk-update' => [['bulk-update', 'The Bulk update HGE applications card on the Admin page with its Needs review list', 'The bulk update card and, below it, the Needs review list for applicants the system could not match with certainty.']],
+    'settings#0' => [['users', 'The User management page', 'Create users, change their details and status, or reset a password.']],
+    'settings#1' => [['schools', 'The School management page', 'Create and edit schools. A school can only be removed when it has no uploads and no records.']],
+    'settings#2' => [['ocr-courses', 'The OCR course keywords page', 'Add a course abbreviation the text/OCR reading does not know yet.']],
+    'settings#3' => [['duplicates', 'The Duplicate records page with groups of records that share a name', 'Records with the same name are grouped. The copy marked Keep stays; tick the extra copies to move them to the Recycle bin.']],
+    'settings#4' => [['recycle-bin', 'The Recycle bin page listing removed items', 'Everything removed from the system waits here until you restore it or delete it permanently.']],
+    'settings#5' => [['activity-log', 'The Activity log page', 'Who did what, with filters for user, action and dates.']],
+    'settings#6' => [['admin-tools', 'The top of the Admin page with the database backup and AI settings cards', 'The database backup and the AI extraction settings. Both ask for your username and password again.']],
+];
+
+/**
+ * Screenshots as figures: a light and a dark version (the one matching the theme is
+ * shown), loaded only when scrolled near, and a button that opens the larger view.
+ *
+ * @param array<int, array{0: string, 1: string, 2: string}> $figures
+ */
+function help_render_figures(array $figures, string $idPrefix): void
+{
+    $dir = __DIR__ . '/../assets/images/help/';
+    foreach ($figures as $n => [$file, $alt, $caption]) {
+        $size = @getimagesize($dir . $file . '-light.webp') ?: [1280, 860];
+        [$w, $h] = [(int) $size[0], (int) $size[1]];
+        $img = static fn (string $theme, string $class): string => '<img src="' . e(asset_url('assets/images/help/' . $file . '-' . $theme . '.webp')) . '" alt="' . e($alt) . '" width="' . $w . '" height="' . $h . '" loading="lazy" decoding="async" class="' . $class . '">';
+        echo '<figure class="mb-6">'
+            . '<button type="button" data-help-zoom class="group relative block w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 text-left shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-csc-navy-500/60 dark:border-white/10 dark:bg-white/5" aria-label="Enlarge the screenshot: ' . e($alt) . '">'
+            . $img('light', 'block h-auto w-full dark:hidden') . $img('dark', 'hidden h-auto w-full dark:block')
+            . '<span class="pointer-events-none absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-md bg-gray-900/75 px-2 py-1 text-[11px] font-medium text-white opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-visible:opacity-100">'
+            . help_icon('M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6', 'h-3.5 w-3.5') . 'Click to enlarge</span>'
+            . '</button>'
+            . '<figcaption id="' . e($idPrefix . '-f' . ($n + 1)) . '" data-help-searchable class="mt-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400">' . e($caption) . '</figcaption>'
+            . '</figure>';
+    }
+}
 /** One outline icon (heroicons path data). */
 function help_icon(string $path, string $class = 'h-5 w-5'): string
 {
@@ -568,6 +621,8 @@ include __DIR__ . '/../includes/sidebar.php';
                             </div>
                             <p id="<?= e($chapterId) ?>-intro" data-help-searchable class="mb-7 text-[0.95rem] leading-relaxed text-gray-600 dark:text-gray-400"><?= help_text($section['intro']) ?></p>
 
+                            <?php help_render_figures($helpFigures[$section['id']] ?? [], $chapterId); ?>
+
                             <?php if (isset($section['steps'])): ?>
                                 <?php help_render_steps($section['steps'], $chapterId); ?>
                             <?php endif; ?>
@@ -582,6 +637,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                                 <h3 id="<?= e($partId) ?>-title" data-help-searchable class="text-base font-semibold text-gray-900 dark:text-white"><?= e($part['title']) ?></h3>
                                                 <?php if (!empty($part['admin'])): ?><?= help_admin_badge() ?><?php endif; ?>
                                             </div>
+                                            <?php help_render_figures($helpFigures[$section['id'] . '#' . $partIndex] ?? [], $partId); ?>
                                             <?php help_render_steps($part['steps'], $partId); ?>
                                             <?php help_render_callouts(['tips' => $part['tips'] ?? [], 'notes' => $part['notes'] ?? [], 'security' => $part['security'] ?? []], $partId); ?>
                                         </section>
@@ -638,11 +694,21 @@ include __DIR__ . '/../includes/sidebar.php';
                     <?php endforeach; ?>
                 </div>
 
-                <p class="mt-6 pb-2 text-center text-sm text-gray-500 dark:text-gray-400">Can't find what you need? Contact your system administrator.</p>
+                <p class="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">Can't find what you need? Contact your system administrator.</p>
+                <p class="mt-1 pb-2 text-center text-xs text-gray-400 dark:text-gray-500">The screenshots in this guide use made-up sample data, so the names and figures on your screen will differ.</p>
             </div>
         </div>
     </div>
 
+    <dialog id="help-lightbox" aria-labelledby="help-lightbox-caption" class="m-auto max-h-[94vh] w-[min(96vw,1360px)] max-w-none overflow-auto rounded-2xl bg-white p-0 text-gray-900 shadow-2xl backdrop:bg-black/70 dark:bg-surface-900 dark:text-gray-100">
+        <div class="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-gray-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-surface-900/95">
+            <p id="help-lightbox-caption" class="text-sm leading-relaxed text-gray-700 dark:text-gray-300"></p>
+            <button type="button" id="help-lightbox-close" aria-label="Close the enlarged screenshot" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-csc-navy-500/60 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white">
+                <?= help_icon('M6 18L18 6M6 6l12 12', 'h-5 w-5') ?>
+            </button>
+        </div>
+        <img id="help-lightbox-img" alt="" class="block h-auto w-full">
+    </dialog>
     <button type="button" id="help-top" hidden aria-label="Back to top"
             class="[&[hidden]]:hidden fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-csc-navy-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-csc-navy-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-csc-navy-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-surface-950">
         <?= help_icon('M4.5 15.75l7.5-7.5 7.5 7.5', 'h-4 w-4') ?>
