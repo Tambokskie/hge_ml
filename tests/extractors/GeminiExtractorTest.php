@@ -20,7 +20,8 @@ class GeminiExtractorTest extends TestCase
 
     public function testIsQuotaExhaustedIsFalseWhenNoStatusFileExists(): void
     {
-        $this->assertFalse(\GeminiExtractor::isQuotaExhausted());
+
+    $this->assertFalse(\GeminiExtractor::isQuotaExhausted());
     }
 
     public function testIsQuotaExhaustedIsTrueRightAfterBeingMarked(): void
