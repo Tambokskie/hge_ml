@@ -3,6 +3,13 @@ document.addEventListener('DOMContentLoaded', function () {
     var sidebar = document.getElementById('sidebar');
     var overlay = document.getElementById('sidebar-overlay');
 
+    // The menu scrolls on its own when the window (or the browser zoom) leaves it too
+    // little height; bring the page being viewed into sight so it is never hidden below.
+    var activeLink = sidebar ? sidebar.querySelector('nav a.bg-white') : null;
+    if (activeLink && typeof activeLink.scrollIntoView === 'function') {
+        activeLink.scrollIntoView({ block: 'nearest' });
+    }
+
     if (!toggle || !sidebar || !overlay) {
         return;
     }

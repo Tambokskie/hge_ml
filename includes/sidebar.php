@@ -43,12 +43,12 @@ for ($i = 0; $i < $sidebarOrbCount; $i++) {
         <?php endforeach; ?>
     </div>
 
-    <div class="px-5 py-5 border-b border-white/10 flex flex-col items-center text-center">
-        <img src="<?= e(asset_url('assets/images/csclogo.png')) ?>" alt="Civil Service Commission" class="h-10 w-auto mb-2">
+    <div class="shrink-0 px-5 py-5 [@media(max-height:760px)]:py-3 border-b border-white/10 flex flex-col items-center text-center">
+        <img src="<?= e(asset_url('assets/images/csclogo.png')) ?>" alt="Civil Service Commission" class="h-10 w-auto mb-2 [@media(max-height:760px)]:h-8 [@media(max-height:760px)]:mb-1">
         <p class="text-sm font-semibold tracking-wide text-white">CSC-HGE VERIFY</p>
-        <p class="text-[11px] text-white/60 dark:text-gray-500 mt-0.5">HONOR GRADUATE ELIGIBILITY VERIFICATION SYSTEM</p>
+        <p class="text-[11px] text-white/60 dark:text-gray-500 mt-0.5 [@media(max-height:760px)]:hidden">HONOR GRADUATE ELIGIBILITY VERIFICATION SYSTEM</p>
     </div>
-    <nav class="flex-1 px-3 py-4 space-y-1 text-sm">
+    <nav id="sidebar-nav" class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-4 space-y-1 text-sm [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.3)_transparent]">
         <p class="px-3 pt-1 pb-1 text-[11px] font-semibold tracking-wide text-white/40 dark:text-gray-600">OVERVIEW</p>
         <a href="<?= e(APP_BASE_URL) ?>/admin/dashboard.php" class="flex items-center gap-3 rounded-lg px-3 py-2 <?= sidebar_nav_class($currentPage, 'dashboard') ?>">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>
@@ -120,8 +120,14 @@ for ($i = 0; $i < $sidebarOrbCount; $i++) {
             </div>
         </details>
         <?php endif; ?>
+
+        <p class="px-3 pt-4 pb-1 text-[11px] font-semibold tracking-wide text-white/40 dark:text-gray-600">SUPPORT</p>
+        <a href="<?= e(APP_BASE_URL) ?>/admin/help.php" class="flex items-center gap-3 rounded-lg px-3 py-2 <?= sidebar_nav_class($currentPage, 'help') ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" /></svg>
+            <span>HELP</span>
+        </a>
     </nav>
-    <div class="px-3 py-4 border-t border-white/10">
+    <div class="shrink-0 px-3 py-4 [@media(max-height:760px)]:py-2 border-t border-white/10">
         <a href="<?= e(APP_BASE_URL) ?>/logout.php" class="flex items-center gap-3 rounded-lg px-3 py-2 text-white/70 dark:text-gray-400 hover:bg-white/10 dark:hover:bg-white/5 hover:text-white dark:hover:text-white hover:translate-x-0.5 text-sm transition-all duration-200 ease-out active:scale-[0.98]">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l3 3m0 0-3 3m3-3H3" /></svg>
             <span>LOGOUT</span>
