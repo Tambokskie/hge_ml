@@ -324,7 +324,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function () {
             document.querySelectorAll('.review-row-checkbox').forEach(function (checkbox) {
-                checkbox.checked = selectAllCheckbox.checked;
+                if (!checkbox.disabled) {
+                    checkbox.checked = selectAllCheckbox.checked;
+                }
             });
         });
     }

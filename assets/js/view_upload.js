@@ -125,6 +125,10 @@ document.addEventListener('DOMContentLoaded', function () {
         var formData = new FormData();
         formData.set('csrf_token', config.csrfToken);
         formData.set('upload_id', uploadId);
+        if (!isContinuing && btn.dataset.reextract === '1') {
+            // The records of this upload are already saved: a deliberate re-extraction.
+            formData.set('reextract', '1');
+        }
         if (useOcr) {
             formData.set('use_ocr', '1');
         }
@@ -186,6 +190,28 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
+    function isReextraction() {
+        return btn.dataset.reextract === '1';
+    }
+
+    // What a re-extraction will and will not touch (its numbers come from the page).
+    function reextractionBodyHtml() {
+        var saved = parseInt(btn.dataset.savedCount, 10) || 0;
+        var tagged = parseInt(btn.dataset.taggedCount, 10) || 0;
+        var others = Math.max(0, saved - tagged);
+        var box = '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">';
+        var html = '<div class="space-y-3">' + box + 'THE FILE IS READ AGAIN AND THE RESULT OPENS AS A NEW REVIEW. <strong>NOTHING IS CHANGED UNTIL YOU CLICK SAVE RECORDS.</strong></p>';
+        if (tagged > 0) {
+            html += '<p class="rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-800 dark:text-green-300"><strong>' + tagged +
+                '</strong> SAVED RECORD(S) WITH A FILED APPLICATION ARE KEPT EXACTLY AS THEY ARE AND CANNOT BE CHANGED IN THE NEW REVIEW. A NEW ROW WITH THE SAME NAME AS ONE OF THEM IS LEFT OUT.</p>';
+        }
+        if (others > 0) {
+            html += box + 'THE OTHER <strong>' + others + '</strong> SAVED RECORD(S) ARE REPLACED BY THE NEW LIST. ANY OF THEM THAT THE NEW READING DOES NOT INCLUDE IS MOVED TO THE RECYCLE BIN AND CAN BE RESTORED.</p>';
+        }
+
+        return html + '</div>';
+    }
+
     function handleExtractClick(shouldConfirm) {
         if (shouldConfirm !== 'true') {
             extract();
@@ -195,13 +221,15 @@ document.addEventListener('DOMContentLoaded', function () {
         showModal({
             icon: modalHeaderIcon('warning'),
             iconClassName: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
-            title: 'CONFIRM AI EXTRACTION',
-            subtitle: 'This replaces this upload’s currently staged data.',
-            bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">THIS WILL DISCARD THE PREVIOUSLY EXTRACTED DATA FOR THIS UPLOAD, INCLUDING ANY EDITS MADE TO IT. THIS CANNOT BE UNDONE.</p>',
+            title: isReextraction() ? 'CONFIRM RE-EXTRACTION' : 'CONFIRM AI EXTRACTION',
+            subtitle: isReextraction() ? 'Read the file again.' : 'This replaces this upload’s currently staged data.',
+            bodyHtml: isReextraction()
+                ? reextractionBodyHtml()
+                : '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">THIS WILL DISCARD THE PREVIOUSLY EXTRACTED DATA FOR THIS UPLOAD, INCLUDING ANY EDITS MADE TO IT. THIS CANNOT BE UNDONE.</p>',
             buttons: [
                 { label: 'CANCEL', className: MODAL_BTN.secondary },
                 {
-                    label: 'USE AI EXTRACTION',
+                    label: isReextraction() ? 'RE-EXTRACT' : 'USE AI EXTRACTION',
                     icon: modalButtonIcon('reset'),
                     className: MODAL_BTN.primary,
                     onClick: function (close) {
@@ -242,13 +270,15 @@ document.addEventListener('DOMContentLoaded', function () {
             showModal({
                 icon: modalHeaderIcon('warning'),
                 iconClassName: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
-                title: 'CONFIRM TEXT/OCR EXTRACTION',
-                subtitle: 'This replaces this upload’s currently staged data.',
-                bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">THIS WILL DISCARD THE PREVIOUSLY EXTRACTED DATA FOR THIS UPLOAD, INCLUDING ANY EDITS MADE TO IT, AND RE-EXTRACT USING TEXT/OCR INSTEAD OF AI. THIS CANNOT BE UNDONE.</p>',
+                title: isReextraction() ? 'CONFIRM RE-EXTRACTION VIA TEXT/OCR' : 'CONFIRM TEXT/OCR EXTRACTION',
+                subtitle: isReextraction() ? 'Read the file again with text/OCR.' : 'This replaces this upload’s currently staged data.',
+                bodyHtml: isReextraction()
+                    ? reextractionBodyHtml()
+                    : '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">THIS WILL DISCARD THE PREVIOUSLY EXTRACTED DATA FOR THIS UPLOAD, INCLUDING ANY EDITS MADE TO IT, AND RE-EXTRACT USING TEXT/OCR INSTEAD OF AI. THIS CANNOT BE UNDONE.</p>',
                 buttons: [
                     { label: 'CANCEL', className: MODAL_BTN.secondary },
                     {
-                        label: 'EXTRACT VIA TEXT/OCR',
+                        label: isReextraction() ? 'RE-EXTRACT VIA TEXT/OCR' : 'EXTRACT VIA TEXT/OCR',
                         icon: modalButtonIcon('reset'),
                         className: MODAL_BTN.primary,
                         onClick: function (close) {

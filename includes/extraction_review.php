@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/recycle_bin.php';
+require_once __DIR__ . '/duplicates.php';
 
 function derive_fallback_year(string $schoolYear): ?int
 {
@@ -90,6 +91,107 @@ function clear_extraction_review(): void
     unset($_SESSION['extraction_review']);
 }
 
+const STAGED_ROW_LOCKED_MESSAGE = 'THIS RECORD ALREADY HAS A FILED APPLICATION. IT IS KEPT EXACTLY AS IT IS AND CANNOT BE CHANGED OR REMOVED IN A RE-EXTRACTION.';
+
+/**
+ * A staged row that stands for a saved record with a filed application ("tagged"):
+ * a re-extraction carries it along untouched. It cannot be edited, removed or have
+ * its date changed in the review, and saving never updates or deletes it.
+ */
+function staged_row_is_locked(array $row): bool
+{
+    return !empty($row['locked']);
+}
+
+function count_saved_graduates(PDO $pdo, int $uploadId): int
+{
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM latin_honor_graduates WHERE upload_id = :upload_id');
+    $stmt->execute(['upload_id' => $uploadId]);
+
+    return (int) $stmt->fetchColumn();
+}
+
+/**
+ * What to stage after a (re-)extraction of an upload that ALREADY has saved
+ * records, so a re-extraction never harms a record that has a filed application:
+ *  - every saved record with a filed application ("tagged") is carried into the
+ *    review as a LOCKED row (same id, same data) - only when $addLocked, i.e. for
+ *    the first batch of an extraction, so it is not added once per batch;
+ *  - a newly extracted row with the same name as a tagged record is dropped - the
+ *    tagged record prevails, so the new copy would only be a duplicate;
+ *  - a newly extracted row with the same name as an untagged saved record takes
+ *    over that record's id, so saving UPDATES it in place instead of deleting and
+ *    re-inserting it. Saved records the new extraction does not reproduce are
+ *    removed on save (they go to the Recycle Bin and can be restored).
+ * Nothing is written here and nothing changes in the database until the admin
+ * clicks SAVE RECORDS. With no saved records this returns the new rows unchanged.
+ *
+ * @param array<int, array> $newRows        freshly extracted rows (no ids)
+ * @param array<int, array> $alreadyStaged  rows staged by earlier batches (their ids are taken)
+ * @return array{rows: array<int, array>, kept: int, skipped: int}
+ */
+function merge_reextracted_rows(PDO $pdo, int $uploadId, array $newRows, array $alreadyStaged = [], bool $addLocked = true): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT g.id, g.graduate_name, g.course, g.latin_honor, g.graduation_date, g.graduation_year, g.source, a.application_date
+         FROM latin_honor_graduates g
+         LEFT JOIN graduate_applications a ON a.graduate_id = g.id
+         WHERE g.upload_id = :upload_id
+         ORDER BY g.id ASC'
+    );
+    $stmt->execute(['upload_id' => $uploadId]);
+    $saved = $stmt->fetchAll();
+
+    if ($saved === []) {
+        return ['rows' => $newRows, 'kept' => 0, 'skipped' => 0];
+    }
+
+    $taken = [];
+    foreach ($alreadyStaged as $staged) {
+        if (isset($staged['id'])) {
+            $taken[(int) $staged['id']] = true;
+        }
+    }
+
+    $locked = [];
+    $taggedKeys = [];
+    $untaggedIdsByKey = [];
+    foreach ($saved as $record) {
+        $key = duplicate_group_key($record);
+        if ($record['application_date'] !== null) {
+            $taggedKeys[$key] = true;
+            $locked[] = [
+                'id' => (int) $record['id'],
+                'graduate_name' => (string) $record['graduate_name'],
+                'course' => (string) $record['course'],
+                'latin_honor' => (string) $record['latin_honor'],
+                'graduation_date' => $record['graduation_date'] !== null ? (string) $record['graduation_date'] : null,
+                'graduation_year' => (int) $record['graduation_year'],
+                'source' => $record['source'],
+                'locked' => true,
+                'applied_on' => (string) $record['application_date'],
+            ];
+        } elseif (!isset($taken[(int) $record['id']])) {
+            $untaggedIdsByKey[$key][] = (int) $record['id'];
+        }
+    }
+
+    $kept = [];
+    $skipped = 0;
+    foreach ($newRows as $row) {
+        $key = duplicate_group_key($row);
+        if (isset($taggedKeys[$key])) {
+            $skipped++;
+            continue;
+        }
+        if (!empty($untaggedIdsByKey[$key])) {
+            $row['id'] = array_shift($untaggedIdsByKey[$key]);
+        }
+        $kept[] = $row;
+    }
+
+    return ['rows' => $addLocked ? array_merge($locked, $kept) : $kept, 'kept' => count($locked), 'skipped' => $skipped];
+}
 function set_staged_row(int $uploadId, ?int $rowIndex, array $data): array
 {
     $review = get_extraction_review($uploadId);
@@ -108,6 +210,9 @@ function set_staged_row(int $uploadId, ?int $rowIndex, array $data): array
 
     $rows = $review['rows'];
     if ($rowIndex !== null && array_key_exists($rowIndex, $rows)) {
+        if (staged_row_is_locked($rows[$rowIndex])) {
+            return ['ok' => false, 'error' => STAGED_ROW_LOCKED_MESSAGE];
+        }
         // Carries the DB id forward when editing a row that was seeded from
         // an already-saved upload (see get_graduates_for_upload()), so
         // save_staged_records() can UPDATE it in place instead of inserting
@@ -137,6 +242,10 @@ function remove_staged_row(int $uploadId, int $rowIndex): array
         return ['ok' => false, 'error' => 'RECORD NOT FOUND.'];
     }
 
+    if (staged_row_is_locked($rows[$rowIndex])) {
+        return ['ok' => false, 'error' => STAGED_ROW_LOCKED_MESSAGE];
+    }
+
     unset($rows[$rowIndex]);
     $_SESSION['extraction_review']['rows'] = array_values($rows);
 
@@ -161,6 +270,12 @@ function remove_staged_rows(int $uploadId, array $rowIndexes): array
 
     if (empty($validIndexes)) {
         return ['ok' => false, 'error' => 'NO VALID RECORDS WERE SELECTED.'];
+    }
+
+    foreach ($validIndexes as $index) {
+        if (staged_row_is_locked($rows[$index])) {
+            return ['ok' => false, 'error' => STAGED_ROW_LOCKED_MESSAGE];
+        }
     }
 
     foreach ($validIndexes as $index) {
@@ -194,15 +309,25 @@ function mass_update_staged_graduation_date(int $uploadId, string $date): array
     }
 
     $year = (int) $dt->format('Y');
+    $updated = 0;
     foreach ($rows as &$row) {
+        // A record with a filed application keeps its own date.
+        if (staged_row_is_locked($row)) {
+            continue;
+        }
         $row['graduation_date'] = $date;
         $row['graduation_year'] = $year;
+        $updated++;
     }
     unset($row);
 
+    if ($updated === 0) {
+        return ['ok' => false, 'error' => 'THERE ARE NO RECORDS TO UPDATE.'];
+    }
+
     $_SESSION['extraction_review']['rows'] = $rows;
 
-    return ['ok' => true, 'updated' => count($rows)];
+    return ['ok' => true, 'updated' => $updated];
 }
 
 /**
@@ -222,6 +347,9 @@ function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows
 
     $incomplete = [];
     foreach ($rows as $index => $row) {
+        if (staged_row_is_locked($row)) {
+            continue;
+        }
         if (staged_row_status($row) !== 'VALID') {
             $incomplete[] = $index + 1;
         }
@@ -254,6 +382,15 @@ function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows
 
         $keptIds = [];
         foreach ($rows as $row) {
+            if (staged_row_is_locked($row)) {
+                // A record with a filed application: kept exactly as saved - never updated or removed here.
+                $lockedId = isset($row['id']) ? (int) $row['id'] : 0;
+                if ($lockedId > 0 && in_array($lockedId, $existingIds, true)) {
+                    $keptIds[] = $lockedId;
+                }
+                continue;
+            }
+
             $fields = [
                 'graduate_name' => $row['graduate_name'],
                 'course' => $row['course'] ?? '',
@@ -325,7 +462,7 @@ function save_extraction_draft(PDO $pdo, int $uploadId, int $savedBy, array $row
             'saved_by' => $savedBy,
         ]);
 
-        update_upload_extraction_status($pdo, $uploadId, 'draft', 0);
+        update_upload_extraction_status($pdo, $uploadId, 'draft', count_saved_graduates($pdo, $uploadId));
     } catch (\Throwable $e) {
         error_log('save_extraction_draft failed: ' . $e->getMessage());
         return ['status' => 'error', 'message' => 'THE DRAFT COULD NOT BE SAVED. PLEASE TRY AGAIN.'];

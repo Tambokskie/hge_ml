@@ -111,6 +111,13 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         <?php endif; ?>
 
+        <?php $lockedCount = count(array_filter($rows, 'staged_row_is_locked')); ?>
+        <?php if ($lockedCount > 0): ?>
+            <div class="mb-6 rounded-lg border border-green-500/30 bg-green-500/10 text-green-800 dark:text-green-300 text-sm px-4 py-3">
+                THIS IS A RE-EXTRACTION OF SAVED RECORDS. <strong><?= (int) $lockedCount ?></strong> RECORD(S) WITH A FILED APPLICATION (MARKED <strong>APPLIED</strong> AND LOCKED) ARE KEPT EXACTLY AS THEY ARE: THEY CANNOT BE CHANGED OR REMOVED HERE, AND NEW ROWS WITH THE SAME NAME ARE LEFT OUT. THE OTHER SAVED RECORDS ARE REPLACED BY THIS LIST WHEN YOU CLICK SAVE RECORDS; ANY LEFT OUT GO TO THE RECYCLE BIN. NOTHING CHANGES UNTIL THEN.
+            </div>
+        <?php endif; ?>
+
         <?php if ($resumedDraftAt !== null): ?>
             <div class="mb-6 rounded-lg border border-csc-navy-500/30 bg-csc-navy-500/10 text-csc-navy-600 dark:text-csc-navy-300 text-sm px-4 py-3">
                 RESUMED FROM YOUR SAVED DRAFT (LAST SAVED <?= e_upper(date('F j, Y g:i A', strtotime($resumedDraftAt))) ?>). THIS DRAFT IS NOT PART OF THE OFFICIAL RECORDS UNTIL YOU CLICK SAVE RECORDS.
@@ -214,13 +221,13 @@ include __DIR__ . '/../includes/sidebar.php';
                         <tr><td colspan="9" class="px-4 py-6 text-center text-gray-600 dark:text-gray-500">NO RECORDS YET. CLICK ADD RECORD ABOVE.</td></tr>
                     <?php else: ?>
                         <?php foreach ($rows as $index => $row): ?>
-                            <?php $status = staged_row_status($row); $dup = $duplicateMatches[$index] ?? null; ?>
+                            <?php $status = staged_row_status($row); $dup = $duplicateMatches[$index] ?? null; $isLocked = staged_row_is_locked($row); ?>
                             <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 motion-safe:animate-fade-in-up<?= $dup !== null ? ' bg-orange-500/5' : '' ?>" style="animation-delay: <?= (int) ($index * 50) ?>ms"
                                 data-filter-name="<?= e(mb_strtoupper($row['graduate_name'])) ?>"
                                 data-filter-course="<?= e($row['course'] ?? '') ?>">
                                 <td class="px-4 py-3">
                                     <input type="checkbox" class="review-row-checkbox h-4 w-4 rounded border-gray-300 dark:border-white/20 text-csc-navy-600 focus:ring-csc-navy-500/40"
-                                        data-row-index="<?= $index ?>" data-duplicate="<?= $dup !== null ? '1' : '0' ?>" aria-label="Select record">
+                                        data-row-index="<?= $index ?>" data-duplicate="<?= $dup !== null ? '1' : '0' ?>" aria-label="Select record"<?= $isLocked ? ' disabled title="HAS A FILED APPLICATION — KEPT AS SAVED"' : '' ?>>
                                 </td>
                                 <td class="px-4 py-3"><?= $index + 1 ?></td>
                                 <td class="px-4 py-3"><?= e_upper($row['graduate_name']) ?></td>
@@ -236,7 +243,12 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <td class="px-4 py-3"><?= e(format_date_display($row['graduation_date'])) ?></td>
                                 <td class="px-4 py-3"><?= e((string) $row['graduation_year']) ?></td>
                                 <td class="px-4 py-3">
-                                    <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold <?= $status === 'VALID' ? 'bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400' : 'bg-yellow-500/15 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400' ?>"><?= e($status) ?></span>
+                                    <?php if ($isLocked): ?>
+                                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400">APPLIED · <?= e_upper(date('M j, Y', strtotime((string) $row['applied_on']))) ?></span>
+                                        <br><span class="mt-1 inline-block text-[10px] font-medium text-gray-500 dark:text-gray-400">KEPT EXACTLY AS SAVED</span>
+                                    <?php else: ?>
+                                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold <?= $status === 'VALID' ? 'bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400' : 'bg-yellow-500/15 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400' ?>"><?= e($status) ?></span>
+                                    <?php endif; ?>
                                     <?php if ($dup !== null): ?>
                                         <br>
                                         <span class="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-orange-500/15 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400"
@@ -248,6 +260,11 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <td class="px-4 py-3 text-right">
                                     <?php $actionBtnIndex = 0; ?>
                                     <div class="flex items-center justify-end gap-1.5">
+                                        <?php if ($isLocked): ?>
+                                            <span class="rounded-lg bg-gray-100 p-1.5 text-gray-500 dark:bg-white/5 dark:text-gray-400" title="HAS A FILED APPLICATION — IT CANNOT BE CHANGED OR REMOVED IN A RE-EXTRACTION">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
+                                            </span>
+                                        <?php else: ?>
                                         <button type="button" class="edit-row-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($index * 50 + ($actionBtnIndex++) * 70) ?>ms" title="Edit row"
                                             data-row-index="<?= $index ?>"
                                             data-name="<?= e($row['graduate_name']) ?>"
@@ -265,6 +282,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                             data-duplicate-date="<?= $dup !== null ? e_upper(date('M j, Y', strtotime($dup['uploaded_at']))) : '' ?>">
                                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                                         </button>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>

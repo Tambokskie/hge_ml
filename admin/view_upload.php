@@ -45,6 +45,25 @@ if ($upload !== null) {
     $fileExtension = mb_strtoupper((string) pathinfo($upload['stored_filename'], PATHINFO_EXTENSION));
     $isTemplateUpload = $fileExtension === 'XLSX';
     $needsMoreExtraction = upload_needs_more_extraction($upload);
+
+    // An upload whose records are already saved can be re-extracted (for example when an
+    // earlier OCR reading was unclear). Records with a filed application ("tagged") are
+    // carried along untouched; see merge_reextracted_rows(). The counts feed the confirmation.
+    $canReextract = $isAdmin && $status === 'reviewed';
+    $savedCount = 0;
+    $taggedCount = 0;
+    if ($canReextract) {
+        $countStmt = $pdo->prepare(
+            'SELECT COUNT(*) AS saved, COALESCE(SUM(a.id IS NOT NULL), 0) AS tagged
+             FROM latin_honor_graduates g
+             LEFT JOIN graduate_applications a ON a.graduate_id = g.id
+             WHERE g.upload_id = :upload_id'
+        );
+        $countStmt->execute(['upload_id' => (int) $upload['id']]);
+        $counts = $countStmt->fetch();
+        $savedCount = (int) $counts['saved'];
+        $taggedCount = (int) $counts['tagged'];
+    }
 }
 
 include __DIR__ . '/../includes/header.php';
@@ -159,6 +178,24 @@ include __DIR__ . '/../includes/sidebar.php';
                     <div class="my-5 border-t border-gray-100 dark:border-white/10"></div>
 
                     <div class="flex flex-wrap items-center gap-3">
+    <?php if ($canReextract): ?>
+        <?php $reextractData = 'data-upload-id="' . (int) $upload['id'] . '" data-should-confirm="true" data-reextract="1" data-saved-count="' . $savedCount . '" data-tagged-count="' . $taggedCount . '"'; ?>
+        <button type="button" id="extract-records-btn" <?= $reextractData ?>
+            class="inline-flex items-center gap-1.5 rounded-xl bg-csc-navy-600 hover:bg-csc-navy-500 text-white text-sm font-semibold px-4 py-2.5 transition-colors">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+            <?= $isTemplateUpload ? 'RE-READ TEMPLATE' : 'RE-EXTRACT WITH AI' ?>
+        </button>
+        <?php if (!$isTemplateUpload): ?>
+            <button type="button" id="extract-ocr-btn" <?= $reextractData ?>
+                class="inline-flex items-center gap-1.5 rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-semibold px-4 py-2.5 transition-colors">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                RE-EXTRACT VIA TEXT/OCR
+            </button>
+        <?php endif; ?>
+        <?php if ($taggedCount > 0): ?>
+            <p class="basis-full text-xs text-gray-500 dark:text-gray-500"><?= (int) $taggedCount ?> RECORD(S) WITH A FILED APPLICATION ARE KEPT EXACTLY AS THEY ARE WHEN YOU RE-EXTRACT.</p>
+        <?php endif; ?>
+    <?php endif; ?>
                         <?php if ($canManageExtraction): ?>
                             <?php if ($status === 'pending'): ?>
                                 <button type="button" id="extract-records-btn" data-upload-id="<?= (int) $upload['id'] ?>"
@@ -266,15 +303,15 @@ include __DIR__ . '/../includes/sidebar.php';
                                 </a>
                             <?php endif; ?>
 
-                            <?php if ($canManageExtraction && $status !== 'pending'): ?>
+                            <?php if (($canManageExtraction && $status !== 'pending') || $canReextract): ?>
                                 <button type="button" id="quick-reextract-btn" data-upload-id="<?= (int) $upload['id'] ?>" data-should-confirm="true"
                                         class="w-full flex items-center gap-3 py-3 group text-left">
                                     <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
                                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
                                     </span>
                                     <span class="min-w-0 flex-1">
-                                        <span class="block text-sm font-semibold text-gray-900 dark:text-white">USE AI EXTRACTION</span>
-                                        <span class="block text-xs text-gray-500 dark:text-gray-500">UPDATE EXTRACTED DATA FROM THE FILE.</span>
+                                        <span class="block text-sm font-semibold text-gray-900 dark:text-white"><?= $canReextract ? 'RE-EXTRACT RECORDS' : 'USE AI EXTRACTION' ?></span>
+                                        <span class="block text-xs text-gray-500 dark:text-gray-500"><?= $canReextract ? 'READ THE FILE AGAIN. RECORDS WITH A FILED APPLICATION ARE KEPT.' : 'UPDATE EXTRACTED DATA FROM THE FILE.' ?></span>
                                     </span>
                                     <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-navy-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
                                 </button>

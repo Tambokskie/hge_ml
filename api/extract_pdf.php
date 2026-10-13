@@ -74,7 +74,12 @@ try {
         exit;
     }
 
-    if ($upload['extraction_status'] === 'reviewed') {
+    // An upload whose records are already saved can only be re-extracted on purpose
+    // (reextract=1, from the confirmation on admin/view_upload.php). Nothing is
+    // changed until the admin saves the new review, and records with a filed
+    // application are carried along untouched (see merge_reextracted_rows()).
+    $isReextract = !empty($_POST['reextract']);
+    if ($upload['extraction_status'] === 'reviewed' && !$isReextract) {
         clear_extraction_progress($uploadId);
         echo json_encode(['status' => 'error', 'message' => 'THIS UPLOAD HAS ALREADY BEEN REVIEWED AND SAVED.']);
         exit;
@@ -208,6 +213,13 @@ try {
                     return $row;
                 }, $result['rows']);
 
+                // An upload that already has saved records: keep the ones with a filed
+                // application (first batch only), leave out new rows that duplicate them
+                // and reuse the ids of matching untagged records so saving updates them.
+                $existingDraft = $isContinuing ? get_extraction_draft($pdo, $uploadId) : null;
+                $merged = merge_reextracted_rows($pdo, $uploadId, $rows, $existingDraft['rows'] ?? [], !$isContinuing);
+                $rows = $merged['rows'];
+
                 if (!$isContinuing) {
                     // First successful chunk of a fresh attempt — only
                     // now is it safe to discard whatever existed before.
@@ -303,10 +315,13 @@ try {
         return $row;
     }, $result['rows']);
 
+    // Same as the AI path above: records with a filed application are carried along untouched.
+    $rows = merge_reextracted_rows($pdo, $uploadId, $rows)['rows'];
+
     start_extraction_review($uploadId, $rows);
 
     $extractionStatus = $result['status'] === 'ok' ? 'extracted' : 'failed';
-    update_upload_extraction_status($pdo, $uploadId, $extractionStatus, 0);
+    update_upload_extraction_status($pdo, $uploadId, $extractionStatus, count_saved_graduates($pdo, $uploadId));
 
     clear_extraction_progress($uploadId);
 
