@@ -277,7 +277,7 @@ include __DIR__ . '/../includes/sidebar.php';
                         </div>
                         <div class="flex flex-wrap items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
                             <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300"></span>LATIN HONORS GRADUATED</span>
-                            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>LATIN HONORS APPLIED FOR HGE</span>
+                            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-500"></span><span id="filing-trend-applied-label">LATIN HONORS APPLIED FOR HGE</span></span>
                         </div>
                     </div>
                     <div id="filing-trend-chart" class="relative w-full select-none" style="height: 260px"></div>

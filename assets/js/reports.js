@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // must never be drawn above the graduated one; separate scales would let it.
     var trendContainer = document.getElementById('filing-trend-chart');
     var trendSeries = config.initialTrend || [];
-    var trendMonthly = config.initialTrendMonthly || { months: [], undated: { on_record: 0, applied: 0 } };
+    var trendMonthly = config.initialTrendMonthly || { months: [], undated: { on_record: 0 } };
     var trendMode = 'year';
     var trendSelectedYear = config.initialTo;
     var trendNote = document.getElementById('filing-trend-note');
@@ -186,18 +186,28 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Per month, the green line counts applications by the month they were actually
+    // filed (date applied), not by when the applicant graduated — say so under the chart.
     function updateTrendNote() {
+        var legend = document.getElementById('filing-trend-applied-label');
+        if (legend) {
+            legend.textContent = trendMode === 'month' ? 'LATIN HONORS APPLIED FOR HGE (BY MONTH FILED)' : 'LATIN HONORS APPLIED FOR HGE';
+        }
         if (!trendNote) {
             return;
         }
-        var undated = trendMonthly.undated || { on_record: 0, applied: 0 };
-        if (trendMode === 'month' && undated.on_record > 0) {
-            trendNote.textContent = undated.on_record.toLocaleString('en-US') + ' GRADUATE' + (undated.on_record === 1 ? '' : 'S') +
-                ' (' + undated.applied.toLocaleString('en-US') + ' APPLIED) HAVE NO GRADUATION DATE ON RECORD AND ARE NOT SHOWN IN THE MONTHS.';
-            trendNote.classList.remove('hidden');
-        } else {
+        if (trendMode !== 'month') {
             trendNote.classList.add('hidden');
+            return;
         }
+        var undated = trendMonthly.undated || { on_record: 0 };
+        var text = 'GRADUATED IS PLOTTED BY GRADUATION MONTH; APPLIED IS PLOTTED BY THE MONTH THE APPLICATION WAS ACTUALLY FILED (DATE APPLIED).';
+        if (undated.on_record > 0) {
+            text += ' ' + undated.on_record.toLocaleString('en-US') + ' GRADUATE' + (undated.on_record === 1 ? '' : 'S') +
+                ' HAVE NO GRADUATION DATE ON RECORD AND ARE NOT SHOWN IN THE MONTHS.';
+        }
+        trendNote.textContent = text;
+        trendNote.classList.remove('hidden');
     }
     var reportRequestSeq = 0;
 
@@ -382,7 +392,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             tooltip.innerHTML = '<div class="font-semibold mb-0.5">' + point.title + '</div>' +
                 '<div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-csc-navy-300"></span>GRADUATED: <b>' + point.on_record.toLocaleString('en-US') + '</b></div>' +
-                '<div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-400"></span>APPLIED FOR HGE: <b>' + point.applied.toLocaleString('en-US') + '</b></div>';
+                '<div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-400"></span>' + (trendMode === 'month' ? 'FILED FOR HGE: ' : 'APPLIED FOR HGE: ') + '<b>' + point.applied.toLocaleString('en-US') + '</b></div>';
             tooltip.classList.remove('hidden');
             var tipW = tooltip.offsetWidth;
             var left = x + 14;

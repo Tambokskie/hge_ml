@@ -123,36 +123,53 @@ function get_filing_trend(PDO $pdo, int $fromYear, int $toYear): array
 /**
  * Month-by-month sibling of get_filing_trend(): one point per calendar month
  * from January of $fromYear to December of $toYear (oldest first, empty months
- * zero-filled). A graduate is placed in the month of its graduation_date, within
- * its graduation_year (the same year bucket get_filing_trend() uses, so the
- * months of a year add up to that year's point). Graduates saved without a
- * graduation_date have no month — they are returned separately as 'undated'
- * rather than dropped, so months + undated always equals the yearly totals.
+ * zero-filled). The two series are placed differently on purpose:
  *
- * @return array{months: array<int, array{year: int, month: int, on_record: int, applied: int}>, undated: array{on_record: int, applied: int}}
+ *  - on_record: a graduate is placed in the month of its graduation_date,
+ *    within its graduation_year (the same year bucket get_filing_trend() uses,
+ *    so the months of a year add up to that year's on-record figure). Graduates
+ *    saved without a graduation_date have no month — they are returned
+ *    separately as 'undated' rather than dropped.
+ *  - applied: an application is placed in the month it was ACTUALLY FILED
+ *    (graduate_applications.application_date), whatever the graduate's
+ *    graduation year or month — so it answers "how many applications were
+ *    submitted in that month". It therefore does not add up to the yearly
+ *    (graduation-year based) applied figure, and an application filed in a
+ *    month can exceed the graduates of that month.
+ *
+ * @return array{months: array<int, array{year: int, month: int, on_record: int, applied: int}>, undated: array{on_record: int}}
  */
 function get_filing_trend_monthly(PDO $pdo, int $fromYear, int $toYear): array
 {
     $stmt = $pdo->prepare(
-        'SELECT g.graduation_year AS year, MONTH(g.graduation_date) AS month,
-                COUNT(g.id) AS on_record, COUNT(ga.id) AS applied
-         FROM latin_honor_graduates g
-         LEFT JOIN graduate_applications ga ON ga.graduate_id = g.id
-         WHERE g.graduation_year BETWEEN :start_year AND :end_year
-         GROUP BY g.graduation_year, MONTH(g.graduation_date)'
+        'SELECT graduation_year AS year, MONTH(graduation_date) AS month, COUNT(*) AS on_record
+         FROM latin_honor_graduates
+         WHERE graduation_year BETWEEN :start_year AND :end_year
+         GROUP BY graduation_year, MONTH(graduation_date)'
     );
     $stmt->execute(['start_year' => $fromYear, 'end_year' => $toYear]);
 
-    $byMonth = [];
-    $undated = ['on_record' => 0, 'applied' => 0];
+    $onRecord = [];
+    $undated = ['on_record' => 0];
     foreach ($stmt->fetchAll() as $row) {
-        $counts = ['on_record' => (int) $row['on_record'], 'applied' => (int) $row['applied']];
         if ($row['month'] === null) {
-            $undated['on_record'] += $counts['on_record'];
-            $undated['applied'] += $counts['applied'];
+            $undated['on_record'] += (int) $row['on_record'];
             continue;
         }
-        $byMonth[(int) $row['year'] . '-' . (int) $row['month']] = $counts;
+        $onRecord[(int) $row['year'] . '-' . (int) $row['month']] = (int) $row['on_record'];
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT YEAR(application_date) AS year, MONTH(application_date) AS month, COUNT(*) AS applied
+         FROM graduate_applications
+         WHERE application_date BETWEEN :start_date AND :end_date
+         GROUP BY YEAR(application_date), MONTH(application_date)'
+    );
+    $stmt->execute(['start_date' => sprintf('%04d-01-01', $fromYear), 'end_date' => sprintf('%04d-12-31', $toYear)]);
+
+    $applied = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $applied[(int) $row['year'] . '-' . (int) $row['month']] = (int) $row['applied'];
     }
 
     $months = [];
@@ -161,8 +178,8 @@ function get_filing_trend_monthly(PDO $pdo, int $fromYear, int $toYear): array
             $months[] = [
                 'year' => $year,
                 'month' => $month,
-                'on_record' => $byMonth[$year . '-' . $month]['on_record'] ?? 0,
-                'applied' => $byMonth[$year . '-' . $month]['applied'] ?? 0,
+                'on_record' => $onRecord[$year . '-' . $month] ?? 0,
+                'applied' => $applied[$year . '-' . $month] ?? 0,
             ];
         }
     }

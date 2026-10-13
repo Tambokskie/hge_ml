@@ -135,7 +135,7 @@ class ReportsTest extends TestCase
         $this->assertSame([0, 0, 0, 0, 1], array_column($trend, 'applied'));
     }
 
-    public function testMonthlyTrendPlacesGraduatesInTheirGraduationMonthAndZeroFills(): void
+    public function testMonthlyTrendPlacesGraduatesInTheirGraduationMonthAndApplicationsInTheMonthTheyWereFiled(): void
     {
         $pdo = TestDb::pdo();
         $pdo->exec(
@@ -155,12 +155,14 @@ class ReportsTest extends TestCase
         $this->assertSame(['year' => 2024, 'month' => 1, 'on_record' => 0, 'applied' => 0], $months[0]);
         $this->assertSame(['year' => 2025, 'month' => 12, 'on_record' => 0, 'applied' => 0], $months[23]);
         $this->assertSame(['year' => 2024, 'month' => 12, 'on_record' => 1, 'applied' => 0], $months[11]);
-        $this->assertSame(['year' => 2025, 'month' => 3, 'on_record' => 2, 'applied' => 1], $months[14]);
+        // graduate 2 graduated in March but filed in August: the application belongs to August
+        $this->assertSame(['year' => 2025, 'month' => 3, 'on_record' => 2, 'applied' => 0], $months[14]);
         $this->assertSame(['year' => 2025, 'month' => 7, 'on_record' => 1, 'applied' => 0], $months[18]);
-        $this->assertSame(['on_record' => 0, 'applied' => 0], $monthly['undated']);
+        $this->assertSame(['year' => 2025, 'month' => 8, 'on_record' => 0, 'applied' => 1], $months[19]);
+        $this->assertSame(['on_record' => 0], $monthly['undated']);
     }
 
-    public function testMonthlyTrendReportsGraduatesWithoutADateSeparatelyAndTotalsMatchTheYearly(): void
+    public function testMonthlyTrendReportsGraduatesWithoutADateSeparatelyAndOnRecordTotalsMatchTheYearly(): void
     {
         $pdo = TestDb::pdo();
         $pdo->exec(
@@ -169,20 +171,45 @@ class ReportsTest extends TestCase
                     (1, 1, 'B TWO', 'CUM LAUDE', 2025, NULL),
                     (1, 1, 'C THREE', 'CUM LAUDE', 2025, NULL)"
         );
-        $pdo->exec("INSERT INTO graduate_applications (graduate_id, applied_by, application_date) VALUES (1, 1, '2025-08-01'), (2, 1, '2025-08-01')");
+        // an undated graduate can still have a filing month: it is charted by that month
+        $pdo->exec("INSERT INTO graduate_applications (graduate_id, applied_by, application_date) VALUES (1, 1, '2025-08-01'), (2, 1, '2025-09-10')");
 
         $monthly = get_filing_trend_monthly($pdo, 2025, 2025);
         $yearly = get_filing_trend($pdo, 2025, 2025);
 
-        $this->assertSame(['on_record' => 2, 'applied' => 1], $monthly['undated']);
+        $this->assertSame(['on_record' => 2], $monthly['undated']);
         $this->assertSame(
             $yearly[0]['on_record'],
             array_sum(array_column($monthly['months'], 'on_record')) + $monthly['undated']['on_record']
         );
-        $this->assertSame(
-            $yearly[0]['applied'],
-            array_sum(array_column($monthly['months'], 'applied')) + $monthly['undated']['applied']
+        $this->assertSame(1, $monthly['months'][7]['applied']);
+        $this->assertSame(1, $monthly['months'][8]['applied']);
+    }
+
+    public function testMonthlyTrendCountsApplicationsByFilingMonthWhateverTheGraduationYear(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec(
+            "INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, latin_honor, graduation_year, graduation_date)
+             VALUES (1, 1, 'A ONE', 'CUM LAUDE', 2023, '2023-04-10'),
+                    (1, 1, 'B TWO', 'CUM LAUDE', 2025, '2025-04-10'),
+                    (1, 1, 'C THREE', 'CUM LAUDE', 2025, '2025-04-10'),
+                    (1, 1, 'D FOUR', 'CUM LAUDE', 2025, '2025-04-10')"
         );
+        $pdo->exec(
+            "INSERT INTO graduate_applications (graduate_id, applied_by, application_date)
+             VALUES (1, 1, '2025-06-05'), (2, 1, '2025-06-20'), (3, 1, '2026-01-02'), (4, 1, '2024-12-31')"
+        );
+
+        $months = get_filing_trend_monthly($pdo, 2025, 2025)['months'];
+
+        // June 2025 holds both applications filed then (one by a 2023 graduate, one by a 2025 graduate)
+        $this->assertSame(2, $months[5]['applied']);
+        $this->assertSame(0, $months[5]['on_record']);
+        // filed outside the charted window: not plotted
+        $this->assertSame(2, array_sum(array_column($months, 'applied')));
+        // April 2025 still shows the graduates, with no applications in it
+        $this->assertSame(['year' => 2025, 'month' => 4, 'on_record' => 3, 'applied' => 0], $months[3]);
     }
 
     public function testGetFilingTrendWithNoDataIsAllZeros(): void
