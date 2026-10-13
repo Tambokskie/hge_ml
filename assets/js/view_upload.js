@@ -55,6 +55,90 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    var changeCampusBtn = document.getElementById('change-campus-btn');
+    if (config && changeCampusBtn) {
+        changeCampusBtn.addEventListener('click', function () {
+            var campuses = [];
+            try { campuses = JSON.parse(changeCampusBtn.dataset.campuses || '[]'); } catch (e) { campuses = []; }
+            var records = parseInt(changeCampusBtn.dataset.recordCount, 10) || 0;
+            var current = changeCampusBtn.dataset.current;
+
+            if (campuses.length === 0) {
+                showModal({
+                    icon: modalHeaderIcon('info'),
+                    iconClassName: 'bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300',
+                    title: 'NO OTHER CAMPUS',
+                    subtitle: current,
+                    bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">THIS SCHOOL HAS NO OTHER ACTIVE CAMPUS TO MOVE THE UPLOAD TO. ADD THE CAMPUS IN SCHOOL MANAGEMENT FIRST (SAME SCHOOL NAME, DIFFERENT CAMPUS), THEN COME BACK.</p>',
+                    buttons: [
+                        { label: 'CLOSE', className: MODAL_BTN.secondary },
+                        {
+                            label: 'GO TO SCHOOL MANAGEMENT',
+                            className: MODAL_BTN.primary,
+                            onClick: function () { window.location.href = config.schoolsUrl; },
+                        },
+                    ],
+                });
+                return;
+            }
+
+            var options = '<option value="">CHOOSE A CAMPUS...</option>' + campuses.map(function (campus) {
+                return '<option value="' + campus.id + '">' + escapeHtml(campus.campus === '' ? 'NO CAMPUS NAME' : campus.campus.toUpperCase()) + '</option>';
+            }).join('');
+
+            showModal({
+                icon: modalHeaderIcon('building'),
+                iconClassName: 'bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300',
+                title: 'CHANGE CAMPUS',
+                subtitle: 'Move this upload to another campus of the same school.',
+                bodyHtml: '<div class="space-y-4">'
+                    + modalField({ id: 'change-campus-current', type: 'static', label: 'CURRENT', value: current })
+                    + modalField({ id: 'change-campus-select', type: 'select', label: 'MOVE TO', required: true, icon: 'building', optionsHtml: options })
+                    + '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-xs text-gray-600 dark:text-gray-400">'
+                    + (records > 0 ? '<strong>' + records + '</strong> SAVED RECORD(S) MOVE WITH THE UPLOAD. ' : '')
+                    + 'THE FILE, THE RECORDS’ DATA AND ANY FILED APPLICATIONS STAY EXACTLY AS THEY ARE; ONLY THE CAMPUS CHANGES.</p>'
+                    + '</div>',
+                buttons: [
+                    { label: 'CANCEL', className: MODAL_BTN.secondary },
+                    {
+                        label: 'CHANGE CAMPUS',
+                        icon: modalButtonIcon('check'),
+                        className: MODAL_BTN.primary,
+                        onClick: function (close) {
+                            var select = document.getElementById('change-campus-select');
+                            if (!select || select.value === '') {
+                                showToast('error', 'CHOOSE THE CAMPUS TO MOVE THIS UPLOAD TO.');
+                                return;
+                            }
+                            close();
+                            changeCampusBtn.disabled = true;
+
+                            var formData = new FormData();
+                            formData.set('csrf_token', config.csrfToken);
+                            formData.set('upload_id', changeCampusBtn.dataset.uploadId);
+                            formData.set('school_id', select.value);
+
+                            fetch(config.apiBase + '/api/change_upload_campus.php', { method: 'POST', body: formData })
+                                .then(function (response) { return response.json(); })
+                                .then(function (data) {
+                                    if (data.status === 'success') {
+                                        showToast('success', data.message);
+                                        setTimeout(function () { window.location.reload(); }, 800);
+                                    } else {
+                                        changeCampusBtn.disabled = false;
+                                        showToast('error', data.message || 'THE CAMPUS COULD NOT BE CHANGED.');
+                                    }
+                                })
+                                .catch(function () {
+                                    changeCampusBtn.disabled = false;
+                                    showToast('error', 'THE CAMPUS COULD NOT BE CHANGED. PLEASE TRY AGAIN.');
+                                });
+                        },
+                    },
+                ],
+            });
+        });
+    }
     var btn = document.getElementById('extract-records-btn');
     var quickReextractBtn = document.getElementById('quick-reextract-btn');
     var continueBtn = document.getElementById('continue-extraction-btn');

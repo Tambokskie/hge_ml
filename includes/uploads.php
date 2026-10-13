@@ -279,6 +279,106 @@ function handle_upload_request(PDO $pdo, array $post, array $files, int $uploade
 /**
  * @return array{ok: bool, error?: string}
  */
+/**
+ * The other campuses an upload can be moved to: the ACTIVE school rows that share
+ * the upload's school name (compared case/space-insensitively) but are a different
+ * row, i.e. another campus of the same school. A school with a single campus returns [].
+ *
+ * @return array<int, array{id: int, campus: string}>
+ */
+function get_other_campuses_for_upload(PDO $pdo, int $uploadId): array
+{
+    $stmt = $pdo->prepare(
+        "SELECT o.id, o.campus
+         FROM latin_honor_uploads u
+         JOIN schools s ON s.id = u.school_id
+         JOIN schools o ON UPPER(TRIM(o.school_name)) = UPPER(TRIM(s.school_name)) AND o.id <> s.id AND o.status = 'active'
+         WHERE u.id = :id
+         ORDER BY o.campus"
+    );
+    $stmt->execute(['id' => $uploadId]);
+
+    return array_map(
+        static fn (array $row): array => ['id' => (int) $row['id'], 'campus' => (string) $row['campus']],
+        $stmt->fetchAll()
+    );
+}
+
+/**
+ * Moves an upload, together with its saved records, to another campus of the same
+ * school (for a list that was filed under the wrong campus). Only the school the
+ * records belong to changes: the file, its name, the extracted data and every filed
+ * application stay as they are. The upload keeps its number unless the new campus
+ * already has an upload with that number for the same school year (the numbering is
+ * per school and year), in which case it takes the next free one. Records of this
+ * upload that sit in the recycle bin follow it, so restoring them later lands in the
+ * right campus. Everything happens in one transaction.
+ *
+ * @return array{ok: true, from: string, to: string, records: int}|array{ok: false, error: string}
+ */
+function change_upload_campus(PDO $pdo, int $uploadId, int $newSchoolId): array
+{
+    $upload = get_upload_by_id($pdo, $uploadId);
+    if ($upload === null) {
+        return ['ok' => false, 'error' => 'UPLOAD RECORD NOT FOUND.'];
+    }
+
+    $target = null;
+    foreach (get_other_campuses_for_upload($pdo, $uploadId) as $campus) {
+        if ($campus['id'] === $newSchoolId) {
+            $target = $campus;
+            break;
+        }
+    }
+    if ($target === null) {
+        return ['ok' => false, 'error' => 'THAT CAMPUS IS NOT AVAILABLE FOR THIS SCHOOL. CHOOSE ANOTHER ACTIVE CAMPUS OF THE SAME SCHOOL.'];
+    }
+
+    try {
+        $pdo->beginTransaction();
+
+        $numberStmt = $pdo->prepare('SELECT upload_number FROM latin_honor_uploads WHERE id = :id');
+        $numberStmt->execute(['id' => $uploadId]);
+        $number = (int) $numberStmt->fetchColumn();
+
+        $clashStmt = $pdo->prepare('SELECT COUNT(*) FROM latin_honor_uploads WHERE school_id = :school_id AND school_year = :school_year AND upload_number = :number');
+        $clashStmt->execute(['school_id' => $newSchoolId, 'school_year' => $upload['school_year'], 'number' => $number]);
+        if ((int) $clashStmt->fetchColumn() > 0) {
+            $number = next_upload_number($pdo, $newSchoolId, (string) $upload['school_year']);
+        }
+
+        $pdo->prepare('UPDATE latin_honor_uploads SET school_id = :school_id, upload_number = :number WHERE id = :id')
+            ->execute(['school_id' => $newSchoolId, 'number' => $number, 'id' => $uploadId]);
+
+        $moved = $pdo->prepare('UPDATE latin_honor_graduates SET school_id = :school_id WHERE upload_id = :id');
+        $moved->execute(['school_id' => $newSchoolId, 'id' => $uploadId]);
+        $records = $moved->rowCount();
+
+        $pdo->prepare('UPDATE graduate_recycle_bin SET school_id = :school_id WHERE upload_id = :id')
+            ->execute(['school_id' => $newSchoolId, 'id' => $uploadId]);
+
+        $pdo->commit();
+    } catch (\Throwable $e) {
+        try {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+        } catch (\Throwable $rollbackError) {
+            error_log('change_upload_campus rollback failed: ' . $rollbackError->getMessage());
+        }
+        error_log('change_upload_campus failed: ' . $e->getMessage());
+
+        return ['ok' => false, 'error' => 'THE CAMPUS COULD NOT BE CHANGED. PLEASE TRY AGAIN.'];
+    }
+
+    return [
+        'ok' => true,
+        'from' => format_school_display_name((string) $upload['school_name'], $upload['campus'] ?? null),
+        'to' => format_school_display_name((string) $upload['school_name'], $target['campus']),
+        'records' => $records,
+    ];
+}
+
 function delete_upload(PDO $pdo, int $uploadId, ?int $userId = null): array
 {
     $upload = get_upload_by_id($pdo, $uploadId);

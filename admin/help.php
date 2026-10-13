@@ -209,6 +209,7 @@ $sections = [
             '[[EXTRACT RECORDS]] and [[CONTINUE EXTRACTION]] read a list that has not been saved yet. Reading it again from the start replaces the extracted data that is waiting for review, including any edits you made to it.',
             'For a list that is already saved (for example when an earlier OCR reading was unclear), click [[RE-EXTRACT WITH AI]] or [[RE-EXTRACT VIA TEXT/OCR]] ([[RE-READ TEMPLATE]] for an Excel upload). The result opens as a new review, and nothing changes until you click [[SAVE RECORDS]].',
             'Records that already have a filed application are kept exactly as they are: they show as locked and marked [[APPLIED]], cannot be changed or removed in that review, and a new row with the same name is left out. The other saved records are replaced by the new list; any record the new reading does not include goes to the Recycle Bin and can be restored.',
+            '[[CHANGE CAMPUS]] moves the upload and its saved records to another campus of the same school, for a list that was filed under the wrong campus. The file, the records and any filed applications stay exactly as they are; only the campus changes. If the school has no other campus yet, add it in [[SCHOOL MANAGEMENT]] first (same school name, different campus).',
             '[[REMOVE FILE]] deletes an upload that has no saved records. It goes to the Recycle Bin.',
         ],
     ],

@@ -42,6 +42,16 @@ if ($upload !== null) {
 
     $canManageExtraction = $isAdmin && $status !== 'reviewed';
     $canRemove = $isAdmin && (int) $upload['records_extracted'] === 0;
+
+    // Moving the upload (and its saved records) to another campus of the same school.
+    $otherCampuses = [];
+    $campusRecordCount = 0;
+    if ($isAdmin) {
+        $otherCampuses = get_other_campuses_for_upload($pdo, (int) $upload['id']);
+        $campusCountStmt = $pdo->prepare('SELECT COUNT(*) FROM latin_honor_graduates WHERE upload_id = :id');
+        $campusCountStmt->execute(['id' => (int) $upload['id']]);
+        $campusRecordCount = (int) $campusCountStmt->fetchColumn();
+    }
     $fileExtension = mb_strtoupper((string) pathinfo($upload['stored_filename'], PATHINFO_EXTENSION));
     $isTemplateUpload = $fileExtension === 'XLSX';
     $needsMoreExtraction = upload_needs_more_extraction($upload);
@@ -317,6 +327,23 @@ include __DIR__ . '/../includes/sidebar.php';
                                 </button>
                             <?php endif; ?>
 
+                            <?php if ($isAdmin): ?>
+                                <button type="button" id="change-campus-btn"
+                                        data-upload-id="<?= (int) $upload['id'] ?>"
+                                        data-current="<?= e(format_school_display_name($upload['school_name'], $upload['campus'])) ?>"
+                                        data-campuses="<?= e(json_encode($otherCampuses)) ?>"
+                                        data-record-count="<?= $campusRecordCount ?>"
+                                        class="w-full flex items-center gap-3 py-3 group text-left">
+                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
+                                    </span>
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block text-sm font-semibold text-gray-900 dark:text-white">CHANGE CAMPUS</span>
+                                        <span class="block text-xs text-gray-500 dark:text-gray-500">MOVE THIS UPLOAD AND ITS RECORDS TO ANOTHER CAMPUS OF THE SAME SCHOOL.</span>
+                                    </span>
+                                    <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-navy-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                                </button>
+                            <?php endif; ?>
                             <?php if ($canRemove): ?>
                                 <button type="button" id="remove-upload-btn"
                                         data-upload-id="<?= (int) $upload['id'] ?>"
@@ -362,6 +389,7 @@ include __DIR__ . '/../includes/sidebar.php';
 window.HGE_VIEW_UPLOAD = {
     csrfToken: <?= json_encode($csrfToken) ?>,
     apiBase: <?= json_encode(APP_BASE_URL) ?>,
+    schoolsUrl: <?= json_encode(APP_BASE_URL . '/admin/schools.php') ?>,
     dashboardUrl: <?= json_encode(APP_BASE_URL . '/admin/dashboard.php') ?>,
     pdfDetails: {
         school: <?= json_encode(mb_strtoupper(format_school_display_name($upload['school_name'], $upload['campus']))) ?>,
