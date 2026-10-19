@@ -199,15 +199,15 @@ include __DIR__ . '/../includes/sidebar.php';
                         <div id="filing-donut-legend" class="dashboard-stat-reveal space-y-1.5 mt-3 text-xs">
                             <div class="flex items-center justify-between">
                                 <span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-gray-400"></span>ON RECORD</span>
-                                <span class="text-gray-700 dark:text-gray-300"><?= number_format($filingReport['total_on_record']) ?> (100%)</span>
+                                <span class="text-gray-700 dark:text-gray-300"><span id="filing-onrecord-count"><?= number_format($filingReport['total_on_record']) ?></span> (<span id="filing-onrecord-percent">100%</span>)</span>
                             </div>
                             <div class="flex items-center justify-between">
                                 <span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300"></span>APPLIED</span>
-                                <span class="text-gray-700 dark:text-gray-300"><?= number_format($filingReport['total_applied']) ?> (<?= e((string) $filingReport['filing_rate']) ?>%)</span>
+                                <span class="text-gray-700 dark:text-gray-300"><span id="filing-applied-count"><?= number_format($filingReport['total_applied']) ?></span> (<span id="filing-applied-percent"><?= e((string) $filingReport['filing_rate']) ?>%</span>)</span>
                             </div>
                             <div class="flex items-center justify-between">
                                 <span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-sky-200 dark:bg-sky-500/30"></span>NOT YET APPLIED</span>
-                                <span class="text-gray-700 dark:text-gray-300"><?= number_format($notYetAppliedCount) ?> (<?= e((string) $notYetAppliedPercent) ?>%)</span>
+                                <span class="text-gray-700 dark:text-gray-300"><span id="filing-notyetapplied-count"><?= number_format($notYetAppliedCount) ?></span> (<span id="filing-notyetapplied-percent"><?= e((string) $notYetAppliedPercent) ?>%</span>)</span>
                             </div>
                         </div>
                     </div>

@@ -721,8 +721,12 @@ function initFilingDonut() {
     var DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS;
 
     var donutAppliedArc = document.getElementById('filing-donut-applied-arc');
-    var donutLegend = document.getElementById('filing-donut-legend');
     var filingRate = document.getElementById('filing-rate');
+    var legendEls = {
+        onRecord: { count: document.getElementById('filing-onrecord-count'), percent: document.getElementById('filing-onrecord-percent') },
+        applied: { count: document.getElementById('filing-applied-count'), percent: document.getElementById('filing-applied-percent') },
+        notYetApplied: { count: document.getElementById('filing-notyetapplied-count'), percent: document.getElementById('filing-notyetapplied-percent') },
+    };
     var tierEls = {
         'CUM LAUDE': {
             count: document.getElementById('dashboard-tier-cum-laude'),
@@ -798,14 +802,27 @@ function initFilingDonut() {
                 donutAppliedArc.setAttribute('stroke-dasharray', DONUT_CIRCUMFERENCE.toFixed(2));
                 donutAppliedArc.setAttribute('stroke-dashoffset', (DONUT_CIRCUMFERENCE - appliedLength).toFixed(2));
             }
-            if (donutLegend) {
-                var notYetApplied = totalOnRecord - report.total_applied;
-                var notYetAppliedPercent = totalOnRecord > 0 ? Math.round((notYetApplied / totalOnRecord) * 1000) / 10 : 0;
-                donutLegend.innerHTML =
-                    '<div class="flex items-center justify-between"><span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-gray-400"></span>ON RECORD</span><span class="text-gray-700 dark:text-gray-300">' + Number(totalOnRecord).toLocaleString('en-US') + ' (100%)</span></div>' +
-                    '<div class="flex items-center justify-between"><span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300"></span>APPLIED</span><span class="text-gray-700 dark:text-gray-300">' + Number(report.total_applied).toLocaleString('en-US') + ' (' + report.filing_rate + '%)</span></div>' +
-                    '<div class="flex items-center justify-between"><span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-sky-200 dark:bg-sky-500/30"></span>NOT YET APPLIED</span><span class="text-gray-700 dark:text-gray-300">' + Number(notYetApplied).toLocaleString('en-US') + ' (' + notYetAppliedPercent + '%)</span></div>';
-            }
+            var notYetApplied = totalOnRecord - report.total_applied;
+            var notYetAppliedPercent = totalOnRecord > 0 ? Math.round((notYetApplied / totalOnRecord) * 1000) / 10 : 0;
+
+            // Counts tween from whatever's currently on screen (not 0) — same
+            // "this number just changed" treatment as the tier bars above —
+            // text is only ever replaced through these ids, so the fixed-width
+            // label markup around them (admin/dashboard.php, admin/reports.php)
+            // never gets clobbered by a wholesale innerHTML rewrite.
+            [
+                { el: legendEls.onRecord, count: totalOnRecord, percent: '100%' },
+                { el: legendEls.applied, count: report.total_applied, percent: report.filing_rate + '%' },
+                { el: legendEls.notYetApplied, count: notYetApplied, percent: notYetAppliedPercent + '%' },
+            ].forEach(function (row) {
+                if (row.el.count) {
+                    var previousCount = parseInt(String(row.el.count.textContent).replace(/,/g, ''), 10) || 0;
+                    animateCountUp(row.el.count, row.count, 800, null, previousCount);
+                }
+                if (row.el.percent) {
+                    row.el.percent.textContent = row.percent;
+                }
+            });
 
             if (tierBreakdown) {
                 updateTierBars(tierEls, tierBreakdown, totalOnRecord);

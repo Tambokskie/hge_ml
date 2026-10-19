@@ -123,7 +123,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-500/10 text-green-600 dark:text-green-400">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </span>
-                    <p class="text-xs text-gray-600 dark:text-gray-500">APPLIED</p>
+                    <p class="text-xs text-gray-600 dark:text-gray-500">HGE APPLICATIONS RECEIVED</p>
                 </div>
                 <div>
                     <p class="dashboard-stat-number" id="dashboard-applied-number" data-count-to="<?= (int) $dashboardDefaultApplied ?>">0</p>
@@ -168,32 +168,36 @@ include __DIR__ . '/../includes/sidebar.php';
 
         <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
-                <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white mb-4">
+                <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white mb-5">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>
                     APPLICATION FILING OVERVIEW
                 </h2>
-                <div class="relative h-32 w-32 mx-auto">
-                    <svg viewBox="0 0 120 120" class="h-32 w-32 -rotate-90">
-                        <circle cx="60" cy="60" r="<?= $donutRadius ?>" fill="none" stroke="currentColor" stroke-width="16" class="text-sky-100 dark:text-sky-500/15" />
-                        <circle id="filing-donut-applied-arc" cx="60" cy="60" r="<?= $donutRadius ?>" fill="none" stroke="currentColor" stroke-width="16" class="text-csc-navy-600 dark:text-csc-navy-300 motion-safe:transition-all motion-safe:duration-1000 motion-safe:ease-out" stroke-dasharray="<?= round($donutCircumference, 2) ?>" stroke-dashoffset="<?= round($donutCircumference, 2) ?>" data-target-offset="<?= round($donutCircumference - $donutAppliedLength, 2) ?>" />
-                    </svg>
-                    <div class="absolute inset-0 flex flex-col items-center justify-center">
-                        <span id="filing-rate" class="text-xl font-bold text-csc-navy-600 dark:text-white"><?= e((string) $filingReport['filing_rate']) ?>%</span>
-                        <span class="text-[9px] text-gray-500 dark:text-gray-400 tracking-wide">FILING RATE</span>
+                <div class="flex items-center gap-6">
+                    <div id="filing-donut-legend" class="dashboard-stat-reveal space-y-3 text-sm">
+                        <div class="flex items-center gap-3">
+                            <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400 w-[150px] shrink-0"><span class="h-2.5 w-2.5 rounded-full bg-gray-400 shrink-0"></span>ON RECORD</span>
+                            <span class="text-gray-700 dark:text-gray-300"><span id="filing-onrecord-count"><?= number_format($filingReport['total_on_record']) ?></span> (<span id="filing-onrecord-percent">100%</span>)</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400 w-[150px] shrink-0"><span class="h-2.5 w-2.5 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300 shrink-0"></span>APPLIED</span>
+                            <span class="text-gray-700 dark:text-gray-300"><span id="filing-applied-count"><?= number_format($filingReport['total_applied']) ?></span> (<span id="filing-applied-percent"><?= e((string) $filingReport['filing_rate']) ?>%</span>)</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400 w-[150px] shrink-0"><span class="h-2.5 w-2.5 rounded-full bg-sky-200 dark:bg-sky-500/30 shrink-0"></span>NOT YET APPLIED</span>
+                            <span class="text-gray-700 dark:text-gray-300"><span id="filing-notyetapplied-count"><?= number_format($notYetAppliedCount) ?></span> (<span id="filing-notyetapplied-percent"><?= e((string) $notYetAppliedPercent) ?>%</span>)</span>
+                        </div>
                     </div>
-                </div>
-                <div id="filing-donut-legend" class="dashboard-stat-reveal space-y-1.5 mt-3 text-xs">
-                    <div class="flex items-center justify-between">
-                        <span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-gray-400"></span>ON RECORD</span>
-                        <span class="text-gray-700 dark:text-gray-300"><?= number_format($filingReport['total_on_record']) ?> (100%)</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300"></span>APPLIED</span>
-                        <span class="text-gray-700 dark:text-gray-300"><?= number_format($filingReport['total_applied']) ?> (<?= e((string) $filingReport['filing_rate']) ?>%)</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-sky-200 dark:bg-sky-500/30"></span>NOT YET APPLIED</span>
-                        <span class="text-gray-700 dark:text-gray-300"><?= number_format($notYetAppliedCount) ?> (<?= e((string) $notYetAppliedPercent) ?>%)</span>
+                    <div class="flex-1 flex justify-center">
+                        <div class="relative h-40 w-40 shrink-0">
+                            <svg viewBox="0 0 120 120" class="h-40 w-40 -rotate-90">
+                                <circle cx="60" cy="60" r="<?= $donutRadius ?>" fill="none" stroke="currentColor" stroke-width="16" class="text-sky-100 dark:text-sky-500/15" />
+                                <circle id="filing-donut-applied-arc" cx="60" cy="60" r="<?= $donutRadius ?>" fill="none" stroke="currentColor" stroke-width="16" class="text-csc-navy-600 dark:text-csc-navy-300 motion-safe:transition-all motion-safe:duration-1000 motion-safe:ease-out" stroke-dasharray="<?= round($donutCircumference, 2) ?>" stroke-dashoffset="<?= round($donutCircumference, 2) ?>" data-target-offset="<?= round($donutCircumference - $donutAppliedLength, 2) ?>" />
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span id="filing-rate" class="text-2xl font-bold text-csc-navy-600 dark:text-white"><?= e((string) $filingReport['filing_rate']) ?>%</span>
+                                <span class="text-[10px] text-gray-500 dark:text-gray-400 tracking-wide">FILING RATE</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <?php if (array_sum($honorBreakdown) === 0): ?>
@@ -203,18 +207,18 @@ include __DIR__ . '/../includes/sidebar.php';
                     $honorTotal = array_sum($honorBreakdown);
                     $honorTierIds = ['CUM LAUDE' => 'cum-laude', 'MAGNA CUM LAUDE' => 'magna-cum-laude', 'SUMMA CUM LAUDE' => 'summa-cum-laude'];
                     ?>
-                    <div class="space-y-3 mt-4 pt-4 border-t border-gray-100 dark:border-white/5">
+                    <div class="space-y-4 mt-6 pt-5 border-t border-gray-100 dark:border-white/5">
                         <?php foreach ($honorTierIds as $honor => $honorTierId): ?>
                             <?php
                             $honorCount = $honorBreakdown[$honor];
                             $honorPercent = $honorTotal > 0 ? round($honorCount / $honorTotal * 100, 1) : 0.0;
                             ?>
                             <div>
-                                <div class="flex items-center justify-between text-xs mb-1">
+                                <div class="flex items-center justify-between text-sm mb-1.5">
                                     <span class="text-gray-700 dark:text-gray-300"><?= e($honor) ?></span>
                                     <span class="text-gray-500 dark:text-gray-400"><span id="dashboard-tier-<?= $honorTierId ?>" class="dashboard-stat-reveal" data-count-to="<?= $honorCount ?>">0</span> <span id="dashboard-tier-<?= $honorTierId ?>-percent">(<?= e((string) $honorPercent) ?>%)</span></span>
                                 </div>
-                                <div class="h-1.5 w-full rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
+                                <div class="h-2 w-full rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
                                     <div id="dashboard-tier-<?= $honorTierId ?>-bar" class="tier-bar-animated h-full rounded-full bg-csc-navy-600 dark:bg-csc-navy-300 motion-safe:transition-all motion-safe:duration-1000 motion-safe:ease-out" style="width: 0%" data-target-width="<?= $honorPercent ?>"></div>
                                 </div>
                             </div>
@@ -223,17 +227,17 @@ include __DIR__ . '/../includes/sidebar.php';
                 <?php endif; ?>
             </div>
             <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 400ms">
-                <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <div class="mb-3">
                     <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" /></svg>
                         TREND
                     </h2>
-                    <div class="flex flex-wrap items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
+                    <div class="flex flex-wrap items-center gap-4 mt-6 text-xs text-gray-600 dark:text-gray-400">
                         <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300"></span>GRADUATED WITH LATIN HONORS (On Record)</span>
                         <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-500"></span><span id="filing-trend-applied-label">LATIN HONORS APPLIED FOR HGE</span></span>
                     </div>
                 </div>
-                <div id="filing-trend-chart" class="relative w-full select-none" style="height: 220px"></div>
+                <div id="filing-trend-chart" class="relative w-full select-none mt-8" style="height: 220px"></div>
                 <p id="filing-trend-note" class="hidden mt-2 text-[11px] text-gray-500 dark:text-gray-400"></p>
             </div>
         </div>
