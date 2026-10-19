@@ -153,4 +153,65 @@ class ChangeUploadCampusTest extends TestCase
         $this->assertSame(0, $result['records']);
         $this->assertSame(2, $this->schoolOf('latin_honor_uploads', 1));
     }
-}
+
+    private function realFile(string $name): string
+    {
+        $path = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $name;
+        file_put_contents($path, '%PDF-test');
+        TestDb::pdo()->prepare('UPDATE latin_honor_uploads SET stored_filename = ?, file_path = ? WHERE id = 1')->execute([$name, $path]);
+
+        return $path;
+    }
+
+    public function testTheStoredFileIsRenamedToCarryTheNewCampus(): void
+    {
+        $pdo = TestDb::pdo();
+        $old = $this->realFile('SAMPLE_STATE_UNIVERSITY_MAIN_2026_1.pdf');
+        $new = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'SAMPLE_STATE_UNIVERSITY_NORTH_2026_1.pdf';
+        @unlink($new);
+
+        $result = change_upload_campus($pdo, 1, 2);
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame('SAMPLE_STATE_UNIVERSITY_NORTH_2026_1.pdf', $result['file']);
+        $this->assertFileDoesNotExist($old);
+        $this->assertFileExists($new);
+        $row = $pdo->query('SELECT stored_filename, file_path, original_filename FROM latin_honor_uploads WHERE id = 1')->fetch();
+        $this->assertSame('SAMPLE_STATE_UNIVERSITY_NORTH_2026_1.pdf', $row['stored_filename']);
+        $this->assertSame($new, $row['file_path']);
+        $this->assertSame('ssu.pdf', $row['original_filename']);
+        unlink($new);
+    }
+
+    public function testAMoveIsRefusedWhenAnotherFileAlreadyHasTheNewName(): void
+    {
+        $pdo = TestDb::pdo();
+        $old = $this->realFile('SAMPLE_STATE_UNIVERSITY_MAIN_2026_1.pdf');
+        $taken = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'SAMPLE_STATE_UNIVERSITY_NORTH_2026_1.pdf';
+        file_put_contents($taken, 'someone else');
+
+        $result = change_upload_campus($pdo, 1, 2);
+
+        $this->assertFalse($result['ok']);
+        $this->assertStringContainsString('ALREADY EXISTS', $result['error']);
+        $this->assertSame(1, $this->schoolOf('latin_honor_uploads', 1));
+        $this->assertSame(1, $this->schoolOf('latin_honor_graduates', 1));
+        $this->assertFileExists($old);
+        $this->assertSame('someone else', file_get_contents($taken));
+        unlink($old);
+        unlink($taken);
+    }
+
+    public function testRenameHelperLeavesAMissingFileAndAnAlreadyRightNameAlone(): void
+    {
+        $pdo = TestDb::pdo();
+
+        // the file is not on disk: nothing to rename, the row is left as it is
+        $this->assertSame(['ok' => true, 'renamed' => false], rename_upload_file_to_match_school($pdo, 1));
+
+        // already named for its school: no change
+        $path = $this->realFile('SAMPLE_STATE_UNIVERSITY_MAIN_2026_1.pdf');
+        $this->assertSame(['ok' => true, 'renamed' => false], rename_upload_file_to_match_school($pdo, 1));
+        $this->assertFileExists($path);
+        unlink($path);
+    }}

@@ -32,7 +32,7 @@ try {
         $pdo,
         $currentUser['id'] ?? null,
         'record_updated',
-        'Changed campus of upload_id=' . $uploadId . ' from ' . $result['from'] . ' to ' . $result['to'] . ' (' . $result['records'] . ' saved record(s) moved)'
+        'Changed campus of upload_id=' . $uploadId . ' from ' . $result['from'] . ' to ' . $result['to'] . ' (' . $result['records'] . ' saved record(s) moved' . ($result['file'] !== null ? ', file renamed to ' . $result['file'] : '') . ')'
     );
 } catch (\Throwable $e) {
     error_log('change_upload_campus endpoint failed: ' . $e->getMessage());

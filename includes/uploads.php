@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/recycle_bin_items.php';
+require_once __DIR__ . '/pdf_files.php';
 
 function find_existing_upload(PDO $pdo, int $schoolId, string $schoolYear): ?array
 {
@@ -305,16 +306,73 @@ function get_other_campuses_for_upload(PDO $pdo, int $uploadId): array
 }
 
 /**
+ * Renames an upload's stored file so its name matches the school, campus, year and
+ * number the upload belongs to NOW (build_stored_filename()), and points the row's
+ * stored_filename/file_path at it. The original filename the uploader chose is kept.
+ * Nothing happens (ok, renamed = false) when the name is already right or the file is
+ * not on disk; a different file already holding the new name is refused rather than
+ * overwritten. Meant to run inside the caller's transaction: on a later failure call
+ * restore_upload_file_rename() with the returned 'undo'.
+ *
+ * @return array{ok: true, renamed: bool, from?: string, to?: string, undo?: array{from: string, to: string}}|array{ok: false, error: string}
+ */
+function rename_upload_file_to_match_school(PDO $pdo, int $uploadId): array
+{
+    $upload = get_upload_by_id($pdo, $uploadId);
+    if ($upload === null) {
+        return ['ok' => false, 'error' => 'UPLOAD RECORD NOT FOUND.'];
+    }
+
+    $numberStmt = $pdo->prepare('SELECT upload_number FROM latin_honor_uploads WHERE id = :id');
+    $numberStmt->execute(['id' => $uploadId]);
+    $extension = (string) pathinfo((string) $upload['stored_filename'], PATHINFO_EXTENSION);
+    $newName = build_stored_filename(
+        (string) $upload['school_name'],
+        (string) $upload['school_year'],
+        (int) $numberStmt->fetchColumn(),
+        (string) ($upload['campus'] ?? ''),
+        $extension === '' ? 'pdf' : $extension
+    );
+
+    $oldPath = (string) $upload['file_path'];
+    $oldName = (string) $upload['stored_filename'];
+    if ($newName === $oldName || !is_file($oldPath)) {
+        return ['ok' => true, 'renamed' => false];
+    }
+
+    // keep the stored path's own style (separators) and folder, swapping only the file name
+    $newPath = substr($oldPath, 0, strlen($oldPath) - strlen(basename(str_replace('\\', '/', $oldPath)))) . $newName;
+    if (file_exists($newPath)) {
+        return ['ok' => false, 'error' => 'A FILE NAMED ' . $newName . ' ALREADY EXISTS. PLEASE CONTACT AN ADMINISTRATOR.'];
+    }
+    if (!@rename($oldPath, $newPath)) {
+        return ['ok' => false, 'error' => 'THE FILE COULD NOT BE RENAMED. PLEASE TRY AGAIN.'];
+    }
+
+    try {
+        $pdo->prepare('UPDATE latin_honor_uploads SET stored_filename = :name, file_path = :path WHERE id = :id')
+            ->execute(['name' => $newName, 'path' => $newPath, 'id' => $uploadId]);
+    } catch (\Throwable $e) {
+        @rename($newPath, $oldPath);
+        error_log('rename_upload_file_to_match_school failed: ' . $e->getMessage());
+
+        return ['ok' => false, 'error' => 'THE FILE COULD NOT BE RENAMED. PLEASE TRY AGAIN.'];
+    }
+
+    return ['ok' => true, 'renamed' => true, 'from' => $oldName, 'to' => $newName, 'undo' => ['from' => $newPath, 'to' => $oldPath]];
+}
+
+/**
  * Moves an upload, together with its saved records, to another campus of the same
- * school (for a list that was filed under the wrong campus). Only the school the
- * records belong to changes: the file, its name, the extracted data and every filed
- * application stay as they are. The upload keeps its number unless the new campus
+ * school (for a list that was filed under the wrong campus). The records' data and
+ * every filed application stay as they are; the stored file is renamed to carry the new
+ * campus (rename_upload_file_to_match_school()) and keeps its content. The upload keeps its number unless the new campus
  * already has an upload with that number for the same school year (the numbering is
  * per school and year), in which case it takes the next free one. Records of this
  * upload that sit in the recycle bin follow it, so restoring them later lands in the
  * right campus. Everything happens in one transaction.
  *
- * @return array{ok: true, from: string, to: string, records: int}|array{ok: false, error: string}
+ * @return array{ok: true, from: string, to: string, records: int, file?: string}|array{ok: false, error: string}
  */
 function change_upload_campus(PDO $pdo, int $uploadId, int $newSchoolId): array
 {
@@ -334,6 +392,8 @@ function change_upload_campus(PDO $pdo, int $uploadId, int $newSchoolId): array
         return ['ok' => false, 'error' => 'THAT CAMPUS IS NOT AVAILABLE FOR THIS SCHOOL. CHOOSE ANOTHER ACTIVE CAMPUS OF THE SAME SCHOOL.'];
     }
 
+    $fileUndo = null;
+    $newFile = null;
     try {
         $pdo->beginTransaction();
 
@@ -357,8 +417,21 @@ function change_upload_campus(PDO $pdo, int $uploadId, int $newSchoolId): array
         $pdo->prepare('UPDATE graduate_recycle_bin SET school_id = :school_id WHERE upload_id = :id')
             ->execute(['school_id' => $newSchoolId, 'id' => $uploadId]);
 
+        // the stored file's name carries the campus, so it follows the move
+        $renamed = rename_upload_file_to_match_school($pdo, $uploadId);
+        if (!$renamed['ok']) {
+            $pdo->rollBack();
+
+            return ['ok' => false, 'error' => $renamed['error']];
+        }
+        $fileUndo = $renamed['undo'] ?? null;
+        $newFile = $renamed['to'] ?? null;
+
         $pdo->commit();
     } catch (\Throwable $e) {
+        if ($fileUndo !== null) {
+            @rename($fileUndo['from'], $fileUndo['to']);
+        }
         try {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
@@ -376,6 +449,7 @@ function change_upload_campus(PDO $pdo, int $uploadId, int $newSchoolId): array
         'from' => format_school_display_name((string) $upload['school_name'], $upload['campus'] ?? null),
         'to' => format_school_display_name((string) $upload['school_name'], $target['campus']),
         'records' => $records,
+        'file' => $newFile,
     ];
 }
 
