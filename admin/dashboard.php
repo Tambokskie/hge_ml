@@ -11,6 +11,7 @@ require_login();
 $pdo = get_pdo();
 $stats = get_dashboard_stats($pdo);
 $graduationYears = get_distinct_graduation_years($pdo);
+$applicationYears = get_application_years($pdo);
 $recentUploads = get_recent_uploads($pdo, 10);
 $honorBreakdown = get_honor_type_breakdown($pdo);
 $uploadActivity = get_upload_activity_by_month($pdo, 6);
@@ -72,8 +73,18 @@ include __DIR__ . '/../includes/sidebar.php';
                     <p class="text-xs text-gray-600 dark:text-gray-500">APPLIED</p>
                 </div>
                 <div>
-                    <p class="dashboard-stat-number" data-count-to="<?= (int) $stats['total_applied'] ?>">0</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-500 mt-0.5">HGE APPLICATIONS</p>
+                    <p class="dashboard-stat-number" id="dashboard-applied-number" data-count-to="<?= (int) $stats['applied_this_year'] ?>">0</p>
+                    <div class="mt-0.5 flex flex-col items-center text-xs text-gray-500 dark:text-gray-500">
+                        <label for="dashboard-applied-year-select">HGE APPLICATION AS OF:</label>
+                        <div class="relative inline-block">
+                            <select id="dashboard-applied-year-select" class="appearance-none bg-transparent text-xs text-gray-500 dark:text-gray-400 text-center pl-1 pr-4 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none">
+                                <?php foreach ($applicationYears as $y): ?>
+                                    <option value="<?= (int) $y ?>" <?= $y === $stats['applied_year'] ? 'selected' : '' ?>><?= (int) $y ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <svg class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 600ms">

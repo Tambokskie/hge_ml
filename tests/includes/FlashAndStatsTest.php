@@ -30,7 +30,7 @@ class FlashAndStatsTest extends TestCase
         $this->assertSame(0, $stats['total_schools']);
         $this->assertSame(0, $stats['total_active_schools']);
         $this->assertSame(0, $stats['total_uploads']);
-        $this->assertSame(0, $stats['total_applied']);
+        $this->assertSame(0, $stats['applied_this_year']);
         $this->assertNull($stats['current_year']);
         $this->assertSame(0, $stats['current_year_records']);
     }
@@ -55,7 +55,7 @@ class FlashAndStatsTest extends TestCase
         $this->assertSame(1, $stats['total_schools']);
         $this->assertSame(2, $stats['total_active_schools']);
         $this->assertSame(1, $stats['total_uploads']);
-        $this->assertSame(0, $stats['total_applied']);
+        $this->assertSame(0, $stats['applied_this_year']);
         $this->assertSame(2025, $stats['current_year']);
         $this->assertSame(1, $stats['current_year_records']);
     }
@@ -152,5 +152,33 @@ class FlashAndStatsTest extends TestCase
         $series = get_upload_activity_by_month($pdo, 6);
 
         $this->assertSame(1, $series[5]['count']);
+    }
+    public function testApplicationsAreCountedPerYearFiledAndTheCurrentYearIsAlwaysOffered(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec("INSERT INTO users (name, username, email, password, role) VALUES ('Admin', 'admin', 'a@a.com', 'x', 'administrator')");
+        $pdo->exec("INSERT INTO schools (school_name) VALUES ('ABC UNIVERSITY')");
+        $pdo->exec(
+            "INSERT INTO latin_honor_uploads (school_id, school_year, original_filename, stored_filename, file_path, file_size, file_hash, uploaded_by, extraction_status, records_extracted)
+             VALUES (1, '2025', 'list.pdf', 'stored.pdf', '/storage/pdfs/stored.pdf', 100, SHA2('x',256), 1, 'reviewed', 3)"
+        );
+        $pdo->exec(
+            "INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, latin_honor, graduation_year)
+             VALUES (1, 1, 'A ONE', 'CUM LAUDE', 2025), (1, 1, 'B TWO', 'CUM LAUDE', 2025), (1, 1, 'C THREE', 'CUM LAUDE', 2025)"
+        );
+        $pdo->exec(
+            "INSERT INTO graduate_applications (graduate_id, applied_by, application_date)
+             VALUES (1, 1, '2024-03-01'), (2, 1, '2024-12-31'), (3, 1, '2023-05-05')"
+        );
+
+        $this->assertSame(2, get_applied_count_by_year($pdo, 2024));
+        $this->assertSame(1, get_applied_count_by_year($pdo, 2023));
+        $this->assertSame(0, get_applied_count_by_year($pdo, 2030));
+
+        $years = get_application_years($pdo);
+        $this->assertSame((int) date('Y'), $years[0]);
+        $this->assertContains(2024, $years);
+        $this->assertContains(2023, $years);
+        $this->assertSame($years, array_values(array_unique($years)));
     }
 }

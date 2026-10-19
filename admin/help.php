@@ -51,7 +51,7 @@ $sections = [
         'intro' => 'The dashboard is a quick summary of what is in the system. It is the first page you see after signing in.',
         'steps' => [
             'Click [[DASHBOARD]] in the menu.',
-            'Read the cards at the top: [[TOTAL GRADUATES]], [[SCHOOLS WITH RECORDS]], [[APPLIED]] (HGE applications filed so far) and [[CURRENT YEAR RECORDS]].',
+            'Read the cards at the top: [[TOTAL GRADUATES]], [[SCHOOLS WITH RECORDS]], [[APPLIED]] (HGE applications filed in the year chosen in the [[HGE APPLICATION AS OF:]] box, this year by default) and [[CURRENT YEAR RECORDS]].',
             'Below them, [[LATIN HONORS BY TYPE]] shows how many records are Cum Laude, Magna Cum Laude and Summa Cum Laude, and [[UPLOAD ACTIVITY]] shows uploads over time.',
             '[[LATEST UPLOAD]] lists the most recent school lists, and [[RECENT ACTIVITY]] shows the latest actions in the system.',
         ],
@@ -115,7 +115,7 @@ $sections = [
         'steps' => [
             'Click [[REPORTS]] in the menu.',
             'Choose the reporting period with the two year boxes (from and to).',
-            'Read the summary: [[ON RECORD]] (Latin Honor graduates saved), [[FILING RATE]] and [[NOT YET APPLIED]]. The total number of applications filed is shown on the Dashboard.',
+            'Read the summary: [[ON RECORD]] (Latin Honor graduates saved), [[FILING RATE]] and [[NOT YET APPLIED]]. The number of applications filed in a given year is shown on the Dashboard.',
             'On the trend chart, use [[PER YEAR]] or [[PER MONTH]] to change how it is grouped. Both lines use the same scale, so you can compare them directly. Graduates are placed by the month they graduated and applications by the month they were actually filed.',
             'In the table by school, search for a school, change the sort order, or show only schools that [[HAS FILED]] or have [[NO FILINGS YET]].',
             'Click [[EXPORT REPORT]], then [[EXPORT XLSX]] to download it for Excel or [[PRINT REPORT]] to print it.',

@@ -206,7 +206,6 @@ function get_dashboard_stats(PDO $pdo): array
     $totalSchools = (int) $pdo->query('SELECT COUNT(DISTINCT school_id) FROM latin_honor_uploads')->fetchColumn();
     $totalActiveSchools = (int) $pdo->query("SELECT COUNT(*) FROM schools WHERE status = 'active'")->fetchColumn();
     $totalUploads = (int) $pdo->query('SELECT COUNT(*) FROM latin_honor_uploads')->fetchColumn();
-    $totalApplied = (int) $pdo->query('SELECT COUNT(*) FROM graduate_applications')->fetchColumn();
     $currentYear = $pdo->query('SELECT MAX(graduation_year) FROM latin_honor_graduates')->fetchColumn();
 
     $currentYearRecords = $currentYear !== null ? get_graduate_count_by_year($pdo, (int) $currentYear) : 0;
@@ -216,7 +215,8 @@ function get_dashboard_stats(PDO $pdo): array
         'total_schools' => $totalSchools,
         'total_active_schools' => $totalActiveSchools,
         'total_uploads' => $totalUploads,
-        'total_applied' => $totalApplied,
+        'applied_year' => (int) date('Y'),
+        'applied_this_year' => get_applied_count_by_year($pdo, (int) date('Y')),
         'current_year' => $currentYear !== null ? (int) $currentYear : null,
         'current_year_records' => $currentYearRecords,
     ];
@@ -357,6 +357,35 @@ function ai_availability_tier(int $usedPercent): array
     }
 
     return $tier + ['available_percent' => $availablePercent];
+}
+
+/**
+ * Backs the dashboard's "HGE APPLICATION AS OF" card (admin/dashboard.php +
+ * api/get_dashboard_year_records.php?metric=applied): how many applications were
+ * filed (application_date) in the given calendar year.
+ */
+function get_applied_count_by_year(PDO $pdo, int $year): int
+{
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM graduate_applications WHERE YEAR(application_date) = :year');
+    $stmt->execute(['year' => $year]);
+
+    return (int) $stmt->fetchColumn();
+}
+
+/**
+ * Years offered by that card's dropdown: every year an application was filed in,
+ * plus the current year (the default), newest first.
+ *
+ * @return int[]
+ */
+function get_application_years(PDO $pdo): array
+{
+    $years = array_map('intval', $pdo->query('SELECT DISTINCT YEAR(application_date) FROM graduate_applications')->fetchAll(PDO::FETCH_COLUMN));
+    $years[] = (int) date('Y');
+    $years = array_values(array_unique($years));
+    rsort($years);
+
+    return $years;
 }
 
 function get_distinct_graduation_years(PDO $pdo): array

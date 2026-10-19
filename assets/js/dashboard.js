@@ -128,9 +128,11 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    var yearSelect = document.getElementById('dashboard-year-select');
-    var yearRecordsNumber = document.getElementById('dashboard-year-records-number');
-    if (yearSelect && yearRecordsNumber) {
+    // A card whose number follows a year dropdown (CURRENT YEAR RECORDS, HGE APPLICATION AS OF).
+    function bindYearCard(yearSelect, yearRecordsNumber, metricQuery) {
+        if (!yearSelect || !yearRecordsNumber) {
+            return;
+        }
         var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
         yearSelect.addEventListener('change', function () {
@@ -139,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var previousText = yearRecordsNumber.textContent;
             yearRecordsNumber.classList.add('opacity-50');
 
-            fetch(config.apiBase + '/api/get_dashboard_year_records.php?year=' + encodeURIComponent(year))
+            fetch(config.apiBase + '/api/get_dashboard_year_records.php?year=' + encodeURIComponent(year) + metricQuery)
                 .then(function (response) {
                     return response.json();
                 })
@@ -172,4 +174,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
         });
     }
+
+    bindYearCard(document.getElementById('dashboard-year-select'), document.getElementById('dashboard-year-records-number'), '');
+    bindYearCard(document.getElementById('dashboard-applied-year-select'), document.getElementById('dashboard-applied-number'), '&metric=applied');
 });

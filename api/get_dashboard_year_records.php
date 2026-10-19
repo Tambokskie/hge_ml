@@ -16,7 +16,10 @@ if ($year <= 0) {
 }
 
 try {
-    $count = get_graduate_count_by_year(get_pdo(), $year);
+    $pdo = get_pdo();
+    $count = ($_GET['metric'] ?? '') === 'applied'
+        ? get_applied_count_by_year($pdo, $year)
+        : get_graduate_count_by_year($pdo, $year);
 
     echo json_encode(['status' => 'success', 'year' => $year, 'count' => $count]);
 } catch (\Throwable $e) {
