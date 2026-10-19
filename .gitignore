@@ -12,6 +12,7 @@
 !/storage/cache/.gitkeep
 .phpunit.result.cache
 composer.phar
+/.claude/skills/
 /.worktrees/
 /storage/recycle_bin/*
 !/storage/recycle_bin/.htaccess
