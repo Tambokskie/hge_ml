@@ -206,27 +206,24 @@ document.addEventListener('DOMContentLoaded', function () {
         var extractionModal = showExtractionProgressModal('EXTRACTING DATA', 'PLEASE WAIT WHILE WE GATHER THE LATEST INFORMATION.');
         var stopProgressPolling = startExtractionProgressPolling(config.apiBase + '/api/extraction_progress.php', uploadId, extractionModal.update);
 
-        var formData = new FormData();
-        formData.set('csrf_token', config.csrfToken);
-        formData.set('upload_id', uploadId);
+        var fields = { csrf_token: config.csrfToken, upload_id: uploadId };
         if (!isContinuing && btn.dataset.reextract === '1') {
             // The records of this upload are already saved: a deliberate re-extraction.
-            formData.set('reextract', '1');
+            fields.reextract = '1';
         }
         if (useOcr) {
-            formData.set('use_ocr', '1');
-        }
-        if (isContinuing) {
-            formData.set('continue', '1');
+            fields.use_ocr = '1';
         }
 
-        fetch(config.apiBase + '/api/extract_pdf.php', {
-            method: 'POST',
-            body: formData,
+        // Every 2-page batch is sent one after the other, each failed batch up to 3 tries.
+        runChunkedExtraction({
+            url: config.apiBase + '/api/extract_pdf.php',
+            fields: fields,
+            continuing: !!isContinuing,
+            onRetry: function (tryNumber, maxTries) {
+                extractionModal.update(0, 'THE AI DID NOT ANSWER. TRYING AGAIN (' + tryNumber + ' OF ' + maxTries + ')...');
+            },
         })
-            .then(function (response) {
-                return response.json();
-            })
             .then(function (data) {
                 stopProgressPolling();
                 if (data.status === 'success') {

@@ -37,6 +37,63 @@ function startExtractionProgressPolling(progressUrl, uploadId, onUpdate) {
     };
 }
 
+// Runs api/extract_pdf.php for one upload until it is done, without waiting for the
+// admin to click CONTINUE EXTRACTION between 2-page batches. A batch that fails is
+// sent again, up to MAX_TRIES tries in all (not for a used-up AI quota — another try
+// cannot help); once a batch succeeds the counter starts over for the next one.
+// Resolves with the last response (status success with has_more false, or the error
+// of a batch that failed every try; ocr_* statuses are passed straight through).
+// Rejects only if the server could not be reached at all on every try.
+//   url, fields {csrf_token, upload_id, ...first-request fields}, continuing (start
+//   from a later batch), onRetry(tryNumber, maxTries, message), onBatch().
+function runChunkedExtraction(options) {
+    var MAX_TRIES = 3;
+
+    function send(continuing, tryNumber) {
+        var formData = new FormData();
+        Object.keys(options.fields).forEach(function (key) {
+            // reextract/use_ocr belong to the first request only
+            if (continuing && (key === 'reextract' || key === 'use_ocr')) {
+                return;
+            }
+            formData.set(key, options.fields[key]);
+        });
+        if (continuing) {
+            formData.set('continue', '1');
+        }
+
+        function retryOrGiveUp(message, fallback) {
+            if (tryNumber < MAX_TRIES) {
+                if (options.onRetry) {
+                    options.onRetry(tryNumber + 1, MAX_TRIES, message);
+                }
+                return send(continuing, tryNumber + 1);
+            }
+            return fallback();
+        }
+
+        return fetch(options.url, { method: 'POST', body: formData })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (data.status === 'success' && data.has_more) {
+                    if (options.onBatch) {
+                        options.onBatch();
+                    }
+                    return send(true, 1);
+                }
+                var message = String(data.message || '');
+                if (data.status === 'error' && /TRY/.test(message) && !/QUOTA/.test(message)) {
+                    return retryOrGiveUp(message, function () { return data; });
+                }
+                return data;
+            }, function (error) {
+                return retryOrGiveUp('', function () { throw error; });
+            });
+    }
+
+    return send(!!options.continuing, 1);
+}
+
 // Eases `el`'s text content from `from` (default 0) up to `target` over
 // `duration` ms, calling `onComplete` (if given) once it lands exactly on
 // `target`. The default `from` of 0 serves the once-per-load entrance

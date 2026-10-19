@@ -251,6 +251,7 @@ try {
                 echo json_encode([
                     'status' => 'success',
                     'extraction_status' => 'draft',
+                    'has_more' => $hasMoreChunks,
                     'redirect_url' => $hasMoreChunks
                         ? APP_BASE_URL . '/admin/view_upload.php?id=' . $uploadId
                         : APP_BASE_URL . '/admin/review.php?upload_id=' . $uploadId,

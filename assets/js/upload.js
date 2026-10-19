@@ -132,20 +132,19 @@ document.addEventListener('DOMContentLoaded', function () {
         var extractionModal = showExtractionProgressModal('EXTRACTING DATA', 'PLEASE WAIT WHILE WE GATHER THE LATEST INFORMATION.');
         var stopProgressPolling = startExtractionProgressPolling(progressUrl, uploadId, extractionModal.update);
 
-        var formData = new FormData();
-        formData.set('csrf_token', csrfToken);
-        formData.set('upload_id', uploadId);
+        var fields = { csrf_token: csrfToken, upload_id: uploadId };
         if (useOcr) {
-            formData.set('use_ocr', '1');
+            fields.use_ocr = '1';
         }
 
-        fetch(extractUrl, {
-            method: 'POST',
-            body: formData,
+        // Every 2-page batch is sent one after the other, each failed batch up to 3 tries.
+        runChunkedExtraction({
+            url: extractUrl,
+            fields: fields,
+            onRetry: function (tryNumber, maxTries) {
+                extractionModal.update(0, 'THE AI DID NOT ANSWER. TRYING AGAIN (' + tryNumber + ' OF ' + maxTries + ')...');
+            },
         })
-            .then(function (response) {
-                return response.json();
-            })
             .then(function (data) {
                 stopProgressPolling();
                 if (data.status === 'success') {

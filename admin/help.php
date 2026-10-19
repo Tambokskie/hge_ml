@@ -132,7 +132,7 @@ $sections = [
             'Type the [[SCHOOL YEAR]], for example 2025.',
             'Drag the PDF onto the box, or click it to browse your computer and choose the file (up to 20 MB).',
             'Click [[UPLOAD & EXTRACT RECORDS]]. A progress window shows while the list is being read.',
-            'The AI reads the PDF 2 pages at a time. When every page has been read you are taken straight to the review screen. For a longer list you are taken to the upload\'s page instead: click [[CONTINUE EXTRACTION]] to read the next 2 pages, and repeat until the last page. The review screen then opens.',
+            'The AI reads the PDF 2 pages at a time. The batches follow one another on their own, and a batch the AI fails to read is sent again, up to 3 tries. When every page has been read you are taken straight to the review screen. If a batch still fails after 3 tries you are left on the upload\'s page: click [[CONTINUE EXTRACTION]] to carry on from where it stopped.',
         ],
         'tips' => [
             'The colored dot on the upload card shows how much of today\'s free AI quota is left: green is available, yellow is moderate, red is low. When it is red, uploads use the standard text/OCR reading instead.',
