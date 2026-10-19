@@ -206,6 +206,7 @@ function get_dashboard_stats(PDO $pdo): array
     $totalSchools = (int) $pdo->query('SELECT COUNT(DISTINCT school_id) FROM latin_honor_uploads')->fetchColumn();
     $totalActiveSchools = (int) $pdo->query("SELECT COUNT(*) FROM schools WHERE status = 'active'")->fetchColumn();
     $totalUploads = (int) $pdo->query('SELECT COUNT(*) FROM latin_honor_uploads')->fetchColumn();
+    $totalApplied = (int) $pdo->query('SELECT COUNT(*) FROM graduate_applications')->fetchColumn();
     $currentYear = $pdo->query('SELECT MAX(graduation_year) FROM latin_honor_graduates')->fetchColumn();
 
     $currentYearRecords = $currentYear !== null ? get_graduate_count_by_year($pdo, (int) $currentYear) : 0;
@@ -215,6 +216,7 @@ function get_dashboard_stats(PDO $pdo): array
         'total_schools' => $totalSchools,
         'total_active_schools' => $totalActiveSchools,
         'total_uploads' => $totalUploads,
+        'total_applied' => $totalApplied,
         'current_year' => $currentYear !== null ? (int) $currentYear : null,
         'current_year_records' => $currentYearRecords,
     ];

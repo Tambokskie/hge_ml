@@ -66,12 +66,15 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
             <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 400ms">
                 <div class="flex items-center gap-3 self-start">
-                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-500/10 text-green-600 dark:text-green-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </span>
-                    <p class="text-xs text-gray-600 dark:text-gray-500">TOTAL PDF LISTS</p>
+                    <p class="text-xs text-gray-600 dark:text-gray-500">APPLIED</p>
                 </div>
-                <p class="dashboard-stat-number" data-count-to="<?= (int) $stats['total_uploads'] ?>">0</p>
+                <div>
+                    <p class="dashboard-stat-number" data-count-to="<?= (int) $stats['total_applied'] ?>">0</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-500 mt-0.5">HGE APPLICATIONS</p>
+                </div>
             </div>
             <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 600ms">
                 <div class="flex items-center gap-3 self-start">

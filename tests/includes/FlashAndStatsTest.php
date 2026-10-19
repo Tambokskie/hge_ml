@@ -30,6 +30,7 @@ class FlashAndStatsTest extends TestCase
         $this->assertSame(0, $stats['total_schools']);
         $this->assertSame(0, $stats['total_active_schools']);
         $this->assertSame(0, $stats['total_uploads']);
+        $this->assertSame(0, $stats['total_applied']);
         $this->assertNull($stats['current_year']);
         $this->assertSame(0, $stats['current_year_records']);
     }
@@ -54,6 +55,7 @@ class FlashAndStatsTest extends TestCase
         $this->assertSame(1, $stats['total_schools']);
         $this->assertSame(2, $stats['total_active_schools']);
         $this->assertSame(1, $stats['total_uploads']);
+        $this->assertSame(0, $stats['total_applied']);
         $this->assertSame(2025, $stats['current_year']);
         $this->assertSame(1, $stats['current_year_records']);
     }

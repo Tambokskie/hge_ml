@@ -33,7 +33,6 @@ $trendMonthly = get_filing_trend_monthly($pdo, $fromYear, $toYear);
 
 $previousPeriodReport = get_application_filing_report($pdo, $fromYear - $periodSpan, $fromYear - 1);
 $onRecordChange = compute_percent_change($filingReport['total_on_record'], $previousPeriodReport['total_on_record']);
-$appliedChange = compute_percent_change($filingReport['total_applied'], $previousPeriodReport['total_applied']);
 
 // Rendered twice (ON RECORD card, APPLIED card) — a page-local helper rather
 // than duplicating the same arrow/color/sign logic inline. Empty string when
@@ -141,7 +140,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     </p>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 mb-4">
+                <div class="grid grid-cols-1 gap-4 mt-4 mb-4">
                     <div class="dashboard-stat-card items-start text-left motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
                         <div class="flex items-center gap-3 min-w-0">
                             <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
@@ -152,17 +151,6 @@ include __DIR__ . '/../includes/sidebar.php';
                         <p id="filing-total-on-record" class="dashboard-stat-number" data-count-to="<?= (int) $filingReport['total_on_record'] ?>">0</p>
                         <p class="text-xs text-gray-500 dark:text-gray-500">LATIN HONOR GRADUATES</p>
                         <div id="filing-on-record-trend"><?= render_trend_html($onRecordChange, $periodSpan) ?></div>
-                    </div>
-                    <div class="dashboard-stat-card items-start text-left motion-safe:animate-fade-in-up" style="animation-delay: 100ms">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-500/10 text-green-600 dark:text-green-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            </span>
-                            <p class="text-xs text-gray-600 dark:text-gray-500">APPLIED</p>
-                        </div>
-                        <p id="filing-total-applied" class="dashboard-stat-number" data-count-to="<?= (int) $filingReport['total_applied'] ?>">0</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-500">HGE APPLICATIONS</p>
-                        <div id="filing-applied-trend"><?= render_trend_html($appliedChange, $periodSpan) ?></div>
                     </div>
                 </div>
 

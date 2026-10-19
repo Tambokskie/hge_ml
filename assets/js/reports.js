@@ -536,7 +536,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderFilingReport(data) {
         animateCountUp(filingTotalOnRecord, data.report.total_on_record, 1000, null, parseDisplayedNumber(filingTotalOnRecord));
-        animateCountUp(filingTotalApplied, data.report.total_applied, 1000, null, parseDisplayedNumber(filingTotalApplied));
+        if (filingTotalApplied) {
+            animateCountUp(filingTotalApplied, data.report.total_applied, 1000, null, parseDisplayedNumber(filingTotalApplied));
+        }
         animateRate(filingRate, data.report.filing_rate, 1000);
 
         if (filingOnRecordTrend) {
