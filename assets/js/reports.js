@@ -34,11 +34,6 @@ document.addEventListener('DOMContentLoaded', function () {
         return month + ' ' + day + ', ' + year + ' AT ' + hour12 + ':' + minute + ' ' + ampm;
     }
 
-    // Same geometry admin/reports.php computes in PHP for the initial render —
-    // kept identical so the AJAX year-switch redraw matches pixel-for-pixel.
-    var DONUT_RADIUS = 50;
-    var DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS;
-
     // Mirrors admin/reports.php's render_trend_html(): same arrow path,
     // color, and sign logic, built as an HTML string for innerHTML rather
     // than DOM construction since a whole small subtree is replaced at once.
@@ -65,38 +60,6 @@ document.addEventListener('DOMContentLoaded', function () {
         return parseInt(String(el.textContent).replace(/,/g, ''), 10) || 0;
     }
 
-    // animateCountUp() rounds to whole numbers, so the filing-rate percentage
-    // (one decimal, e.g. 0.8%) gets its own tween from what's on screen to the
-    // new value. Honors prefers-reduced-motion and a newer call supersedes it.
-    function animateRate(el, target, duration) {
-        var from = parseFloat(el.textContent) || 0;
-        var token = el.__rateToken = (el.__rateToken || 0) + 1;
-
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-            el.textContent = target + '%';
-            return;
-        }
-
-        var startTime = null;
-        function step(timestamp) {
-            if (el.__rateToken !== token) {
-                return;
-            }
-            if (startTime === null) {
-                startTime = timestamp;
-            }
-            var progress = Math.min((timestamp - startTime) / duration, 1);
-            var eased = 1 - Math.pow(1 - progress, 3);
-            if (progress < 1) {
-                el.textContent = (Math.round((from + (target - from) * eased) * 10) / 10) + '%';
-                requestAnimationFrame(step);
-            } else {
-                el.textContent = target + '%';
-            }
-        }
-        requestAnimationFrame(step);
-    }
-
     var filingFromSelect = document.getElementById('filing-report-from');
     var filingToSelect = document.getElementById('filing-report-to');
     var filingPrintPeriod = document.getElementById('filing-print-period');
@@ -104,7 +67,6 @@ document.addEventListener('DOMContentLoaded', function () {
     var filingTbody = document.getElementById('filing-report-tbody');
     var filingTotalOnRecord = document.getElementById('filing-total-on-record');
     var filingTotalApplied = document.getElementById('filing-total-applied');
-    var filingRate = document.getElementById('filing-rate');
     var filingOnRecordTrend = document.getElementById('filing-on-record-trend');
     var filingAppliedTrend = document.getElementById('filing-applied-trend');
     var filingUpdatedAtRow = document.getElementById('filing-updated-at-row');
@@ -130,309 +92,28 @@ document.addEventListener('DOMContentLoaded', function () {
             bar: document.getElementById('tier-summa-cum-laude-bar'),
         },
     };
-    var donutAppliedArc = document.getElementById('filing-donut-applied-arc');
-    var donutLegend = document.getElementById('filing-donut-legend');
     var insightsContainer = document.getElementById('filing-insights');
 
-    // One-time entrance reveal for the tier bars and donut arc: PHP renders
-    // them at width:0 / a fully-hidden stroke-dashoffset so the first paint
-    // is the "before" state, then this sets each to its real target a tick
-    // later so the motion-safe:transition-all classes already on those
-    // elements (admin/reports.php) animate the draw-in. Later value changes
-    // (year-switch, inside renderFilingReport()) reuse that same persistent
-    // transition for a free "tween to the new value" — no extra code needed
-    // there, same as this file's count-up treatment of the stat numbers.
+    // One-time entrance reveal for the tier bars: PHP renders them at
+    // width:0 so the first paint is the "before" state, then this sets each
+    // to its real target a tick later so the motion-safe:transition-all
+    // classes already on those elements (admin/reports.php) animate the
+    // draw-in. Later value changes (year-switch, inside renderFilingReport())
+    // reuse that same persistent transition for a free "tween to the new
+    // value" — no extra code needed there, same as this file's count-up
+    // treatment of the stat numbers.
     requestAnimationFrame(function () {
         requestAnimationFrame(function () {
             document.querySelectorAll('.tier-bar-animated').forEach(function (bar) {
                 bar.style.width = bar.getAttribute('data-target-width') + '%';
             });
-            if (donutAppliedArc) {
-                donutAppliedArc.setAttribute('stroke-dashoffset', donutAppliedArc.getAttribute('data-target-offset'));
-            }
         });
     });
 
-    // ---- trend line chart, per year or per month (hand-rolled SVG, no charting library) ----
-    // Two lines on ONE shared axis — graduates on record and Honor Graduate
-    // Eligible filings. Applicants are a subset of graduates, so the applied line
-    // must never be drawn above the graduated one; separate scales would let it.
-    var trendContainer = document.getElementById('filing-trend-chart');
-    var trendSeries = config.initialTrend || [];
-    var trendMonthly = config.initialTrendMonthly || { months: [], undated: { on_record: 0 } };
-    var trendMode = 'year';
-    var trendSelectedYear = config.initialTo;
-    var trendNote = document.getElementById('filing-trend-note');
-    var TREND_MONTH_ABBR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-
-    // The points currently charted, whichever grouping is selected. "label" is
-    // the x-axis text, "title" the tooltip heading, "year" what the selected-
-    // year highlight compares against.
-    function trendPoints() {
-        if (trendMode === 'month') {
-            var multiYear = trendMonthly.months.length > 12;
-            return trendMonthly.months.map(function (p) {
-                return {
-                    year: p.year,
-                    label: TREND_MONTH_ABBR[p.month - 1] + (multiYear ? " '" + String(p.year).slice(-2) : ''),
-                    title: MONTH_NAMES[p.month - 1] + ' ' + p.year,
-                    on_record: p.on_record,
-                    applied: p.applied
-                };
-            });
-        }
-        return trendSeries.map(function (p) {
-            return { year: p.year, label: String(p.year), title: String(p.year), on_record: p.on_record, applied: p.applied };
-        });
-    }
-
-    // Per month, the green line counts applications by the month they were actually
-    // filed (date applied), not by when the applicant graduated — say so under the chart.
-    function updateTrendNote() {
-        var legend = document.getElementById('filing-trend-applied-label');
-        if (legend) {
-            legend.textContent = trendMode === 'month' ? 'LATIN HONORS APPLIED FOR HGE (BY MONTH FILED)' : 'LATIN HONORS APPLIED FOR HGE';
-        }
-        if (!trendNote) {
-            return;
-        }
-        if (trendMode !== 'month') {
-            trendNote.classList.add('hidden');
-            return;
-        }
-        var undated = trendMonthly.undated || { on_record: 0 };
-        var text = 'GRADUATED IS PLOTTED BY GRADUATION MONTH; APPLIED IS PLOTTED BY THE MONTH THE APPLICATION WAS ACTUALLY FILED (DATE APPLIED).';
-        if (undated.on_record > 0) {
-            text += ' ' + undated.on_record.toLocaleString('en-US') + ' GRADUATE' + (undated.on_record === 1 ? '' : 'S') +
-                ' HAVE NO GRADUATION DATE ON RECORD AND ARE NOT SHOWN IN THE MONTHS.';
-        }
-        trendNote.textContent = text;
-        trendNote.classList.remove('hidden');
-    }
+    // ---- trend line chart + filing donut, shared with admin/dashboard.php (see utils.js) ----
+    var trendChart = initTrendChart(config);
+    var filingDonut = initFilingDonut();
     var reportRequestSeq = 0;
-
-    function niceStep(rawStep) {
-        var pow = Math.pow(10, Math.floor(Math.log10(rawStep)));
-        var n = rawStep / pow;
-        var nice = n <= 1 ? 1 : (n <= 2 ? 2 : (n <= 2.5 ? 2.5 : (n <= 5 ? 5 : 10)));
-        return nice * pow;
-    }
-
-    function niceAxisMax(value) {
-        if (value <= 0) {
-            return 4;
-        }
-        var step = Math.max(niceStep(value / 4), 1);
-        return step * 4;
-    }
-
-    // Catmull-Rom spline through the points, expressed as cubic Beziers. Each
-    // segment's control points are clamped between its two end points' heights
-    // (and the plot), so the curve never overshoots a data point — it can't dip
-    // below the baseline, and a spike can't push one line over the other.
-    function smoothPath(points, minY, maxY) {
-        if (points.length < 2) {
-            return points.length ? 'M' + points[0].x + ',' + points[0].y : '';
-        }
-        var d = 'M' + points[0].x.toFixed(1) + ',' + points[0].y.toFixed(1);
-        for (var i = 0; i < points.length - 1; i++) {
-            var p0 = points[i - 1] || points[i];
-            var p1 = points[i];
-            var p2 = points[i + 1];
-            var p3 = points[i + 2] || p2;
-            var segLo = Math.max(minY, Math.min(p1.y, p2.y));
-            var segHi = Math.min(maxY, Math.max(p1.y, p2.y));
-            var clampY = function (y) {
-                return Math.min(segHi, Math.max(segLo, y));
-            };
-            var c1x = p1.x + (p2.x - p0.x) / 6;
-            var c1y = clampY(p1.y + (p2.y - p0.y) / 6);
-            var c2x = p2.x - (p3.x - p1.x) / 6;
-            var c2y = clampY(p2.y - (p3.y - p1.y) / 6);
-            d += ' C' + c1x.toFixed(1) + ',' + c1y.toFixed(1) + ' ' + c2x.toFixed(1) + ',' + c2y.toFixed(1) + ' ' + p2.x.toFixed(1) + ',' + p2.y.toFixed(1);
-        }
-        return d;
-    }
-
-    function renderTrendChart(animate) {
-        var series = trendPoints();
-        if (!trendContainer || series.length === 0) {
-            return;
-        }
-        var width = trendContainer.clientWidth;
-        var height = trendContainer.clientHeight;
-        if (width < 120) {
-            return;
-        }
-
-        var m = { top: 14, right: 16, bottom: 28, left: 48 };
-        var plotW = width - m.left - m.right;
-        var plotH = height - m.top - m.bottom;
-        var inset = 24;
-        var maxOn = niceAxisMax(Math.max.apply(null, series.map(function (p) { return Math.max(p.on_record, p.applied); })));
-        var maxAp = maxOn;
-        var baseY = m.top + plotH;
-
-        function xAt(i) {
-            return m.left + inset + (series.length === 1 ? (plotW - 2 * inset) / 2 : i * (plotW - 2 * inset) / (series.length - 1));
-        }
-        function yAt(value, max) {
-            return baseY - (value / max) * plotH;
-        }
-
-        var onPoints = series.map(function (p, i) { return { x: xAt(i), y: yAt(p.on_record, maxOn) }; });
-        var apPoints = series.map(function (p, i) { return { x: xAt(i), y: yAt(p.applied, maxAp) }; });
-        var onLine = smoothPath(onPoints, m.top, baseY);
-        var apLine = smoothPath(apPoints, m.top, baseY);
-        var lastX = onPoints[onPoints.length - 1].x;
-        var firstX = onPoints[0].x;
-
-        var svg = '<svg width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '" class="block overflow-visible">';
-        svg += '<defs>' +
-            '<linearGradient id="trend-grad-on" x1="0" y1="0" x2="0" y2="1" class="text-csc-navy-600 dark:text-csc-navy-300"><stop offset="0%" stop-color="currentColor" stop-opacity="0.28"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient>' +
-            '<linearGradient id="trend-grad-ap" x1="0" y1="0" x2="0" y2="1" class="text-emerald-500"><stop offset="0%" stop-color="currentColor" stop-opacity="0.22"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient>' +
-            '</defs>';
-
-        for (var t = 0; t <= 4; t++) {
-            var gy = m.top + (plotH * t / 4);
-            var onVal = Math.round(maxOn * (4 - t) / 4);
-            svg += '<line x1="' + m.left + '" y1="' + gy + '" x2="' + (width - m.right) + '" y2="' + gy + '" stroke="currentColor" stroke-width="1" class="text-gray-200 dark:text-white/10"/>';
-            svg += '<text x="' + (m.left - 8) + '" y="' + (gy + 4) + '" text-anchor="end" font-size="11" fill="currentColor" class="text-gray-500 dark:text-gray-400">' + onVal.toLocaleString('en-US') + '</text>';
-        }
-
-        // Many points (months across several years) can't all carry a label:
-        // show every step-th one so neighbouring labels never overlap.
-        var spacing = series.length > 1 ? (plotW - 2 * inset) / (series.length - 1) : plotW;
-        var labelStep = Math.max(1, Math.ceil(46 / spacing));
-        series.forEach(function (p, i) {
-            if (i % labelStep !== 0) {
-                return;
-            }
-            var isSelected = p.year === trendSelectedYear;
-            svg += '<text x="' + xAt(i) + '" y="' + (height - 8) + '" text-anchor="middle" font-size="11" fill="currentColor" class="' +
-                (isSelected ? 'text-csc-navy-600 dark:text-white font-bold' : 'text-gray-500 dark:text-gray-400') + '">' + p.label + '</text>';
-        });
-
-        svg += '<g class="text-csc-navy-600 dark:text-csc-navy-300"><path data-trend-area d="' + onLine + ' L' + lastX.toFixed(1) + ',' + baseY + ' L' + firstX.toFixed(1) + ',' + baseY + ' Z" fill="url(#trend-grad-on)" stroke="none"/>' +
-            '<path data-trend-line d="' + onLine + '" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></g>';
-        svg += '<g class="text-emerald-500"><path data-trend-area d="' + apLine + ' L' + lastX.toFixed(1) + ',' + baseY + ' L' + firstX.toFixed(1) + ',' + baseY + ' Z" fill="url(#trend-grad-ap)" stroke="none"/>' +
-            '<path data-trend-line d="' + apLine + '" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></g>';
-
-        var dense = spacing < 14;
-        series.forEach(function (p, i) {
-            var r = dense ? 1.75 : (p.year === trendSelectedYear && trendMode === 'year' ? 4.5 : 3);
-            svg += '<circle cx="' + onPoints[i].x + '" cy="' + onPoints[i].y + '" r="' + r + '" fill="currentColor" stroke="white" stroke-width="1.5" class="text-csc-navy-600 dark:text-csc-navy-300"/>';
-            svg += '<circle cx="' + apPoints[i].x + '" cy="' + apPoints[i].y + '" r="' + r + '" fill="currentColor" stroke="white" stroke-width="1.5" class="text-emerald-500"/>';
-        });
-
-        svg += '<line id="trend-hover-line" x1="0" y1="' + m.top + '" x2="0" y2="' + baseY + '" stroke="currentColor" stroke-width="1" stroke-dasharray="4 4" class="text-csc-navy-600 dark:text-csc-navy-300" style="display:none"/>' +
-            '<circle id="trend-hover-on" r="6" fill="white" stroke="currentColor" stroke-width="2.5" class="text-csc-navy-600 dark:text-csc-navy-300" style="display:none"/>' +
-            '<circle id="trend-hover-ap" r="6" fill="white" stroke="currentColor" stroke-width="2.5" class="text-emerald-500" style="display:none"/>' +
-            '<rect id="trend-hit" x="' + m.left + '" y="' + m.top + '" width="' + plotW + '" height="' + plotH + '" fill="transparent"/>';
-        svg += '</svg>';
-        svg += '<div id="trend-tooltip" class="pointer-events-none absolute z-10 hidden rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs text-white shadow-lg whitespace-nowrap dark:bg-white dark:text-gray-900"></div>';
-
-        trendContainer.innerHTML = svg;
-
-        var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if (animate && !reduceMotion) {
-            trendContainer.querySelectorAll('[data-trend-line]').forEach(function (path) {
-                var len = path.getTotalLength();
-                path.style.strokeDasharray = len;
-                path.style.strokeDashoffset = len;
-                path.getBoundingClientRect();
-                path.style.transition = 'stroke-dashoffset 1200ms ease-out';
-                path.style.strokeDashoffset = 0;
-            });
-            trendContainer.querySelectorAll('[data-trend-area]').forEach(function (path) {
-                path.style.opacity = 0;
-                path.getBoundingClientRect();
-                path.style.transition = 'opacity 1200ms ease-out';
-                path.style.opacity = 1;
-            });
-        }
-
-        var hit = document.getElementById('trend-hit');
-        var hoverLine = document.getElementById('trend-hover-line');
-        var hoverOn = document.getElementById('trend-hover-on');
-        var hoverAp = document.getElementById('trend-hover-ap');
-        var tooltip = document.getElementById('trend-tooltip');
-
-        function hideHover() {
-            hoverLine.style.display = 'none';
-            hoverOn.style.display = 'none';
-            hoverAp.style.display = 'none';
-            tooltip.classList.add('hidden');
-        }
-
-        function showHover(event) {
-            var rect = trendContainer.getBoundingClientRect();
-            var px = event.clientX - rect.left;
-            var nearest = 0;
-            var best = Infinity;
-            series.forEach(function (p, i) {
-                var dist = Math.abs(xAt(i) - px);
-                if (dist < best) {
-                    best = dist;
-                    nearest = i;
-                }
-            });
-            var point = series[nearest];
-            var x = xAt(nearest);
-
-            hoverLine.setAttribute('x1', x);
-            hoverLine.setAttribute('x2', x);
-            hoverLine.style.display = '';
-            hoverOn.setAttribute('cx', x);
-            hoverOn.setAttribute('cy', onPoints[nearest].y);
-            hoverOn.style.display = '';
-            hoverAp.setAttribute('cx', x);
-            hoverAp.setAttribute('cy', apPoints[nearest].y);
-            hoverAp.style.display = '';
-
-            tooltip.innerHTML = '<div class="font-semibold mb-0.5">' + point.title + '</div>' +
-                '<div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-csc-navy-300"></span>GRADUATED: <b>' + point.on_record.toLocaleString('en-US') + '</b></div>' +
-                '<div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-400"></span>' + (trendMode === 'month' ? 'FILED FOR HGE: ' : 'APPLIED FOR HGE: ') + '<b>' + point.applied.toLocaleString('en-US') + '</b></div>';
-            tooltip.classList.remove('hidden');
-            var tipW = tooltip.offsetWidth;
-            var left = x + 14;
-            if (left + tipW > width - 4) {
-                left = x - tipW - 14;
-            }
-            tooltip.style.left = Math.max(4, left) + 'px';
-            tooltip.style.top = Math.max(0, Math.min(onPoints[nearest].y, apPoints[nearest].y) - 20) + 'px';
-        }
-
-        hit.addEventListener('pointermove', showHover);
-        hit.addEventListener('pointerdown', showHover);
-        hit.addEventListener('pointerleave', hideHover);
-    }
-
-    document.querySelectorAll('[data-trend-mode]').forEach(function (button) {
-        button.addEventListener('click', function () {
-            trendMode = button.getAttribute('data-trend-mode') === 'month' ? 'month' : 'year';
-            document.querySelectorAll('[data-trend-mode]').forEach(function (other) {
-                other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
-            });
-            updateTrendNote();
-            renderTrendChart(true);
-        });
-    });
-
-    if (trendContainer) {
-        renderTrendChart(true);
-
-        var trendResizeFrame = null;
-        var trendLastWidth = trendContainer.clientWidth;
-        new ResizeObserver(function () {
-            if (trendContainer.clientWidth === trendLastWidth) {
-                return;
-            }
-            trendLastWidth = trendContainer.clientWidth;
-            cancelAnimationFrame(trendResizeFrame);
-            trendResizeFrame = requestAnimationFrame(function () { renderTrendChart(false); });
-        }).observe(trendContainer);
-    }
 
     // Holds the current section's full, unfiltered school list so search/sort/
     // status-filter can re-slice it locally without a round trip — the JSON
@@ -539,8 +220,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (filingTotalApplied) {
             animateCountUp(filingTotalApplied, data.report.total_applied, 1000, null, parseDisplayedNumber(filingTotalApplied));
         }
-        animateRate(filingRate, data.report.filing_rate, 1000);
-
         if (filingOnRecordTrend) {
             filingOnRecordTrend.innerHTML = buildTrendHtml(data.trends ? data.trends.on_record_change : null, data.span);
         }
@@ -557,48 +236,14 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        var tierBreakdown = data.tier_breakdown || {};
-        var totalOnRecord = data.report.total_on_record;
-        Object.keys(tierDistributionEls).forEach(function (tierName) {
-            var els = tierDistributionEls[tierName];
-            var count = tierBreakdown[tierName] || 0;
-            var percent = totalOnRecord > 0 ? Math.round((count / totalOnRecord) * 1000) / 10 : 0;
-            if (els.count) {
-                animateCountUp(els.count, count, 800, null, parseDisplayedNumber(els.count));
-            }
-            if (els.percent) {
-                els.percent.textContent = '(' + percent + '%)';
-            }
-            if (els.bar) {
-                els.bar.style.width = percent + '%';
-            }
-        });
+        updateTierBars(tierDistributionEls, data.tier_breakdown, data.report.total_on_record);
 
-        if (donutAppliedArc) {
-            var appliedFraction = totalOnRecord > 0 ? data.report.total_applied / totalOnRecord : 0;
-            var appliedLength = DONUT_CIRCUMFERENCE * appliedFraction;
-            donutAppliedArc.setAttribute('stroke-dasharray', DONUT_CIRCUMFERENCE.toFixed(2));
-            donutAppliedArc.setAttribute('stroke-dashoffset', (DONUT_CIRCUMFERENCE - appliedLength).toFixed(2));
-        }
-        if (donutLegend) {
-            var notYetApplied = totalOnRecord - data.report.total_applied;
-            var notYetAppliedPercent = totalOnRecord > 0 ? Math.round((notYetApplied / totalOnRecord) * 1000) / 10 : 0;
-            donutLegend.innerHTML =
-                '<div class="flex items-center justify-between"><span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-gray-400"></span>ON RECORD</span><span class="text-gray-700 dark:text-gray-300">' + Number(totalOnRecord).toLocaleString('en-US') + ' (100%)</span></div>' +
-                '<div class="flex items-center justify-between"><span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300"></span>APPLIED</span><span class="text-gray-700 dark:text-gray-300">' + Number(data.report.total_applied).toLocaleString('en-US') + ' (' + data.report.filing_rate + '%)</span></div>' +
-                '<div class="flex items-center justify-between"><span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-sky-200 dark:bg-sky-500/30"></span>NOT YET APPLIED</span><span class="text-gray-700 dark:text-gray-300">' + Number(notYetApplied).toLocaleString('en-US') + ' (' + notYetAppliedPercent + '%)</span></div>';
-        }
+        filingDonut.update(data.report);
 
         renderInsights(data.insights);
 
         if (data.trend_series) {
-            trendSeries = data.trend_series;
-            if (data.trend_monthly) {
-                trendMonthly = data.trend_monthly;
-            }
-            trendSelectedYear = data.to;
-            updateTrendNote();
-            renderTrendChart(true);
+            trendChart.update(data.trend_series, data.trend_monthly, data.to);
         }
 
         currentSchools = data.report.schools;

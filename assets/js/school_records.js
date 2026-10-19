@@ -132,10 +132,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
             var viewBtnHtml = '<a href="' + config.viewUploadUrl + '?id=' + encodeURIComponent(upload.id) + '" class="rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5 motion-safe:animate-drop-in" ' + actionBtnDelay() + ' title="View upload">' + actionIcon('eye') + '</a>';
 
-            var editBtnHtml = upload.extraction_status === 'reviewed'
+            var editBtnHtml = (config.isAdmin && upload.extraction_status === 'reviewed')
                 ? '<a href="' + config.reviewUrl + '?upload_id=' + encodeURIComponent(upload.id) + '" class="rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5 motion-safe:animate-drop-in" ' + actionBtnDelay() + ' title="Edit saved records">' + actionIcon('pen') + '</a>'
                 : '';
-            var deleteBtnHtml = parseInt(upload.records_extracted, 10) === 0
+            var deleteBtnHtml = (config.isAdmin && parseInt(upload.records_extracted, 10) === 0)
                 ? '<button type="button" class="delete-upload-btn rounded-lg bg-csc-red-600/10 hover:bg-csc-red-600/20 text-csc-red-600 dark:text-csc-red-400 p-1.5 motion-safe:animate-drop-in" ' + actionBtnDelay() + ' title="Delete upload" ' +
                   'data-upload-id="' + escapeHtml(String(upload.id)) + '" ' +
                   'data-school="' + escapeHtml(formatSchoolDisplayName(upload.school_name, upload.campus)) + '" ' +

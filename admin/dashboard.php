@@ -5,6 +5,7 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/uploads.php';
 require_once __DIR__ . '/../includes/activity.php';
+require_once __DIR__ . '/../includes/reports.php';
 
 require_login();
 
@@ -12,9 +13,47 @@ $pdo = get_pdo();
 $stats = get_dashboard_stats($pdo);
 $graduationYears = get_distinct_graduation_years($pdo);
 $applicationYears = get_application_years($pdo);
+
+// One shared year list/selection drives the APPLIED, CURRENT YEAR RECORDS
+// AND TREND cards (a single slicer instead of two independent dropdowns) —
+// the two source year lists can genuinely differ (an application can be
+// filed in a different year than the graduate's own graduation_year), so
+// the slicer offers their union, and all three are recomputed fresh for
+// whichever single year ends up selected by default, rather than reusing
+// get_dashboard_stats()'s two independently-defaulted values.
+$dashboardYears = array_values(array_unique(array_merge($graduationYears, $applicationYears)));
+rsort($dashboardYears);
+$dashboardDefaultYear = $stats['current_year'] ?? (int) date('Y');
+$dashboardDefaultYearRecords = get_graduate_count_by_year($pdo, $dashboardDefaultYear);
+$dashboardDefaultApplied = get_applied_count_by_year($pdo, $dashboardDefaultYear);
+
+// TREND card: the selected year's own graduates-on-record vs. HGE
+// applications, broken down by month — tied to the same slicer rather than
+// admin/reports.php's multi-year range, since the slicer already picks one
+// year at a time.
+$trendMonthly = get_filing_trend_monthly($pdo, $dashboardDefaultYear, $dashboardDefaultYear);
+
+// APPLICATION FILING OVERVIEW card: same donut as admin/reports.php, but for
+// the single selected year rather than a from/to range ($toYear defaults to
+// $fromYear) — tied to the same slicer as the two cards above.
+$filingReport = get_application_filing_report($pdo, $dashboardDefaultYear);
+$donutRadius = 50;
+$donutCircumference = 2 * M_PI * $donutRadius;
+$appliedFraction = $filingReport['total_on_record'] > 0
+    ? $filingReport['total_applied'] / $filingReport['total_on_record']
+    : 0;
+$donutAppliedLength = $donutCircumference * $appliedFraction;
+$notYetAppliedCount = $filingReport['total_on_record'] - $filingReport['total_applied'];
+$notYetAppliedPercent = $filingReport['total_on_record'] > 0
+    ? round($notYetAppliedCount / $filingReport['total_on_record'] * 100, 1)
+    : 0.0;
+
 $recentUploads = get_recent_uploads($pdo, 10);
-$honorBreakdown = get_honor_type_breakdown($pdo);
-$uploadActivity = get_upload_activity_by_month($pdo, 6);
+
+// LATIN HONOR DISTRIBUTION now lives inside the APPLICATION FILING OVERVIEW
+// card (merged) and is tied to the same single-year slicer as the donut
+// above, rather than includes/functions.php's all-time get_honor_type_breakdown().
+$honorBreakdown = get_honor_tier_breakdown_for_year($pdo, $dashboardDefaultYear);
 $currentUser = current_user();
 $currentPage = 'dashboard';
 $csrfToken = csrf_token();
@@ -26,28 +65,72 @@ include __DIR__ . '/../includes/sidebar.php';
 ?>
 <main class="lg:ml-64 min-h-screen bg-gray-50 dark:bg-surface-950">
     <div class="p-6 lg:p-8">
-        <div class="mb-6 flex items-start gap-4">
-            <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
-                <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>
+        <div class="mb-6">
+            <div class="flex items-start gap-4">
+                <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                    <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-csc-navy-600 dark:text-white">DASHBOARD</h1>
+                    <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">WELCOME, <span class="font-semibold text-csc-navy-600 dark:text-csc-navy-300"><?= e_upper($currentUser['name'] ?? '') ?></span>!</p>
+                </div>
             </div>
-            <div>
-                <h1 class="text-2xl font-bold text-csc-navy-600 dark:text-white">DASHBOARD</h1>
-                <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">WELCOME, <span class="font-semibold text-csc-navy-600 dark:text-csc-navy-300"><?= e_upper($currentUser['name'] ?? '') ?></span>!</p>
-            </div>
+            <?php if (!empty($dashboardYears)): ?>
+                <?php $dashboardYearsNeedPaging = count($dashboardYears) > 5; ?>
+                <div class="mt-4 flex items-center justify-center gap-2">
+                    <?php if ($dashboardYearsNeedPaging): ?>
+                        <button type="button" id="dashboard-year-prev" class="shrink-0 rounded-lg p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none motion-safe:animate-fade-in" style="animation-delay: 100ms" aria-label="Show more recent years">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                        </button>
+                    <?php endif; ?>
+                    <div id="dashboard-year-viewport" class="<?= $dashboardYearsNeedPaging ? 'overflow-hidden w-[296px]' : '' ?> rounded-xl bg-gray-100 dark:bg-white/5 p-1 motion-safe:animate-fade-in" style="animation-delay: 100ms">
+                        <div id="dashboard-year-track" class="inline-flex gap-1 transition-transform duration-300 ease-out" role="group" aria-label="Filter dashboard by year">
+                            <?php foreach ($dashboardYears as $y): ?>
+                                <button type="button"
+                                    class="dashboard-year-pill w-14 shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold text-center transition-colors<?= $y === $dashboardDefaultYear ? ' bg-csc-navy-600 text-white' : ' text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-white/10' ?>"
+                                    data-year="<?= (int) $y ?>"
+                                    aria-pressed="<?= $y === $dashboardDefaultYear ? 'true' : 'false' ?>"><?= (int) $y ?></button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php if ($dashboardYearsNeedPaging): ?>
+                        <button type="button" id="dashboard-year-next" class="shrink-0 rounded-lg p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none motion-safe:animate-fade-in" style="animation-delay: 100ms" aria-label="Show older years">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                        </button>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
                 <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347M4.26 10.147a50.548 50.548 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.841c-.896.248-1.783.52-2.658.814M4.26 10.147a50.696 50.696 0 017.74-3.342M12 13.489a50.702 50.702 0 017.74-3.342" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
                     </span>
-                    <p class="text-xs text-gray-600 dark:text-gray-500">TOTAL GRADUATES</p>
+                    <p class="text-xs text-gray-600 dark:text-gray-500">RECORD FOR THE YEAR SELECTED</p>
                 </div>
-                <p class="dashboard-stat-number" data-count-to="<?= (int) $stats['total_graduates'] ?>">0</p>
+                <p class="dashboard-stat-number" id="dashboard-year-records-number" data-count-to="<?= (int) $dashboardDefaultYearRecords ?>">0</p>
+                <?php if (!empty($graduationYears)): ?>
+                    <p id="dashboard-year-records-label" class="dashboard-stat-reveal text-xs text-gray-400 dark:text-gray-600"><?= (int) $dashboardDefaultYear ?></p>
+                <?php else: ?>
+                    <p class="text-xs text-gray-400 dark:text-gray-600">NO DATA YET</p>
+                <?php endif; ?>
             </div>
             <?php $schoolsMissing = max(0, $stats['total_active_schools'] - $stats['total_schools']); ?>
             <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
+                <div class="flex items-center gap-3 self-start">
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-500/10 text-green-600 dark:text-green-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </span>
+                    <p class="text-xs text-gray-600 dark:text-gray-500">APPLIED</p>
+                </div>
+                <div>
+                    <p class="dashboard-stat-number" id="dashboard-applied-number" data-count-to="<?= (int) $dashboardDefaultApplied ?>">0</p>
+                    <p id="dashboard-applied-year-label" class="dashboard-stat-reveal mt-0.5 text-xs text-gray-500 dark:text-gray-500">HGE APPLICATION AS OF <?= (int) $dashboardDefaultYear ?></p>
+                </div>
+            </div>
+            <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 400ms">
                 <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
@@ -65,48 +148,14 @@ include __DIR__ . '/../includes/sidebar.php';
                     </p>
                 </div>
             </div>
-            <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 400ms">
-                <div class="flex items-center gap-3 self-start">
-                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-500/10 text-green-600 dark:text-green-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    </span>
-                    <p class="text-xs text-gray-600 dark:text-gray-500">APPLIED</p>
-                </div>
-                <div>
-                    <p class="dashboard-stat-number" id="dashboard-applied-number" data-count-to="<?= (int) $stats['applied_this_year'] ?>">0</p>
-                    <div class="mt-0.5 flex flex-col items-center text-xs text-gray-500 dark:text-gray-500">
-                        <label for="dashboard-applied-year-select">HGE APPLICATION AS OF:</label>
-                        <div class="relative inline-block">
-                            <select id="dashboard-applied-year-select" class="appearance-none bg-transparent text-xs text-gray-500 dark:text-gray-400 text-center pl-1 pr-4 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none">
-                                <?php foreach ($applicationYears as $y): ?>
-                                    <option value="<?= (int) $y ?>" <?= $y === $stats['applied_year'] ? 'selected' : '' ?>><?= (int) $y ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <svg class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
-                        </div>
-                    </div>
-                </div>
-            </div>
             <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 600ms">
                 <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347M4.26 10.147a50.548 50.548 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.841c-.896.248-1.783.52-2.658.814M4.26 10.147a50.696 50.696 0 017.74-3.342M12 13.489a50.702 50.702 0 017.74-3.342" /></svg>
                     </span>
-                    <p class="text-xs text-gray-600 dark:text-gray-500">CURRENT YEAR RECORDS</p>
+                    <p class="text-xs text-gray-600 dark:text-gray-500">TOTAL GRADUATES ON RECORD</p>
                 </div>
-                <p class="dashboard-stat-number" id="dashboard-year-records-number" data-count-to="<?= (int) $stats['current_year_records'] ?>">0</p>
-                <?php if (!empty($graduationYears)): ?>
-                    <div class="relative inline-block">
-                        <select id="dashboard-year-select" class="appearance-none bg-transparent text-xs text-gray-400 dark:text-gray-600 text-center pl-1 pr-4 cursor-pointer hover:text-gray-600 dark:hover:text-gray-400 focus:outline-none" aria-label="Select year">
-                            <?php foreach ($graduationYears as $y): ?>
-                                <option value="<?= (int) $y ?>" <?= $y === $stats['current_year'] ? 'selected' : '' ?>><?= (int) $y ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                        <svg class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
-                    </div>
-                <?php else: ?>
-                    <p class="text-xs text-gray-400 dark:text-gray-600">NO DATA YET</p>
-                <?php endif; ?>
+                <p class="dashboard-stat-number" data-count-to="<?= (int) $stats['total_graduates'] ?>">0</p>
             </div>
         </div>
 
@@ -119,89 +168,73 @@ include __DIR__ . '/../includes/sidebar.php';
 
         <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
-                <h2 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">LATIN HONORS BY TYPE</h2>
+                <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white mb-4">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>
+                    APPLICATION FILING OVERVIEW
+                </h2>
+                <div class="relative h-32 w-32 mx-auto">
+                    <svg viewBox="0 0 120 120" class="h-32 w-32 -rotate-90">
+                        <circle cx="60" cy="60" r="<?= $donutRadius ?>" fill="none" stroke="currentColor" stroke-width="16" class="text-sky-100 dark:text-sky-500/15" />
+                        <circle id="filing-donut-applied-arc" cx="60" cy="60" r="<?= $donutRadius ?>" fill="none" stroke="currentColor" stroke-width="16" class="text-csc-navy-600 dark:text-csc-navy-300 motion-safe:transition-all motion-safe:duration-1000 motion-safe:ease-out" stroke-dasharray="<?= round($donutCircumference, 2) ?>" stroke-dashoffset="<?= round($donutCircumference, 2) ?>" data-target-offset="<?= round($donutCircumference - $donutAppliedLength, 2) ?>" />
+                    </svg>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <span id="filing-rate" class="text-xl font-bold text-csc-navy-600 dark:text-white"><?= e((string) $filingReport['filing_rate']) ?>%</span>
+                        <span class="text-[9px] text-gray-500 dark:text-gray-400 tracking-wide">FILING RATE</span>
+                    </div>
+                </div>
+                <div id="filing-donut-legend" class="dashboard-stat-reveal space-y-1.5 mt-3 text-xs">
+                    <div class="flex items-center justify-between">
+                        <span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-gray-400"></span>ON RECORD</span>
+                        <span class="text-gray-700 dark:text-gray-300"><?= number_format($filingReport['total_on_record']) ?> (100%)</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300"></span>APPLIED</span>
+                        <span class="text-gray-700 dark:text-gray-300"><?= number_format($filingReport['total_applied']) ?> (<?= e((string) $filingReport['filing_rate']) ?>%)</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="flex items-center gap-1.5 text-gray-600 dark:text-gray-400"><span class="h-2 w-2 rounded-full bg-sky-200 dark:bg-sky-500/30"></span>NOT YET APPLIED</span>
+                        <span class="text-gray-700 dark:text-gray-300"><?= number_format($notYetAppliedCount) ?> (<?= e((string) $notYetAppliedPercent) ?>%)</span>
+                    </div>
+                </div>
                 <?php if (array_sum($honorBreakdown) === 0): ?>
                     <p class="text-sm text-gray-600 dark:text-gray-500 text-center py-8">NO RECORDS YET.</p>
                 <?php else: ?>
                     <?php
-                    $honorMax = max($honorBreakdown) ?: 1;
-                    $honorBarColor = [
-                        'CUM LAUDE' => 'bg-green-500',
-                        'MAGNA CUM LAUDE' => 'bg-csc-navy-600',
-                        'SUMMA CUM LAUDE' => 'bg-amber-500',
-                    ];
+                    $honorTotal = array_sum($honorBreakdown);
+                    $honorTierIds = ['CUM LAUDE' => 'cum-laude', 'MAGNA CUM LAUDE' => 'magna-cum-laude', 'SUMMA CUM LAUDE' => 'summa-cum-laude'];
                     ?>
-                    <div class="flex items-end gap-4">
-                        <?php $barIndex = 0; foreach ($honorBreakdown as $honor => $count): ?>
-                            <div class="flex-1 flex flex-col items-center gap-2">
-                                <div class="w-full flex items-end h-24">
-                                    <div class="w-full rounded-t-md <?= $honorBarColor[$honor] ?> motion-safe:animate-grow-bar" style="--bar-height: <?= (int) round(($count / $honorMax) * 100) ?>%; animation-delay: <?= $barIndex++ * 150 ?>ms"></div>
+                    <div class="space-y-3 mt-4 pt-4 border-t border-gray-100 dark:border-white/5">
+                        <?php foreach ($honorTierIds as $honor => $honorTierId): ?>
+                            <?php
+                            $honorCount = $honorBreakdown[$honor];
+                            $honorPercent = $honorTotal > 0 ? round($honorCount / $honorTotal * 100, 1) : 0.0;
+                            ?>
+                            <div>
+                                <div class="flex items-center justify-between text-xs mb-1">
+                                    <span class="text-gray-700 dark:text-gray-300"><?= e($honor) ?></span>
+                                    <span class="text-gray-500 dark:text-gray-400"><span id="dashboard-tier-<?= $honorTierId ?>" class="dashboard-stat-reveal" data-count-to="<?= $honorCount ?>">0</span> <span id="dashboard-tier-<?= $honorTierId ?>-percent">(<?= e((string) $honorPercent) ?>%)</span></span>
                                 </div>
-                                <p class="text-xs font-semibold text-gray-900 dark:text-white"><?= (int) $count ?></p>
-                                <p class="text-[11px] text-gray-500 dark:text-gray-500 text-center leading-tight"><?= e($honor) ?></p>
+                                <div class="h-1.5 w-full rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
+                                    <div id="dashboard-tier-<?= $honorTierId ?>-bar" class="tier-bar-animated h-full rounded-full bg-csc-navy-600 dark:bg-csc-navy-300 motion-safe:transition-all motion-safe:duration-1000 motion-safe:ease-out" style="width: 0%" data-target-width="<?= $honorPercent ?>"></div>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
             </div>
             <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 400ms">
-                <?php
-                $uploadCounts = array_column($uploadActivity, 'count');
-                $uploadTotal = array_sum($uploadCounts);
-                $uploadThisMonth = end($uploadCounts);
-                ?>
-                <div class="flex items-center justify-between mb-1">
-                    <h2 class="text-sm font-semibold text-gray-900 dark:text-white">UPLOAD ACTIVITY</h2>
-                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400"><?= (int) $uploadThisMonth ?> THIS MONTH</span>
-                </div>
-                <p class="text-2xl font-bold text-csc-navy-600 dark:text-white mb-2"><span id="upload-activity-count" data-count-to="<?= (int) $uploadTotal ?>">0</span> PDFS <span class="text-xs font-normal text-gray-500 dark:text-gray-500">(LAST 6 MONTHS)</span></p>
-                <?php if ($uploadTotal === 0): ?>
-                    <p class="text-sm text-gray-600 dark:text-gray-500 text-center py-6">NO UPLOADS IN THIS PERIOD.</p>
-                <?php else: ?>
-                    <?php
-                    $chartW = 360;
-                    $chartH = 70;
-                    $pointCount = count($uploadCounts);
-                    $chartMax = max($uploadCounts) ?: 1;
-                    $stepX = $pointCount > 1 ? $chartW / ($pointCount - 1) : 0;
-                    $chartPoints = [];
-                    foreach ($uploadCounts as $i => $count) {
-                        $x = round($i * $stepX, 1);
-                        $y = round($chartH - ($count / $chartMax) * ($chartH - 10) - 5, 1);
-                        $chartPoints[] = "$x,$y";
-                    }
-                    $pointsAttr = implode(' ', $chartPoints);
-                    $areaAttr = $pointsAttr . " $chartW,$chartH 0,$chartH";
-                    ?>
-                    <div id="upload-activity-chart" class="opacity-0 transition-opacity duration-300 ease-out">
-                        <svg viewBox="0 0 <?= $chartW ?> <?= $chartH ?>" class="w-full h-20" preserveAspectRatio="none">
-                            <defs>
-                                <!--
-                                    A single growing rect shared by both the line and the area, so
-                                    they reveal in lockstep. Chosen over animating the polyline's
-                                    stroke-dasharray/dashoffset because that technique, combined with
-                                    this chart's vector-effect="non-scaling-stroke" and non-uniform
-                                    (preserveAspectRatio="none") X/Y scaling, rendered the line with a
-                                    visible gap partway along the path in testing. Clipping never
-                                    touches the polyline's own geometry, so the revealed line is always
-                                    the exact same continuous path as the final static graph.
-                                -->
-                                <clipPath id="upload-activity-clip">
-                                    <rect id="upload-activity-clip-rect" x="0" y="0" width="0" height="<?= $chartH ?>" data-target-width="<?= $chartW ?>"></rect>
-                                </clipPath>
-                            </defs>
-                            <g class="text-csc-navy-600 dark:text-csc-navy-300">
-                                <polygon id="upload-activity-area" points="<?= e($areaAttr) ?>" fill="currentColor" opacity="0.12" clip-path="url(#upload-activity-clip)"></polygon>
-                                <polyline id="upload-activity-line" points="<?= e($pointsAttr) ?>" fill="none" stroke="currentColor" stroke-width="2.5" vector-effect="non-scaling-stroke" clip-path="url(#upload-activity-clip)"></polyline>
-                            </g>
-                        </svg>
-                        <div class="flex justify-between text-[11px] text-gray-400 dark:text-gray-600 mt-1">
-                            <?php foreach ($uploadActivity as $month): ?>
-                                <span><?= e($month['label']) ?></span>
-                            <?php endforeach; ?>
-                        </div>
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                    <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" /></svg>
+                        TREND
+                    </h2>
+                    <div class="flex flex-wrap items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
+                        <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300"></span>GRADUATED WITH LATIN HONORS (On Record)</span>
+                        <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-500"></span><span id="filing-trend-applied-label">LATIN HONORS APPLIED FOR HGE</span></span>
                     </div>
-                <?php endif; ?>
+                </div>
+                <div id="filing-trend-chart" class="relative w-full select-none" style="height: 220px"></div>
+                <p id="filing-trend-note" class="hidden mt-2 text-[11px] text-gray-500 dark:text-gray-400"></p>
             </div>
         </div>
 
@@ -294,7 +327,10 @@ include __DIR__ . '/../includes/sidebar.php';
 <script>
 window.HGE_DASHBOARD = {
     apiBase: <?= json_encode(APP_BASE_URL) ?>,
-    csrfToken: <?= json_encode($csrfToken) ?>
+    csrfToken: <?= json_encode($csrfToken) ?>,
+    initialTrendMonthly: <?= json_encode($trendMonthly) ?>,
+    initialTo: <?= (int) $dashboardDefaultYear ?>,
+    initialMode: 'month'
 };
 </script>
 <script src="<?= e(asset_url('assets/js/dashboard.js')) ?>"></script>

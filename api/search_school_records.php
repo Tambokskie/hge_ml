@@ -5,7 +5,7 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/uploads.php';
 
-require_role('administrator');
+require_login();
 
 header('Content-Type: application/json');
 

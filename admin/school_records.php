@@ -6,7 +6,7 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/schools.php';
 require_once __DIR__ . '/../includes/uploads.php';
 
-require_role('administrator');
+require_login();
 
 $pdo = get_pdo();
 $schools = get_active_schools_list($pdo);
@@ -32,6 +32,7 @@ $actionSummary = get_upload_action_summary($pdo);
 $currentUser = current_user();
 $currentPage = 'school_records';
 $csrfToken = csrf_token();
+$isAdmin = user_has_role($currentUser, 'administrator');
 
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
@@ -44,7 +45,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
             <div>
                 <h1 class="text-2xl font-bold text-csc-navy-600 dark:text-white">SCHOOL RECORDS</h1>
-                <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">BROWSE UPLOADED LATIN HONOR LISTS AND EDIT THEIR SAVED RECORDS.</p>
+                <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">BROWSE UPLOADED LATIN HONOR LISTS<?= $isAdmin ? ' AND EDIT THEIR SAVED RECORDS.' : '.' ?></p>
             </div>
         </div>
 
@@ -177,12 +178,12 @@ include __DIR__ . '/../includes/sidebar.php';
                                             <a href="<?= e(APP_BASE_URL) ?>/admin/view_upload.php?id=<?= (int) $upload['id'] ?>" class="rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($rowIndex * 50 + ($actionBtnIndex++) * 70) ?>ms" title="View upload">
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                             </a>
-                                            <?php if ($upload['extraction_status'] === 'reviewed'): ?>
+                                            <?php if ($isAdmin && $upload['extraction_status'] === 'reviewed'): ?>
                                             <a href="<?= e(APP_BASE_URL) ?>/admin/review.php?upload_id=<?= (int) $upload['id'] ?>" class="rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($rowIndex * 50 + ($actionBtnIndex++) * 70) ?>ms" title="Edit saved records">
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
                                             </a>
                                             <?php endif; ?>
-                                            <?php if ((int) $upload['records_extracted'] === 0): ?>
+                                            <?php if ($isAdmin && (int) $upload['records_extracted'] === 0): ?>
                                             <button type="button" class="delete-upload-btn rounded-lg bg-csc-red-600/10 hover:bg-csc-red-600/20 text-csc-red-600 dark:text-csc-red-400 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($rowIndex * 50 + ($actionBtnIndex++) * 70) ?>ms" title="Delete upload"
                                                 data-upload-id="<?= (int) $upload['id'] ?>"
                                                 data-school="<?= e(format_school_display_name($upload['school_name'], $upload['campus'])) ?>"
@@ -236,6 +237,7 @@ include __DIR__ . '/../includes/sidebar.php';
 window.HGE_SCHOOL_RECORDS = {
     apiBase: <?= json_encode(APP_BASE_URL) ?>,
     csrfToken: <?= json_encode($csrfToken) ?>,
+    isAdmin: <?= json_encode($isAdmin) ?>,
     reviewUrl: <?= json_encode(APP_BASE_URL . '/admin/review.php') ?>,
     viewUploadUrl: <?= json_encode(APP_BASE_URL . '/admin/view_upload.php') ?>
 };
