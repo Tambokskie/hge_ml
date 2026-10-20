@@ -121,12 +121,69 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // SHOW MORE/SHOW LESS staggers each extra row's reveal/hide with a short
+    // fade+slide rather than snapping all of them in or out at once. Plain
+    // inline styles (not Tailwind classes) since the timing is per-row via
+    // transitionDelay, which a static utility class can't express; "hidden"
+    // still does the actual show/hide — the transition only covers the
+    // moment just before/after that, so a row never sits invisible-but-still
+    // taking up table layout space for longer than its own transition.
     if (schoolToggleBtn) {
         schoolToggleBtn.addEventListener('click', function () {
             var expanded = schoolToggleBtn.dataset.expanded === 'true';
-            document.querySelectorAll('.dashboard-school-extra-row').forEach(function (row) {
-                row.classList.toggle('hidden', expanded);
-            });
+            var rows = Array.prototype.slice.call(document.querySelectorAll('.dashboard-school-extra-row'));
+            var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            var staggerStep = 30;
+            var duration = 250;
+
+            if (expanded) {
+                // SHOW LESS: fade/slide each row out, then flip it back to
+                // "hidden" once its own transition finishes.
+                rows.forEach(function (row, index) {
+                    if (prefersReducedMotion) {
+                        row.classList.add('hidden');
+                        return;
+                    }
+                    var delay = index * staggerStep;
+                    row.style.transition = 'opacity ' + duration + 'ms ease-in, transform ' + duration + 'ms ease-in';
+                    row.style.transitionDelay = delay + 'ms';
+                    row.style.opacity = '0';
+                    row.style.transform = 'translateY(-6px)';
+                    setTimeout(function () {
+                        row.classList.add('hidden');
+                        row.style.transition = '';
+                        row.style.transitionDelay = '';
+                        row.style.opacity = '';
+                        row.style.transform = '';
+                    }, duration + delay);
+                });
+            } else {
+                // SHOW MORE: un-hide each row starting from its faded/raised
+                // "from" state, forcing a reflow so that state actually
+                // paints before the transition to its resting position.
+                rows.forEach(function (row, index) {
+                    row.classList.remove('hidden');
+                    if (prefersReducedMotion) {
+                        return;
+                    }
+                    var delay = index * staggerStep;
+                    row.style.transition = 'none';
+                    row.style.opacity = '0';
+                    row.style.transform = 'translateY(-6px)';
+                    void row.offsetWidth;
+                    row.style.transition = 'opacity ' + duration + 'ms ease-out, transform ' + duration + 'ms ease-out';
+                    row.style.transitionDelay = delay + 'ms';
+                    row.style.opacity = '1';
+                    row.style.transform = 'translateY(0)';
+                    setTimeout(function () {
+                        row.style.transition = '';
+                        row.style.transitionDelay = '';
+                        row.style.opacity = '';
+                        row.style.transform = '';
+                    }, duration + delay + 50);
+                });
+            }
+
             schoolToggleBtn.dataset.expanded = expanded ? 'false' : 'true';
             schoolToggleBtn.textContent = expanded ? 'SHOW MORE' : 'SHOW LESS';
         });
@@ -227,9 +284,6 @@ document.addEventListener('DOMContentLoaded', function () {
         var yearRecordsNumber = document.getElementById('dashboard-year-records-number');
         var appliedNumber = document.getElementById('dashboard-applied-number');
         var approvedNumber = document.getElementById('dashboard-approved-number');
-        var yearRecordsLabel = document.getElementById('dashboard-year-records-label');
-        var appliedYearLabel = document.getElementById('dashboard-applied-year-label');
-        var approvedYearLabel = document.getElementById('dashboard-approved-year-label');
         var activePillClasses = ['bg-csc-navy-600', 'text-white'];
         var inactivePillClasses = ['text-gray-600', 'dark:text-gray-400', 'hover:bg-white', 'dark:hover:bg-white/10'];
 
@@ -248,16 +302,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 pill.classList.remove.apply(pill.classList, inactivePillClasses);
                 pill.classList.add.apply(pill.classList, activePillClasses);
                 pill.setAttribute('aria-pressed', 'true');
-
-                if (yearRecordsLabel) {
-                    yearRecordsLabel.textContent = year;
-                }
-                if (appliedYearLabel) {
-                    appliedYearLabel.textContent = 'HGE APPLICATION AS OF ' + year;
-                }
-                if (approvedYearLabel) {
-                    approvedYearLabel.textContent = 'HGE APPROVED AS OF ' + year;
-                }
 
                 refreshYearCard(yearRecordsNumber, year, '', function (data) {
                     if (dashboardTrendChart && data.trend_monthly) {

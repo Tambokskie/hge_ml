@@ -752,6 +752,7 @@ function initFilingDonut() {
         approved: { count: document.getElementById('filing-approved-count'), percent: document.getElementById('filing-approved-percent') },
         notYetApplied: { count: document.getElementById('filing-notyetapplied-count'), percent: document.getElementById('filing-notyetapplied-percent') },
     };
+
     var tierEls = {
         'CUM LAUDE': {
             count: document.getElementById('dashboard-tier-cum-laude'),

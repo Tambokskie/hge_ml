@@ -48,15 +48,19 @@ $sections = [
         'id' => 'dashboard',
         'title' => 'The dashboard',
         'admin' => false,
-        'intro' => 'The dashboard is a quick summary of what is in the system. It is the first page you see after signing in.',
+        'intro' => 'The dashboard is a quick summary of what is in the system. It is the first page you see after signing in, and every card on it is scoped to one school year at a time.',
         'steps' => [
             'Click [[DASHBOARD]] in the menu.',
-            'Read the cards at the top: [[TOTAL GRADUATES]], [[SCHOOLS WITH RECORDS]], [[APPLIED]] (HGE applications filed in the year chosen in the [[HGE APPLICATION AS OF:]] box, this year by default) and [[CURRENT YEAR RECORDS]].',
-            'Below them, [[LATIN HONORS BY TYPE]] shows how many records are Cum Laude, Magna Cum Laude and Summa Cum Laude, and [[UPLOAD ACTIVITY]] shows uploads over time.',
-            '[[LATEST UPLOAD]] lists the most recent school lists, and [[RECENT ACTIVITY]] shows the latest actions in the system.',
+            'Use the row of year buttons below your name to choose the school year every card below reflects. Click the arrows on either side if there are more years than fit.',
+            'Read the cards at the top: [[RECORD FOR THE YEAR SELECTED]], [[HGE APPLICATIONS RECEIVED]], [[APPROVED HGE]], [[SCHOOLS WITH RECORDS]] and [[TOTAL GRADUATES ON RECORD]].',
+            '[[APPLICATION FILING OVERVIEW]] breaks the selected year down into ON RECORD, APPLIED (split into PROCESSING and APPROVED) and NOT YET APPLIED, with a donut chart and, below it, the Cum Laude/Magna Cum Laude/Summa Cum Laude split.',
+            '[[TREND]] charts graduates on record against processing and approved applications across the months of the selected year.',
+            '[[SCHOOL FILING SUMMARY]] lists every school\'s on-record, applied, approved and filing/approval rates for the year, best filing rate first. Click [[SHOW MORE]] to see the rest of the list, and [[SHOW LESS]] to collapse it again.',
+            '[[LATEST UPLOAD]] lists the most recently uploaded school lists.',
         ],
         'tips' => [
             'To see individual graduates use [[HONOR GRAD LOOK-UP]].',
+            'Click a school\'s name in [[SCHOOL FILING SUMMARY]] to open its records.',
         ],
     ],
     [
@@ -113,7 +117,7 @@ $sections = [
         'admin' => true,
         'intro' => 'Start here when a school sends its list as a PDF. The system reads the PDF for you; you then check the result before it is saved.',
         'steps' => [
-            'Click [[UPLOAD HON GRAD LIST]] in the menu. The [[PDF FILE]] tab is already selected.',
+            'Click [[UPLOAD HON GRAD LIST]] in the menu.',
             'Under [[SCHOOL]], choose the school. If it is not in the list, click [[MANAGE SCHOOLS]] and create it first (see "Settings" below).',
             'Type the [[SCHOOL YEAR]], for example 2025.',
             'Drag the PDF onto the box, or click it to browse your computer and choose the file (up to 20 MB).',
@@ -125,22 +129,6 @@ $sections = [
             'If the AI cannot read a batch, nothing is lost: the pages already read are kept. Try again from the upload\'s page (see "School records and upload details") and it carries on from the pages it has not read yet.',
             'If the AI keeps failing, open the upload and click [[EXTRACT VIA TEXT/OCR]] to read it the standard way. It asks your permission before using OCR, which is the slowest and least accurate method.',
             'If a list for the same school and year was already uploaded, the system asks you to confirm before it adds another.',
-        ],
-    ],
-    [
-        'id' => 'upload-template',
-        'title' => 'Upload from an Excel template instead',
-        'admin' => true,
-        'intro' => 'If you would rather type the list than have it read from a PDF, fill in an Excel template. There is nothing to read, so it goes straight to the review screen.',
-        'steps' => [
-            'Click [[UPLOAD HON GRAD LIST]], then the [[EXCEL TEMPLATE]] tab.',
-            'Click [[DOWNLOAD TEMPLATE]] and choose the school. The template comes with that school\'s name and campus already filled in. Do not change them.',
-            'Open it in Excel. In the heading block at the top, type the 4-digit school year and, if the list has one, the date of graduation (day/month/year, for example 24/07/2025).',
-            'Below it, fill in one graduate per row: sequence, last name, given name, middle name, Latin honor and course.',
-            'Back on the upload page, choose the filled-in file (drag it onto the box or click to browse) and click [[UPLOAD FROM TEMPLATE]]. The school and year are read from the file.',
-        ],
-        'notes' => [
-            'The school must already exist. Unlike a PDF upload, a template never creates a school for you.',
         ],
     ],
     [
@@ -224,14 +212,6 @@ $sections = [
         'intro' => 'These tools are under [[SETTINGS]] in the menu. Actions that cannot easily be undone ask for your password first.',
         'parts' => [
             [
-                'title' => 'User management',
-                'steps' => [
-                    'Click [[USER MANAGEMENT]], then [[CREATE USER]]. Enter the name, username, email and password, and choose the role.',
-                    'Click the pencil icon to change a person\'s details, set the status to ACTIVE or DISABLED, or type a new password in [[RESET PASSWORD]].',
-                    'Removing a user needs your password. Administrator accounts cannot be removed, and neither can a user who has uploaded files: disable that account instead.',
-                ],
-            ],
-            [
                 'title' => 'School management',
                 'steps' => [
                     'Click [[SCHOOL MANAGEMENT]], then [[CREATE SCHOOL]]. Enter the school name and address; the campus is optional.',
@@ -311,7 +291,6 @@ $chapterMeta = [
     'dashboard' => ['group' => 'basics', 'icon' => 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z'],
     'lookup' => ['group' => 'basics', 'icon' => 'M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z'],
     'upload-pdf' => ['group' => 'uploading', 'icon' => 'M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5'],
-    'upload-template' => ['group' => 'uploading', 'icon' => 'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z'],
     'review' => ['group' => 'uploading', 'icon' => 'M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3l1.5 1.5 3-3.75'],
     'school-records' => ['group' => 'uploading', 'icon' => 'M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z'],
     'bulk-update' => ['group' => 'administration', 'icon' => 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z'],
@@ -347,25 +326,23 @@ $calloutKinds = [
  */
 $helpFigures = [
     'getting-started' => [['dashboard', 'The dashboard, with the menu on the left and the moon button at the top right', 'After you sign in you land on the dashboard. The menu on the left leads to every page you can use, and the moon button at the top right switches between the light and dark look.']],
-    'dashboard' => [['dashboard', 'The dashboard with its summary cards, two charts and the latest uploads', 'The cards at the top, the two charts and the list of the latest uploads described in the steps below.']],
+    'dashboard' => [['dashboard', 'The dashboard with its year picker, summary cards, filing overview, trend chart and school filing summary', 'The year buttons, the cards at the top, the Application filing overview and Trend charts, and the School filing summary and Latest upload lists described in the steps below.']],
     'lookup#0' => [['lookup', 'The Honor Graduate Look-Up page with its search boxes and a list of results', 'Search by school, graduation year or name, then read each result row. The eye icon opens the record and the green check records an application.']],
     'lookup#2' => [['lookup-apply', 'The Honor graduate eligible window asking for the date of application', 'Check the date of application, then click Confirm.']],
     'lookup#3' => [['lookup-admin', 'The Look-Up page as an administrator sees it, with extra buttons and icons', 'An administrator also sees the pencil and trash icons on each row and the Update graduation date and Find duplicates buttons.']],
-    'upload-pdf' => [['upload-pdf', 'The upload page with the PDF file tab selected', 'Choose the school, type the school year and add the PDF, then click Upload & extract records.']],
-    'upload-template' => [['upload-template', 'The upload page with the Excel template tab selected', 'On the Excel template tab, download the template, fill it in, then choose the finished file and upload it.']],
+    'upload-pdf' => [['upload-pdf', 'The upload page with the school, school year and PDF fields', 'Choose the school, type the school year and add the PDF, then click Upload & extract records.']],
     'review#0' => [['review', 'The review screen with the extracted rows and the buttons above the table', 'Check each row, fix what is wrong, and use the buttons above the table to change the list. Nothing is saved until you click Save records.']],
     'school-records' => [
         ['school-records', 'The School records page listing uploaded lists and their status', 'Every uploaded list with its status. A pending list shows how long it has been waiting.'],
         ['view-upload', 'The upload details page of a saved list, with the re-extract buttons', 'The details page of a list that is already saved, with the Re-extract buttons and the quick actions on the right.'],
     ],
     'bulk-update' => [['bulk-update', 'The Bulk update HGE applications card on the Admin page with its Needs review list', 'The bulk update card and, below it, the Needs review list for applicants the system could not match with certainty.']],
-    'settings#0' => [['users', 'The User management page', 'Create users, change their details and status, or reset a password.']],
-    'settings#1' => [['schools', 'The School management page', 'Create and edit schools. A school can only be removed when it has no uploads and no records.']],
-    'settings#2' => [['ocr-courses', 'The OCR course keywords page', 'Add a course abbreviation the text/OCR reading does not know yet.']],
-    'settings#3' => [['duplicates', 'The Duplicate records page with groups of records that share a name', 'Records with the same name are grouped. The copy marked Keep stays; tick the extra copies to move them to the Recycle bin.']],
-    'settings#4' => [['recycle-bin', 'The Recycle bin page listing removed items', 'Everything removed from the system waits here until you restore it or delete it permanently.']],
-    'settings#5' => [['activity-log', 'The Activity log page', 'Who did what, with filters for user, action and dates.']],
-    'settings#6' => [['admin-tools', 'The top of the Admin page with the database backup and AI settings cards', 'The database backup and the AI extraction settings. Both ask for your username and password again.']],
+    'settings#0' => [['schools', 'The School management page', 'Create and edit schools. A school can only be removed when it has no uploads and no records.']],
+    'settings#1' => [['ocr-courses', 'The OCR course keywords page', 'Add a course abbreviation the text/OCR reading does not know yet.']],
+    'settings#2' => [['duplicates', 'The Duplicate records page with groups of records that share a name', 'Records with the same name are grouped. The copy marked Keep stays; tick the extra copies to move them to the Recycle bin.']],
+    'settings#3' => [['recycle-bin', 'The Recycle bin page listing removed items', 'Everything removed from the system waits here until you restore it or delete it permanently.']],
+    'settings#4' => [['activity-log', 'The Activity log page', 'Who did what, with filters for user, action and dates.']],
+    'settings#5' => [['admin-tools', 'The top of the Admin page with the database backup and AI settings cards', 'The database backup and the AI extraction settings. Both ask for your username and password again.']],
 ];
 
 /**
