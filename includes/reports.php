@@ -7,8 +7,13 @@
  * table) across the graduation years $fromYear..$toYear inclusive (a single
  * year when $toYear is omitted). A school with zero Latin Honor graduates in
  * the range is excluded entirely (INNER JOIN, not LEFT JOIN) rather than shown as an all-zero
- * row. filing_rate is always computed here in PHP, never in SQL, and only
- * ever divides by an on_record value already confirmed > 0.
+ * row. filing_rate/approval_rate are always computed here in PHP, never in
+ * SQL, and only ever divide by an on_record value already confirmed > 0.
+ * `approved` (COUNT of non-NULL approved_at, see includes/graduates.php:
+ * approve_application()) is always <= `applied` — it is the applied count's
+ * own subset, not a separate population — so `applied - approved` is exactly
+ * "filed but still processing" wherever that's needed (e.g. the dashboard's
+ * sunburst donut and TREND chart).
  */
 function get_application_filing_report(PDO $pdo, int $fromYear, ?int $toYear = null): array
 {
@@ -17,7 +22,8 @@ function get_application_filing_report(PDO $pdo, int $fromYear, ?int $toYear = n
     $stmt = $pdo->prepare(
         'SELECT s.school_name, s.campus,
                 COUNT(g.id) AS on_record,
-                COUNT(ga.id) AS applied
+                COUNT(ga.id) AS applied,
+                COUNT(ga.approved_at) AS approved
          FROM schools s
          JOIN latin_honor_graduates g ON g.school_id = s.id AND g.graduation_year BETWEEN :from_year AND :to_year
          LEFT JOIN graduate_applications ga ON ga.graduate_id = g.id
@@ -29,26 +35,33 @@ function get_application_filing_report(PDO $pdo, int $fromYear, ?int $toYear = n
     $schools = [];
     $totalOnRecord = 0;
     $totalApplied = 0;
+    $totalApproved = 0;
 
     foreach ($stmt->fetchAll() as $row) {
         $onRecord = (int) $row['on_record'];
         $applied = (int) $row['applied'];
+        $approved = (int) $row['approved'];
         $totalOnRecord += $onRecord;
         $totalApplied += $applied;
+        $totalApproved += $approved;
 
         $schools[] = [
             'school_name' => $row['school_name'],
             'campus' => $row['campus'],
             'on_record' => $onRecord,
             'applied' => $applied,
+            'approved' => $approved,
             'filing_rate' => $onRecord > 0 ? round($applied / $onRecord * 100, 1) : 0.0,
+            'approval_rate' => $onRecord > 0 ? round($approved / $onRecord * 100, 1) : 0.0,
         ];
     }
 
     return [
         'total_on_record' => $totalOnRecord,
         'total_applied' => $totalApplied,
+        'total_approved' => $totalApproved,
         'filing_rate' => $totalOnRecord > 0 ? round($totalApplied / $totalOnRecord * 100, 1) : 0.0,
+        'approval_rate' => $totalOnRecord > 0 ? round($totalApproved / $totalOnRecord * 100, 1) : 0.0,
         'schools' => $schools,
     ];
 }
@@ -123,21 +136,28 @@ function get_filing_trend(PDO $pdo, int $fromYear, int $toYear): array
 /**
  * Month-by-month sibling of get_filing_trend(): one point per calendar month
  * from January of $fromYear to December of $toYear (oldest first, empty months
- * zero-filled). The two series are placed differently on purpose:
+ * zero-filled). Each series is placed by its own date field, on purpose:
  *
  *  - on_record: a graduate is placed in the month of its graduation_date,
  *    within its graduation_year (the same year bucket get_filing_trend() uses,
  *    so the months of a year add up to that year's on-record figure). Graduates
  *    saved without a graduation_date have no month — they are returned
  *    separately as 'undated' rather than dropped.
- *  - applied: an application is placed in the month it was ACTUALLY FILED
- *    (graduate_applications.application_date), whatever the graduate's
- *    graduation year or month — so it answers "how many applications were
- *    submitted in that month". It therefore does not add up to the yearly
- *    (graduation-year based) applied figure, and an application filed in a
- *    month can exceed the graduates of that month.
+ *  - processing: an application still awaiting approval, placed in the month
+ *    it was ACTUALLY FILED (graduate_applications.application_date) — a live
+ *    "still processing" snapshot grouped by filing month, so an application
+ *    that has since been approved drops out of its filing month's count here
+ *    (it now shows up in `approved` instead; the two series are mutually
+ *    exclusive at any point in time, filed/graduation month notwithstanding).
+ *  - approved: placed in the month it was actually approved
+ *    (graduate_applications.approved_at), independent of when it was filed.
  *
- * @return array{months: array<int, array{year: int, month: int, on_record: int, applied: int}>, undated: array{on_record: int}}
+ * None of these sum to the yearly (graduation-year based) on_record/applied
+ * figures get_filing_trend() returns, and a month's applications can exceed
+ * its graduates — this answers "what happened in that month", not "what
+ * year does this belong to".
+ *
+ * @return array{months: array<int, array{year: int, month: int, on_record: int, processing: int, approved: int}>, undated: array{on_record: int}}
  */
 function get_filing_trend_monthly(PDO $pdo, int $fromYear, int $toYear): array
 {
@@ -160,16 +180,29 @@ function get_filing_trend_monthly(PDO $pdo, int $fromYear, int $toYear): array
     }
 
     $stmt = $pdo->prepare(
-        'SELECT YEAR(application_date) AS year, MONTH(application_date) AS month, COUNT(*) AS applied
+        'SELECT YEAR(application_date) AS year, MONTH(application_date) AS month, COUNT(*) AS processing
          FROM graduate_applications
-         WHERE application_date BETWEEN :start_date AND :end_date
+         WHERE approved_at IS NULL AND application_date BETWEEN :start_date AND :end_date
          GROUP BY YEAR(application_date), MONTH(application_date)'
     );
     $stmt->execute(['start_date' => sprintf('%04d-01-01', $fromYear), 'end_date' => sprintf('%04d-12-31', $toYear)]);
 
-    $applied = [];
+    $processing = [];
     foreach ($stmt->fetchAll() as $row) {
-        $applied[(int) $row['year'] . '-' . (int) $row['month']] = (int) $row['applied'];
+        $processing[(int) $row['year'] . '-' . (int) $row['month']] = (int) $row['processing'];
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT YEAR(approved_at) AS year, MONTH(approved_at) AS month, COUNT(*) AS approved
+         FROM graduate_applications
+         WHERE approved_at BETWEEN :start_date AND :end_date
+         GROUP BY YEAR(approved_at), MONTH(approved_at)'
+    );
+    $stmt->execute(['start_date' => sprintf('%04d-01-01', $fromYear), 'end_date' => sprintf('%04d-12-31', $toYear)]);
+
+    $approved = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $approved[(int) $row['year'] . '-' . (int) $row['month']] = (int) $row['approved'];
     }
 
     $months = [];
@@ -179,7 +212,8 @@ function get_filing_trend_monthly(PDO $pdo, int $fromYear, int $toYear): array
                 'year' => $year,
                 'month' => $month,
                 'on_record' => $onRecord[$year . '-' . $month] ?? 0,
-                'applied' => $applied[$year . '-' . $month] ?? 0,
+                'processing' => $processing[$year . '-' . $month] ?? 0,
+                'approved' => $approved[$year . '-' . $month] ?? 0,
             ];
         }
     }

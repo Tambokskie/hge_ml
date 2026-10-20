@@ -26,11 +26,21 @@ document.addEventListener('DOMContentLoaded', function () {
     // year's months (no PER YEAR/PER MONTH toggle), so every point belongs
     // to that same year — highlight the latest month instead of every
     // point, which is what the shared renderer's default comparator would
-    // do here.
+    // do here. Three series instead of the shared renderer's 2-series
+    // default: PROCESSING (orange) replaces the old single green "applied"
+    // line — same filed-by-month grouping, but exclusive of anything since
+    // approved — and APPROVED (green) is new, grouped by approval month
+    // (see includes/reports.php:get_filing_trend_monthly()).
     dashboardTrendChart = initTrendChart(window.HGE_DASHBOARD || {}, {
         isSelectedPoint: function (p, i, series) {
             return i === series.length - 1;
         },
+        series: [
+            { key: 'on_record', textClass: 'text-csc-navy-600 dark:text-csc-navy-300', dotClass: 'bg-csc-navy-300', gradOpacity: '0.28', label: 'GRADUATED' },
+            { key: 'processing', textClass: 'text-orange-500', dotClass: 'bg-orange-400', gradOpacity: '0.20', label: 'PROCESSING' },
+            { key: 'approved', textClass: 'text-emerald-500', dotClass: 'bg-emerald-400', gradOpacity: '0.22', label: 'APPROVED' },
+        ],
+        monthNote: 'GRADUATED IS PLOTTED BY GRADUATION MONTH; PROCESSING IS PLOTTED BY THE MONTH THE APPLICATION WAS FILED; APPROVED IS PLOTTED BY THE MONTH IT WAS APPROVED.',
     });
 
     // APPLICATION FILING OVERVIEW card — shares its donut renderer with
@@ -52,6 +62,77 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         return fetch(url, { method: 'POST', body: formData }).then(function (r) {
             return r.json();
+        });
+    }
+
+    // SCHOOL FILING SUMMARY table — ported from admin/reports.php's school
+    // table, but without its search/sort/filter controls: this card has no
+    // such controls, just a fixed top-10 view behind a SHOW MORE/SHOW LESS
+    // toggle, since the per-school rows already arrive pre-sorted by filing
+    // rate from the server (both the initial PHP render and this JSON API).
+    var schoolTbody = document.getElementById('dashboard-school-tbody');
+    var schoolCount = document.getElementById('dashboard-school-count');
+    var schoolToggleRow = document.getElementById('dashboard-school-toggle-row');
+    var schoolToggleBtn = document.getElementById('dashboard-school-toggle');
+
+    function schoolRowHtml(school, index) {
+        var appliedClass = school.applied > 0
+            ? 'bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/20 dark:text-csc-navy-300'
+            : 'bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400';
+        var approvedClass = school.approved > 0
+            ? 'bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+            : 'bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400';
+        var rateClass = school.filing_rate > 0
+            ? 'bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400'
+            : 'bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400';
+        var approvalRateClass = school.approval_rate > 0
+            ? 'bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+            : 'bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400';
+        var hiddenClass = index >= 10 ? ' dashboard-school-extra-row hidden' : '';
+
+        return '<tr class="dashboard-school-row border-b border-gray-100 dark:border-white/5' + hiddenClass + '">' +
+            '<td class="px-4 py-3 text-gray-400 dark:text-gray-500">' + (index + 1) + '</td>' +
+            '<td class="px-4 py-3">' + escapeHtml(String(school.school_display).toUpperCase()) + '</td>' +
+            '<td class="px-4 py-3">' + school.on_record + '</td>' +
+            '<td class="px-4 py-3"><span class="inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold ' + appliedClass + '">' + school.applied + '</span></td>' +
+            '<td class="px-4 py-3"><span class="inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold ' + approvedClass + '">' + school.approved + '</span></td>' +
+            '<td class="px-4 py-3"><span class="inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold ' + rateClass + '">' + school.filing_rate + '%</span></td>' +
+            '<td class="px-4 py-3"><span class="inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold ' + approvalRateClass + '">' + school.approval_rate + '%</span></td>' +
+            '</tr>';
+    }
+
+    // Re-renders the whole table for a year switch and resets the toggle
+    // back to its collapsed SHOW MORE state — carrying an expanded state
+    // across a year switch would show a stale row count's worth of schools
+    // expanded against the new year's actual list.
+    function renderSchoolTable(schools) {
+        if (!schoolTbody) {
+            return;
+        }
+        if (schoolCount) {
+            schoolCount.textContent = schools.length + ' SCHOOL' + (schools.length === 1 ? '' : 'S');
+        }
+        schoolTbody.innerHTML = schools.length === 0
+            ? '<tr><td colspan="7" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">NO HONOR GRADUATE RECORDS FOUND FOR THIS YEAR.</td></tr>'
+            : schools.map(schoolRowHtml).join('');
+
+        if (schoolToggleRow) {
+            schoolToggleRow.classList.toggle('hidden', schools.length <= 10);
+        }
+        if (schoolToggleBtn) {
+            schoolToggleBtn.dataset.expanded = 'false';
+            schoolToggleBtn.textContent = 'SHOW MORE';
+        }
+    }
+
+    if (schoolToggleBtn) {
+        schoolToggleBtn.addEventListener('click', function () {
+            var expanded = schoolToggleBtn.dataset.expanded === 'true';
+            document.querySelectorAll('.dashboard-school-extra-row').forEach(function (row) {
+                row.classList.toggle('hidden', expanded);
+            });
+            schoolToggleBtn.dataset.expanded = expanded ? 'false' : 'true';
+            schoolToggleBtn.textContent = expanded ? 'SHOW MORE' : 'SHOW LESS';
         });
     }
 
@@ -149,8 +230,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if (yearTrack) {
         var yearRecordsNumber = document.getElementById('dashboard-year-records-number');
         var appliedNumber = document.getElementById('dashboard-applied-number');
+        var approvedNumber = document.getElementById('dashboard-approved-number');
         var yearRecordsLabel = document.getElementById('dashboard-year-records-label');
         var appliedYearLabel = document.getElementById('dashboard-applied-year-label');
+        var approvedYearLabel = document.getElementById('dashboard-approved-year-label');
         var activePillClasses = ['bg-csc-navy-600', 'text-white'];
         var inactivePillClasses = ['text-gray-600', 'dark:text-gray-400', 'hover:bg-white', 'dark:hover:bg-white/10'];
 
@@ -176,6 +259,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (appliedYearLabel) {
                     appliedYearLabel.textContent = 'HGE APPLICATION AS OF ' + year;
                 }
+                if (approvedYearLabel) {
+                    approvedYearLabel.textContent = 'HGE APPROVED AS OF ' + year;
+                }
 
                 refreshYearCard(yearRecordsNumber, year, '', function (data) {
                     if (dashboardTrendChart && data.trend_monthly) {
@@ -183,6 +269,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     if (dashboardFilingDonut && data.filing_report) {
                         dashboardFilingDonut.update(data.filing_report, data.honor_breakdown);
+                    }
+                    if (data.schools) {
+                        renderSchoolTable(data.schools);
+                    }
+                    // Reuses the same (non-applied) call's filing_report
+                    // rather than a dedicated metric=approved request — the
+                    // number is already in that response.
+                    if (approvedNumber && data.filing_report) {
+                        var previousApproved = parseInt(String(approvedNumber.textContent).replace(/,/g, ''), 10) || 0;
+                        animateCountUp(approvedNumber, data.filing_report.total_approved, 500, null, previousApproved);
                     }
                 });
                 refreshYearCard(appliedNumber, year, '&metric=applied');

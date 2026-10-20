@@ -302,7 +302,7 @@ function bulk_hge_apply_with_review(PDO $pdo, array $pairs, array $review, int $
         ];
     }
 
-    return ['ok' => true, 'filed' => $filedCounts['filed'], 'skipped' => $filedCounts['skipped'], 'review' => $reviewCounts];
+    return ['ok' => true, 'filed' => $filedCounts['filed'], 'approved' => $filedCounts['approved'], 'skipped' => $filedCounts['skipped'], 'review' => $reviewCounts];
 }
 
 function bulk_hge_review_pending_count(PDO $pdo): int
@@ -424,10 +424,22 @@ function bulk_hge_review_file(PDO $pdo, int $itemId, int $graduateId, int $userI
         }
 
         try {
+            // Resolving a NEEDS REVIEW item always inserts fresh (the
+            // ambiguous match was never filed before — the catch below
+            // refuses if it somehow was in the meantime), so unlike the
+            // confident-match upsert in bulk_hge_insert_pairs() there is no
+            // existing application_date to preserve: this item's date IS
+            // the CoE Issue Date, treated as the approval date throughout.
             $pdo->prepare(
-                'INSERT INTO graduate_applications (graduate_id, applied_by, application_date)
-                 VALUES (:graduate_id, :applied_by, :application_date)'
-            )->execute(['graduate_id' => $graduateId, 'applied_by' => $userId, 'application_date' => $item['application_date']]);
+                'INSERT INTO graduate_applications (graduate_id, applied_by, application_date, approved_at, approved_by)
+                 VALUES (:graduate_id, :applied_by, :application_date, :approved_at, :approved_by)'
+            )->execute([
+                'graduate_id' => $graduateId,
+                'applied_by' => $userId,
+                'application_date' => $item['application_date'],
+                'approved_at' => $item['application_date'],
+                'approved_by' => $userId,
+            ]);
         } catch (\PDOException $e) {
             if ((string) $e->getCode() === '23000') {
                 $pdo->rollBack();

@@ -84,7 +84,7 @@ CREATE TABLE latin_honor_graduates (
 CREATE TABLE activity_log (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NULL,
-  action ENUM('login','logout','pdf_upload','pdf_delete','template_upload','record_created','record_updated','record_removed','record_restored','record_purged','record_draft_saved','search','user_created','user_updated','user_removed','school_created','school_updated','school_removed','application_filed','db_backup','ocr_keyword_created','ocr_keyword_removed','ai_settings_updated') NOT NULL,
+  action ENUM('login','logout','pdf_upload','pdf_delete','template_upload','record_created','record_updated','record_removed','record_restored','record_purged','record_draft_saved','search','user_created','user_updated','user_removed','school_created','school_updated','school_removed','application_filed','application_approved','db_backup','ocr_keyword_created','ocr_keyword_removed','ai_settings_updated') NOT NULL,
   details TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id),
@@ -113,9 +113,12 @@ CREATE TABLE graduate_applications (
   graduate_id INT UNSIGNED NOT NULL,
   applied_by INT UNSIGNED NOT NULL,
   application_date DATE NOT NULL,
+  approved_at DATE NULL,
+  approved_by INT UNSIGNED NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (graduate_id) REFERENCES latin_honor_graduates(id),
   FOREIGN KEY (applied_by) REFERENCES users(id),
+  FOREIGN KEY (approved_by) REFERENCES users(id),
   UNIQUE KEY uq_graduate_id (graduate_id)
 ) ENGINE=InnoDB;
 

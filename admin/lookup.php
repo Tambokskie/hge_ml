@@ -143,7 +143,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <th class="px-4 py-3">SCHOOL</th>
                                 <th class="px-4 py-3">LATIN HONOR</th>
                                 <th class="px-4 py-3">DATE OF GRADUATION</th>
-                                <th class="px-4 py-3">APPLIED</th>
+                                <th class="px-4 py-3">HGE STATUS</th>
                                 <th class="px-4 py-3 text-right">ACTION</th>
                             </tr>
                         </thead>
@@ -160,7 +160,17 @@ include __DIR__ . '/../includes/sidebar.php';
                                         <?php endif; ?>
                                     </td>
                                     <td class="px-4 py-3"><?= e(format_date_display($row['graduation_date'])) ?></td>
-                                    <td class="px-4 py-3"><?= e(format_date_display($row['application_date'] ?? null)) ?></td>
+                                    <td class="px-4 py-3">
+                                        <?php if ((int) ($row['has_approved'] ?? 0) === 1): ?>
+                                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400">APPROVED</span>
+                                            <p class="mt-0.5 text-[11px] text-gray-500 dark:text-gray-500"><?= e(format_date_display($row['approved_at'])) ?></p>
+                                        <?php elseif ((int) $row['has_applied'] === 1): ?>
+                                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-orange-500/15 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400">PROCESSING</span>
+                                            <p class="mt-0.5 text-[11px] text-gray-500 dark:text-gray-500"><?= e(format_date_display($row['application_date'])) ?></p>
+                                        <?php else: ?>
+                                            <span class="text-gray-400 dark:text-gray-600">—</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td class="px-4 py-3">
                                         <?php $actionBtnIndex = 0; ?>
                                         <div class="flex items-center justify-end gap-1.5">
@@ -181,6 +191,13 @@ include __DIR__ . '/../includes/sidebar.php';
                                                 data-id="<?= (int) $row['id'] ?>"
                                                 data-name="<?= e($row['graduate_name']) ?>">
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                            </button>
+                                            <?php endif; ?>
+                                            <?php if ($isAdmin && (int) $row['has_applied'] === 1 && (int) ($row['has_approved'] ?? 0) !== 1): ?>
+                                            <button type="button" class="approve-graduate-btn rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($rowIndex * 50 + ($actionBtnIndex++) * 70) ?>ms" title="Mark as approved"
+                                                data-id="<?= (int) $row['id'] ?>"
+                                                data-name="<?= e($row['graduate_name']) ?>">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                             </button>
                                             <?php endif; ?>
                                             <?php if ($isAdmin): ?>

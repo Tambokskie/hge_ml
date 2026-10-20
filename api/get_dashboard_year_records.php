@@ -29,8 +29,22 @@ try {
     // twice per year-slicer click.
     if (!$isApplied) {
         $response['trend_monthly'] = get_filing_trend_monthly($pdo, $year, $year);
-        $response['filing_report'] = get_application_filing_report($pdo, $year);
+        $filingReport = get_application_filing_report($pdo, $year);
+        $response['filing_report'] = $filingReport;
         $response['honor_breakdown'] = get_honor_tier_breakdown_for_year($pdo, $year);
+
+        // SCHOOL FILING SUMMARY table (admin/dashboard.php): same
+        // filing-rate-sorted shape the initial PHP render uses, so the
+        // year-slicer's AJAX refresh can feed it straight to the same
+        // row-building logic in dashboard.js without a second sort pass there.
+        $schools = array_map(static function (array $school): array {
+            $school['school_display'] = format_school_display_name($school['school_name'], $school['campus']);
+            return $school;
+        }, $filingReport['schools']);
+        usort($schools, static function (array $a, array $b): int {
+            return $b['filing_rate'] <=> $a['filing_rate'] ?: strcasecmp($a['school_display'], $b['school_display']);
+        });
+        $response['schools'] = $schools;
     }
 
     echo json_encode($response);

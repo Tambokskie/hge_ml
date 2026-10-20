@@ -152,13 +152,13 @@ class ReportsTest extends TestCase
         $months = $monthly['months'];
 
         $this->assertCount(24, $months);
-        $this->assertSame(['year' => 2024, 'month' => 1, 'on_record' => 0, 'applied' => 0], $months[0]);
-        $this->assertSame(['year' => 2025, 'month' => 12, 'on_record' => 0, 'applied' => 0], $months[23]);
-        $this->assertSame(['year' => 2024, 'month' => 12, 'on_record' => 1, 'applied' => 0], $months[11]);
+        $this->assertSame(['year' => 2024, 'month' => 1, 'on_record' => 0, 'processing' => 0, 'approved' => 0], $months[0]);
+        $this->assertSame(['year' => 2025, 'month' => 12, 'on_record' => 0, 'processing' => 0, 'approved' => 0], $months[23]);
+        $this->assertSame(['year' => 2024, 'month' => 12, 'on_record' => 1, 'processing' => 0, 'approved' => 0], $months[11]);
         // graduate 2 graduated in March but filed in August: the application belongs to August
-        $this->assertSame(['year' => 2025, 'month' => 3, 'on_record' => 2, 'applied' => 0], $months[14]);
-        $this->assertSame(['year' => 2025, 'month' => 7, 'on_record' => 1, 'applied' => 0], $months[18]);
-        $this->assertSame(['year' => 2025, 'month' => 8, 'on_record' => 0, 'applied' => 1], $months[19]);
+        $this->assertSame(['year' => 2025, 'month' => 3, 'on_record' => 2, 'processing' => 0, 'approved' => 0], $months[14]);
+        $this->assertSame(['year' => 2025, 'month' => 7, 'on_record' => 1, 'processing' => 0, 'approved' => 0], $months[18]);
+        $this->assertSame(['year' => 2025, 'month' => 8, 'on_record' => 0, 'processing' => 1, 'approved' => 0], $months[19]);
         $this->assertSame(['on_record' => 0], $monthly['undated']);
     }
 
@@ -182,8 +182,8 @@ class ReportsTest extends TestCase
             $yearly[0]['on_record'],
             array_sum(array_column($monthly['months'], 'on_record')) + $monthly['undated']['on_record']
         );
-        $this->assertSame(1, $monthly['months'][7]['applied']);
-        $this->assertSame(1, $monthly['months'][8]['applied']);
+        $this->assertSame(1, $monthly['months'][7]['processing']);
+        $this->assertSame(1, $monthly['months'][8]['processing']);
     }
 
     public function testMonthlyTrendCountsApplicationsByFilingMonthWhateverTheGraduationYear(): void
@@ -204,12 +204,12 @@ class ReportsTest extends TestCase
         $months = get_filing_trend_monthly($pdo, 2025, 2025)['months'];
 
         // June 2025 holds both applications filed then (one by a 2023 graduate, one by a 2025 graduate)
-        $this->assertSame(2, $months[5]['applied']);
+        $this->assertSame(2, $months[5]['processing']);
         $this->assertSame(0, $months[5]['on_record']);
         // filed outside the charted window: not plotted
-        $this->assertSame(2, array_sum(array_column($months, 'applied')));
+        $this->assertSame(2, array_sum(array_column($months, 'processing')));
         // April 2025 still shows the graduates, with no applications in it
-        $this->assertSame(['year' => 2025, 'month' => 4, 'on_record' => 3, 'applied' => 0], $months[3]);
+        $this->assertSame(['year' => 2025, 'month' => 4, 'on_record' => 3, 'processing' => 0, 'approved' => 0], $months[3]);
     }
 
     public function testGetFilingTrendWithNoDataIsAllZeros(): void

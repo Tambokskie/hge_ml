@@ -43,6 +43,12 @@ class BulkHgeMatchTest extends TestCase
             ->execute([$graduateId, $date]);
     }
 
+    private function fileAndApproveApplication(int $graduateId, string $date = '2025-01-01'): void
+    {
+        TestDb::pdo()->prepare('INSERT INTO graduate_applications (graduate_id, applied_by, application_date, approved_at, approved_by) VALUES (?, 1, ?, ?, 1)')
+            ->execute([$graduateId, $date, $date]);
+    }
+
     private function person(string $last, string $first, string $mi = '', string $middle = '', string $ext = '', string $date = '2024-04-02', int $row = 2): array
     {
         return compact('row', 'date', 'last', 'first', 'mi', 'middle', 'ext');
@@ -167,8 +173,14 @@ class BulkHgeMatchTest extends TestCase
     public function testPreviewSortsPeopleIntoEveryBucket(): void
     {
         $toFile = $this->addGraduate('SANDAGAN, NILVEN A.');
-        $already = $this->addGraduate('CRUZ, JUAN D.');
-        $this->fileApplication($already);
+        // Filed but not yet approved: still included in to_file — this
+        // batch's date will approve it (see bulk_hge_insert_pairs()'s
+        // upsert), it is not skipped.
+        $toApprove = $this->addGraduate('CRUZ, JUAN D.');
+        $this->fileApplication($toApprove);
+        // Already approved: nothing left to do, excluded from to_file.
+        $alreadyApproved = $this->addGraduate('DIZON, PEDRO E.');
+        $this->fileAndApproveApplication($alreadyApproved);
         $this->addGraduate('REYES, ANA');                 // loose
         $this->addGraduate('LOPEZ, MARK T.', 1, 1, 'BSA'); // ambiguous
         $this->addGraduate('LOPEZ, MARK T.', 3, 2, 'BSIT');
@@ -176,6 +188,7 @@ class BulkHgeMatchTest extends TestCase
         $people = [
             $this->person('Sandagan', 'Nilven', 'A', 'Arozado', '', '2024-04-02', 2),
             $this->person('Cruz', 'Juan', 'D', 'Dela', '', '2024-05-01', 3),
+            $this->person('Dizon', 'Pedro', 'E', 'Enriquez', '', '2024-05-05', 7),
             $this->person('Reyes', 'Ana', 'B', 'Bautista', '', '2024-06-01', 4),
             $this->person('Lopez', 'Mark', 'T', 'Tan', '', '2024-07-01', 5),
             $this->person('Nobody', 'Here', '', '', '', '2024-08-01', 6),
@@ -183,9 +196,12 @@ class BulkHgeMatchTest extends TestCase
 
         $preview = bulk_hge_build_preview(TestDb::pdo(), $people, [['row' => 9, 'message' => 'X', 'name' => 'Y']]);
 
-        $this->assertSame([['graduate_id' => $toFile, 'date' => '2024-04-02']], $preview['to_file']);
         $this->assertSame([
-            'people' => 5, 'to_file' => 1, 'already_filed' => 1, 'review' => 2, 'not_found' => 1, 'invalid' => 1,
+            ['graduate_id' => $toFile, 'date' => '2024-04-02'],
+            ['graduate_id' => $toApprove, 'date' => '2024-05-01'],
+        ], $preview['to_file']);
+        $this->assertSame([
+            'people' => 6, 'to_file' => 2, 'already_approved' => 1, 'review' => 2, 'not_found' => 1, 'invalid' => 1,
         ], $preview['counts']);
         $this->assertCount(2, $preview['review']);
         $this->assertStringContainsString('LOOSE', $preview['review'][0]['reason']);

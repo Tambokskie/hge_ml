@@ -52,7 +52,7 @@ try {
         $pdo,
         $currentUser['id'] ?? null,
         'application_filed',
-        'bulk update: ' . $result['filed'] . ' filed, ' . $result['skipped'] . ' already filed, '
+        'bulk update: ' . $result['filed'] . ' filed, ' . $result['approved'] . ' approved, ' . $result['skipped'] . ' skipped (vanished), '
             . ($result['review']['added'] + $result['review']['updated']) . ' saved for review, from ' . $staged['filename']
     );
 } catch (\Throwable $e) {
@@ -65,9 +65,10 @@ try {
 echo json_encode([
     'status' => 'success',
     'filed' => $result['filed'],
+    'approved' => $result['approved'],
     'skipped' => $result['skipped'],
     'review_added' => $result['review']['added'],
     'review_updated' => $result['review']['updated'],
     'review_skipped' => $result['review']['skipped'],
-    'message' => number_format($result['filed']) . ' APPLICATION(S) FILED.',
+    'message' => number_format($result['filed']) . ' APPLICATION(S) FILED, ' . number_format($result['approved']) . ' APPROVED.',
 ]);

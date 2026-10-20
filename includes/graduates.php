@@ -35,7 +35,8 @@ function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25
 
     $sql = "SELECT g.id, g.graduate_name, g.course, g.latin_honor, g.graduation_date, g.graduation_year, g.source,
                    s.school_name, s.campus, u.id AS upload_id, u.original_filename, u.uploaded_at,
-                   a.application_date, (a.id IS NOT NULL) AS has_applied
+                   a.application_date, (a.id IS NOT NULL) AS has_applied,
+                   a.approved_at, (a.approved_at IS NOT NULL) AS has_approved
             FROM latin_honor_graduates g
             JOIN schools s ON s.id = g.school_id
             JOIN latin_honor_uploads u ON u.id = g.upload_id
@@ -119,6 +120,39 @@ function file_application(PDO $pdo, int $graduateId, int $appliedBy, string $app
         }
         throw $e;
     }
+
+    return ['ok' => true];
+}
+
+/**
+ * Marks an already-filed application as approved (the admin/lookup.php
+ * "mark approved" action, administrator-only — see api/approve_application.php).
+ * Requires a graduate_applications row to already exist; approval never files
+ * on its own, it only adds an approved_at/approved_by to an existing filing.
+ *
+ * @return array{ok: bool, error?: string}
+ */
+function approve_application(PDO $pdo, int $graduateId, int $approvedBy, string $approvalDate): array
+{
+    // Checked up front (PDO's rowCount() for an UPDATE reports rows actually
+    // changed, not rows matched — re-approving with the exact same date would
+    // otherwise look identical to "no application exists" and surface the
+    // wrong error message).
+    $exists = $pdo->prepare('SELECT 1 FROM graduate_applications WHERE graduate_id = :graduate_id LIMIT 1');
+    $exists->execute(['graduate_id' => $graduateId]);
+    if ($exists->fetchColumn() === false) {
+        return ['ok' => false, 'error' => 'THIS GRADUATE HAS NOT FILED AN APPLICATION YET.'];
+    }
+
+    $pdo->prepare(
+        'UPDATE graduate_applications
+         SET approved_at = :approved_at, approved_by = :approved_by
+         WHERE graduate_id = :graduate_id'
+    )->execute([
+        'approved_at' => $approvalDate,
+        'approved_by' => $approvedBy,
+        'graduate_id' => $graduateId,
+    ]);
 
     return ['ok' => true];
 }

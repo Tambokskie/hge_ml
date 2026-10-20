@@ -370,15 +370,24 @@ function modalField(opts) {
 // page, after that markup exists in the DOM, with that page's own
 // {initialTrend, initialTrendMonthly, initialTo} — a no-op if the chart
 // container isn't on the page at all.
+// Default 2-series setup — admin/reports.php's chart (year mode always, month
+// mode when its PER MONTH toggle is used) — graduates on record vs. Honor
+// Graduate Eligible filings, on ONE shared axis. admin/dashboard.php instead
+// passes a 3-series options.series (on_record / processing / approved,
+// `approved` being the subset of `processing`'s filed population that has
+// since been approved — see includes/reports.php:get_filing_trend_monthly()).
+var TREND_DEFAULT_SERIES = [
+    { key: 'on_record', textClass: 'text-csc-navy-600 dark:text-csc-navy-300', dotClass: 'bg-csc-navy-300', gradOpacity: '0.28', label: 'GRADUATED' },
+    { key: 'applied', textClass: 'text-emerald-500', dotClass: 'bg-emerald-400', gradOpacity: '0.22', label: 'APPLIED FOR HGE' },
+];
+
 function initTrendChart(config, options) {
-    // Two lines on ONE shared axis — graduates on record and Honor Graduate
-    // Eligible filings. Applicants are a subset of graduates, so the applied line
-    // must never be drawn above the graduated one; separate scales would let it.
     var trendContainer = document.getElementById('filing-trend-chart');
     if (!trendContainer) {
         return;
     }
     options = options || {};
+    var seriesList = options.series || TREND_DEFAULT_SERIES;
     var trendSeries = config.initialTrend || [];
     var trendMonthly = config.initialTrendMonthly || { months: [], undated: { on_record: 0 } };
     // admin/dashboard.php has no [data-trend-mode] toggle at all (its config
@@ -402,27 +411,41 @@ function initTrendChart(config, options) {
 
     // The points currently charted, whichever grouping is selected. "label" is
     // the x-axis text, "title" the tooltip heading, "year" what the selected-
-    // year highlight compares against.
+    // year highlight compares against — every other field on the raw point
+    // (on_record/applied, or on_record/processing/approved) passes through
+    // untouched so seriesList's `key`s can read whichever of them it needs.
     function trendPoints() {
         if (trendMode === 'month') {
             var multiYear = trendMonthly.months.length > 12;
             return trendMonthly.months.map(function (p) {
-                return {
+                var point = {
                     year: p.year,
                     label: TREND_MONTH_ABBR[p.month - 1] + (multiYear ? " '" + String(p.year).slice(-2) : ''),
                     title: TREND_MONTH_NAMES[p.month - 1] + ' ' + p.year,
-                    on_record: p.on_record,
-                    applied: p.applied
                 };
+                Object.keys(p).forEach(function (key) {
+                    if (key !== 'year' && key !== 'month') {
+                        point[key] = p[key];
+                    }
+                });
+                return point;
             });
         }
         return trendSeries.map(function (p) {
-            return { year: p.year, label: String(p.year), title: String(p.year), on_record: p.on_record, applied: p.applied };
+            var point = { year: p.year, label: String(p.year), title: String(p.year) };
+            Object.keys(p).forEach(function (key) {
+                if (key !== 'year') {
+                    point[key] = p[key];
+                }
+            });
+            return point;
         });
     }
 
-    // Per month, the green line counts applications by the month they were actually
-    // filed (date applied), not by when the applicant graduated — say so under the chart.
+    // Per month, a filed-date/approved-date series counts by when that event
+    // actually happened, not by when the applicant graduated — say so under
+    // the chart. options.monthNote lets admin/dashboard.php's 3-series chart
+    // supply its own wording instead of this 2-series default.
     function updateTrendNote() {
         var legend = document.getElementById('filing-trend-applied-label');
         if (legend) {
@@ -436,7 +459,7 @@ function initTrendChart(config, options) {
             return;
         }
         var undated = trendMonthly.undated || { on_record: 0 };
-        var text = 'GRADUATED IS PLOTTED BY GRADUATION MONTH; APPLIED IS PLOTTED BY THE MONTH THE APPLICATION WAS ACTUALLY FILED (DATE APPLIED).';
+        var text = options.monthNote || 'GRADUATED IS PLOTTED BY GRADUATION MONTH; APPLIED IS PLOTTED BY THE MONTH THE APPLICATION WAS ACTUALLY FILED (DATE APPLIED).';
         if (undated.on_record > 0) {
             text += ' ' + undated.on_record.toLocaleString('en-US') + ' GRADUATE' + (undated.on_record === 1 ? '' : 'S') +
                 ' HAVE NO GRADUATION DATE ON RECORD AND ARE NOT SHOWN IN THE MONTHS.';
@@ -503,35 +526,40 @@ function initTrendChart(config, options) {
         var plotW = width - m.left - m.right;
         var plotH = height - m.top - m.bottom;
         var inset = 24;
-        var maxOn = niceAxisMax(Math.max.apply(null, series.map(function (p) { return Math.max(p.on_record, p.applied); })));
-        var maxAp = maxOn;
+        // All series share one axis — a subset series (applied/processing/
+        // approved are each subsets of on_record) must never be drawn above
+        // the population it's drawn from, which a separate per-series scale
+        // would allow.
+        var maxValue = niceAxisMax(Math.max.apply(null, series.map(function (p) {
+            return Math.max.apply(null, seriesList.map(function (s) { return p[s.key] || 0; }));
+        })));
         var baseY = m.top + plotH;
 
         function xAt(i) {
             return m.left + inset + (series.length === 1 ? (plotW - 2 * inset) / 2 : i * (plotW - 2 * inset) / (series.length - 1));
         }
-        function yAt(value, max) {
-            return baseY - (value / max) * plotH;
+        function yAt(value) {
+            return baseY - (value / maxValue) * plotH;
         }
 
-        var onPoints = series.map(function (p, i) { return { x: xAt(i), y: yAt(p.on_record, maxOn) }; });
-        var apPoints = series.map(function (p, i) { return { x: xAt(i), y: yAt(p.applied, maxAp) }; });
-        var onLine = smoothPath(onPoints, m.top, baseY);
-        var apLine = smoothPath(apPoints, m.top, baseY);
-        var lastX = onPoints[onPoints.length - 1].x;
-        var firstX = onPoints[0].x;
+        // One { x, y } point array + smoothed path per series, in seriesList order.
+        var seriesPoints = seriesList.map(function (s) {
+            return series.map(function (p, i) { return { x: xAt(i), y: yAt(p[s.key] || 0) }; });
+        });
+        var seriesLines = seriesPoints.map(function (points) { return smoothPath(points, m.top, baseY); });
+        var lastX = seriesPoints[0][seriesPoints[0].length - 1].x;
+        var firstX = seriesPoints[0][0].x;
 
         var svg = '<svg width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '" class="block overflow-visible">';
-        svg += '<defs>' +
-            '<linearGradient id="trend-grad-on" x1="0" y1="0" x2="0" y2="1" class="text-csc-navy-600 dark:text-csc-navy-300"><stop offset="0%" stop-color="currentColor" stop-opacity="0.28"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient>' +
-            '<linearGradient id="trend-grad-ap" x1="0" y1="0" x2="0" y2="1" class="text-emerald-500"><stop offset="0%" stop-color="currentColor" stop-opacity="0.22"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient>' +
-            '</defs>';
+        svg += '<defs>' + seriesList.map(function (s, i) {
+            return '<linearGradient id="trend-grad-' + i + '" x1="0" y1="0" x2="0" y2="1" class="' + s.textClass + '"><stop offset="0%" stop-color="currentColor" stop-opacity="' + s.gradOpacity + '"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient>';
+        }).join('') + '</defs>';
 
         for (var t = 0; t <= 4; t++) {
             var gy = m.top + (plotH * t / 4);
-            var onVal = Math.round(maxOn * (4 - t) / 4);
+            var axisVal = Math.round(maxValue * (4 - t) / 4);
             svg += '<line x1="' + m.left + '" y1="' + gy + '" x2="' + (width - m.right) + '" y2="' + gy + '" stroke="currentColor" stroke-width="1" class="text-gray-200 dark:text-white/10"/>';
-            svg += '<text x="' + (m.left - 8) + '" y="' + (gy + 4) + '" text-anchor="end" font-size="11" fill="currentColor" class="text-gray-500 dark:text-gray-400">' + onVal.toLocaleString('en-US') + '</text>';
+            svg += '<text x="' + (m.left - 8) + '" y="' + (gy + 4) + '" text-anchor="end" font-size="11" fill="currentColor" class="text-gray-500 dark:text-gray-400">' + axisVal.toLocaleString('en-US') + '</text>';
         }
 
         // Many points (months across several years) can't all carry a label:
@@ -547,22 +575,26 @@ function initTrendChart(config, options) {
                 (isSelected ? 'text-csc-navy-600 dark:text-white font-bold' : 'text-gray-500 dark:text-gray-400') + '">' + p.label + '</text>';
         });
 
-        svg += '<g class="text-csc-navy-600 dark:text-csc-navy-300"><path data-trend-area d="' + onLine + ' L' + lastX.toFixed(1) + ',' + baseY + ' L' + firstX.toFixed(1) + ',' + baseY + ' Z" fill="url(#trend-grad-on)" stroke="none"/>' +
-            '<path data-trend-line d="' + onLine + '" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></g>';
-        svg += '<g class="text-emerald-500"><path data-trend-area d="' + apLine + ' L' + lastX.toFixed(1) + ',' + baseY + ' L' + firstX.toFixed(1) + ',' + baseY + ' Z" fill="url(#trend-grad-ap)" stroke="none"/>' +
-            '<path data-trend-line d="' + apLine + '" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></g>';
+        seriesList.forEach(function (s, i) {
+            var line = seriesLines[i];
+            svg += '<g class="' + s.textClass + '"><path data-trend-area d="' + line + ' L' + lastX.toFixed(1) + ',' + baseY + ' L' + firstX.toFixed(1) + ',' + baseY + ' Z" fill="url(#trend-grad-' + i + ')" stroke="none"/>' +
+                '<path data-trend-line d="' + line + '" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></g>';
+        });
 
         var dense = spacing < 14;
         series.forEach(function (p, i) {
             var r = dense ? 1.75 : (isSelectedPoint(p, i, series) && trendMode === 'year' ? 4.5 : 3);
-            svg += '<circle cx="' + onPoints[i].x + '" cy="' + onPoints[i].y + '" r="' + r + '" fill="currentColor" stroke="white" stroke-width="1.5" class="text-csc-navy-600 dark:text-csc-navy-300"/>';
-            svg += '<circle cx="' + apPoints[i].x + '" cy="' + apPoints[i].y + '" r="' + r + '" fill="currentColor" stroke="white" stroke-width="1.5" class="text-emerald-500"/>';
+            seriesList.forEach(function (s, si) {
+                var pt = seriesPoints[si][i];
+                svg += '<circle cx="' + pt.x + '" cy="' + pt.y + '" r="' + r + '" fill="currentColor" stroke="white" stroke-width="1.5" class="' + s.textClass + '"/>';
+            });
         });
 
-        svg += '<line id="trend-hover-line" x1="0" y1="' + m.top + '" x2="0" y2="' + baseY + '" stroke="currentColor" stroke-width="1" stroke-dasharray="4 4" class="text-csc-navy-600 dark:text-csc-navy-300" style="display:none"/>' +
-            '<circle id="trend-hover-on" r="6" fill="white" stroke="currentColor" stroke-width="2.5" class="text-csc-navy-600 dark:text-csc-navy-300" style="display:none"/>' +
-            '<circle id="trend-hover-ap" r="6" fill="white" stroke="currentColor" stroke-width="2.5" class="text-emerald-500" style="display:none"/>' +
-            '<rect id="trend-hit" x="' + m.left + '" y="' + m.top + '" width="' + plotW + '" height="' + plotH + '" fill="transparent"/>';
+        svg += '<line id="trend-hover-line" x1="0" y1="' + m.top + '" x2="0" y2="' + baseY + '" stroke="currentColor" stroke-width="1" stroke-dasharray="4 4" class="text-csc-navy-600 dark:text-csc-navy-300" style="display:none"/>';
+        seriesList.forEach(function (s, i) {
+            svg += '<circle id="trend-hover-' + i + '" r="6" fill="white" stroke="currentColor" stroke-width="2.5" class="' + s.textClass + '" style="display:none"/>';
+        });
+        svg += '<rect id="trend-hit" x="' + m.left + '" y="' + m.top + '" width="' + plotW + '" height="' + plotH + '" fill="transparent"/>';
         svg += '</svg>';
         svg += '<div id="trend-tooltip" class="pointer-events-none absolute z-10 hidden rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs text-white shadow-lg whitespace-nowrap dark:bg-white dark:text-gray-900"></div>';
 
@@ -588,14 +620,12 @@ function initTrendChart(config, options) {
 
         var hit = document.getElementById('trend-hit');
         var hoverLine = document.getElementById('trend-hover-line');
-        var hoverOn = document.getElementById('trend-hover-on');
-        var hoverAp = document.getElementById('trend-hover-ap');
+        var hoverDots = seriesList.map(function (s, i) { return document.getElementById('trend-hover-' + i); });
         var tooltip = document.getElementById('trend-tooltip');
 
         function hideHover() {
             hoverLine.style.display = 'none';
-            hoverOn.style.display = 'none';
-            hoverAp.style.display = 'none';
+            hoverDots.forEach(function (dot) { dot.style.display = 'none'; });
             tooltip.classList.add('hidden');
         }
 
@@ -617,16 +647,19 @@ function initTrendChart(config, options) {
             hoverLine.setAttribute('x1', x);
             hoverLine.setAttribute('x2', x);
             hoverLine.style.display = '';
-            hoverOn.setAttribute('cx', x);
-            hoverOn.setAttribute('cy', onPoints[nearest].y);
-            hoverOn.style.display = '';
-            hoverAp.setAttribute('cx', x);
-            hoverAp.setAttribute('cy', apPoints[nearest].y);
-            hoverAp.style.display = '';
 
-            tooltip.innerHTML = '<div class="font-semibold mb-0.5">' + point.title + '</div>' +
-                '<div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-csc-navy-300"></span>GRADUATED: <b>' + point.on_record.toLocaleString('en-US') + '</b></div>' +
-                '<div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-400"></span>' + (trendMode === 'month' ? 'FILED FOR HGE: ' : 'APPLIED FOR HGE: ') + '<b>' + point.applied.toLocaleString('en-US') + '</b></div>';
+            var tooltipRows = '';
+            var minY = Infinity;
+            seriesList.forEach(function (s, si) {
+                var pt = seriesPoints[si][nearest];
+                hoverDots[si].setAttribute('cx', x);
+                hoverDots[si].setAttribute('cy', pt.y);
+                hoverDots[si].style.display = '';
+                minY = Math.min(minY, pt.y);
+                tooltipRows += '<div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full ' + s.dotClass + '"></span>' + s.label + ': <b>' + (point[s.key] || 0).toLocaleString('en-US') + '</b></div>';
+            });
+
+            tooltip.innerHTML = '<div class="font-semibold mb-0.5">' + point.title + '</div>' + tooltipRows;
             tooltip.classList.remove('hidden');
             var tipW = tooltip.offsetWidth;
             var left = x + 14;
@@ -634,7 +667,7 @@ function initTrendChart(config, options) {
                 left = x - tipW - 14;
             }
             tooltip.style.left = Math.max(4, left) + 'px';
-            tooltip.style.top = Math.max(0, Math.min(onPoints[nearest].y, apPoints[nearest].y) - 20) + 'px';
+            tooltip.style.top = Math.max(0, minY - 20) + 'px';
         }
 
         hit.addEventListener('pointermove', showHover);
@@ -717,14 +750,24 @@ function updateTierBars(tierEls, breakdown, totalOnRecord) {
 // tierBreakdown is passed in — reports.php keeps its own separate tier card
 // and update path (see tierDistributionEls / updateTierBars() in reports.js).
 function initFilingDonut() {
-    var DONUT_RADIUS = 50;
-    var DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS;
-
     var donutAppliedArc = document.getElementById('filing-donut-applied-arc');
+    // admin/reports.php renders only the inner ring (a plain single-ring
+    // donut); admin/dashboard.php adds the two outer-ring arcs for the
+    // PROCESSING/APPROVED sunburst split — both are optional here, and the
+    // radius (so the circumference math matches whichever page rendered it)
+    // is always read off the element itself rather than assumed, since the
+    // two pages use different radii.
+    var donutProcessingArc = document.getElementById('filing-donut-processing-arc');
+    var donutApprovedArc = document.getElementById('filing-donut-approved-arc');
+    var innerCircumference = donutAppliedArc ? 2 * Math.PI * parseFloat(donutAppliedArc.getAttribute('r')) : 0;
+    var outerCircumference = donutProcessingArc ? 2 * Math.PI * parseFloat(donutProcessingArc.getAttribute('r')) : 0;
+
     var filingRate = document.getElementById('filing-rate');
     var legendEls = {
         onRecord: { count: document.getElementById('filing-onrecord-count'), percent: document.getElementById('filing-onrecord-percent') },
         applied: { count: document.getElementById('filing-applied-count'), percent: document.getElementById('filing-applied-percent') },
+        processing: { count: document.getElementById('filing-processing-count'), percent: document.getElementById('filing-processing-percent') },
+        approved: { count: document.getElementById('filing-approved-count'), percent: document.getElementById('filing-approved-percent') },
         notYetApplied: { count: document.getElementById('filing-notyetapplied-count'), percent: document.getElementById('filing-notyetapplied-percent') },
     };
     var tierEls = {
@@ -745,15 +788,23 @@ function initFilingDonut() {
         },
     };
 
-    // One-time entrance reveal: PHP renders the arc at a fully-hidden
-    // stroke-dashoffset so the first paint is the "before" state, then this
-    // sets the real target a tick later so the motion-safe:transition-all
-    // class already on the element animates the draw-in.
+    // One-time entrance reveal: PHP renders every arc fully hidden (the inner
+    // ring via stroke-dashoffset = its own full circumference; the outer
+    // ring's two arcs via a zero-length stroke-dasharray) so the first paint
+    // is the "before" state, then this sets each one's real target a tick
+    // later so the motion-safe:transition-all class already on the element
+    // animates the draw-in.
     requestAnimationFrame(function () {
         requestAnimationFrame(function () {
             if (donutAppliedArc) {
                 donutAppliedArc.setAttribute('stroke-dashoffset', donutAppliedArc.getAttribute('data-target-offset'));
             }
+            [donutProcessingArc, donutApprovedArc].forEach(function (arc) {
+                if (arc) {
+                    arc.setAttribute('stroke-dasharray', arc.getAttribute('data-target-dasharray'));
+                    arc.setAttribute('stroke-dashoffset', arc.getAttribute('data-target-offset'));
+                }
+            });
         });
     });
 
@@ -791,19 +842,42 @@ function initFilingDonut() {
     return {
         update: function (report, tierBreakdown) {
             var totalOnRecord = report.total_on_record;
+            var totalApplied = report.total_applied;
+            // total_approved is absent on admin/reports.php's report shape
+            // (its own donut never renders the outer ring) — default to 0 so
+            // the legend/arc math below degrades to "nothing approved yet"
+            // instead of producing NaN there.
+            var totalApproved = report.total_approved || 0;
+            var totalProcessing = totalApplied - totalApproved;
 
             if (filingRate) {
                 animateRate(filingRate, report.filing_rate, 1000);
             }
 
             if (donutAppliedArc) {
-                var appliedFraction = totalOnRecord > 0 ? report.total_applied / totalOnRecord : 0;
-                var appliedLength = DONUT_CIRCUMFERENCE * appliedFraction;
-                donutAppliedArc.setAttribute('stroke-dasharray', DONUT_CIRCUMFERENCE.toFixed(2));
-                donutAppliedArc.setAttribute('stroke-dashoffset', (DONUT_CIRCUMFERENCE - appliedLength).toFixed(2));
+                var appliedFraction = totalOnRecord > 0 ? totalApplied / totalOnRecord : 0;
+                var appliedLength = innerCircumference * appliedFraction;
+                donutAppliedArc.setAttribute('stroke-dasharray', innerCircumference.toFixed(2));
+                donutAppliedArc.setAttribute('stroke-dashoffset', (innerCircumference - appliedLength).toFixed(2));
             }
-            var notYetApplied = totalOnRecord - report.total_applied;
+
+            var processingFraction = totalOnRecord > 0 ? totalProcessing / totalOnRecord : 0;
+            var approvedFraction = totalOnRecord > 0 ? totalApproved / totalOnRecord : 0;
+            if (donutProcessingArc) {
+                var processingLength = outerCircumference * processingFraction;
+                donutProcessingArc.setAttribute('stroke-dasharray', processingLength.toFixed(2) + ' ' + (outerCircumference - processingLength).toFixed(2));
+                donutProcessingArc.setAttribute('stroke-dashoffset', '0');
+            }
+            if (donutApprovedArc) {
+                var approvedLength = outerCircumference * approvedFraction;
+                donutApprovedArc.setAttribute('stroke-dasharray', approvedLength.toFixed(2) + ' ' + (outerCircumference - approvedLength).toFixed(2));
+                donutApprovedArc.setAttribute('stroke-dashoffset', (-(processingFraction * outerCircumference)).toFixed(2));
+            }
+
+            var notYetApplied = totalOnRecord - totalApplied;
             var notYetAppliedPercent = totalOnRecord > 0 ? Math.round((notYetApplied / totalOnRecord) * 1000) / 10 : 0;
+            var processingPercent = totalOnRecord > 0 ? Math.round((totalProcessing / totalOnRecord) * 1000) / 10 : 0;
+            var approvedPercent = totalOnRecord > 0 ? Math.round((totalApproved / totalOnRecord) * 1000) / 10 : 0;
 
             // Counts tween from whatever's currently on screen (not 0) — same
             // "this number just changed" treatment as the tier bars above —
@@ -812,7 +886,9 @@ function initFilingDonut() {
             // never gets clobbered by a wholesale innerHTML rewrite.
             [
                 { el: legendEls.onRecord, count: totalOnRecord, percent: '100%' },
-                { el: legendEls.applied, count: report.total_applied, percent: report.filing_rate + '%' },
+                { el: legendEls.applied, count: totalApplied, percent: report.filing_rate + '%' },
+                { el: legendEls.processing, count: totalProcessing, percent: processingPercent + '%' },
+                { el: legendEls.approved, count: totalApproved, percent: approvedPercent + '%' },
                 { el: legendEls.notYetApplied, count: notYetApplied, percent: notYetAppliedPercent + '%' },
             ].forEach(function (row) {
                 if (row.el.count) {

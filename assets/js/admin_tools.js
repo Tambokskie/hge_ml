@@ -294,8 +294,8 @@ document.addEventListener('DOMContentLoaded', function () {
             (data.duplicate_rows > 0 ? ' (' + formatCount(data.duplicate_rows) + ' REPEATED ROW(S) MERGED, EARLIEST DATE KEPT)' : '') +
             '. <strong>NOTHING HAS BEEN SAVED YET.</strong></p>' +
             '<div class="grid grid-cols-2 lg:grid-cols-5 gap-3">' +
-            bulkTile(counts.to_file, 'WILL BE FILED', 'MATCHED A LATIN HONOR RECORD', 'text-green-600 dark:text-green-400') +
-            bulkTile(counts.already_filed, 'ALREADY FILED', 'SKIPPED, LEFT UNCHANGED', 'text-gray-600 dark:text-gray-300') +
+            bulkTile(counts.to_file, 'WILL BE FILED/APPROVED', 'MATCHED A LATIN HONOR RECORD', 'text-green-600 dark:text-green-400') +
+            bulkTile(counts.already_approved, 'ALREADY APPROVED', 'SKIPPED, LEFT UNCHANGED', 'text-gray-600 dark:text-gray-300') +
             bulkTile(counts.review, 'NEEDS REVIEW', 'NOT FILED. KEPT FOR YOU TO ACT ON', 'text-yellow-600 dark:text-yellow-400') +
             bulkTile(counts.not_found, 'NOT FOUND', 'NO LATIN HONOR RECORD', 'text-gray-600 dark:text-gray-300') +
             bulkTile(counts.invalid, 'UNREADABLE ROWS', 'MISSING NAME OR BAD DATE', 'text-csc-red-600 dark:text-csc-red-400') +
@@ -392,7 +392,8 @@ document.addEventListener('DOMContentLoaded', function () {
                                     showToast('success', result.message);
                                     bulkReset();
                                     bulkResult.innerHTML = '<p class="text-sm text-gray-700 dark:text-gray-300"><strong>' + formatCount(result.filed) + '</strong> APPLICATION(S) FILED' +
-                                        (result.skipped > 0 ? ', ' + formatCount(result.skipped) + ' SKIPPED BECAUSE THEY WERE ALREADY FILED' : '') + '.' +
+                                        (result.approved > 0 ? ', <strong>' + formatCount(result.approved) + '</strong> ALREADY-FILED APPLICATION(S) APPROVED' : '') +
+                                        (result.skipped > 0 ? ', ' + formatCount(result.skipped) + ' SKIPPED BECAUSE THE RECORD NO LONGER EXISTS' : '') + '.' +
                                         (result.review_added + result.review_updated > 0 ? ' <strong>' + formatCount(result.review_added + result.review_updated) + '</strong> APPLICANT(S) WERE SAVED IN THE NEEDS REVIEW LIST BELOW.' : '') + '</p>';
                                     bulkResult.classList.remove('hidden');
                                     var savedForReview = result.review_added + result.review_updated > 0;

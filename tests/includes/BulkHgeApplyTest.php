@@ -27,7 +27,7 @@ class BulkHgeApplyTest extends TestCase
 
     private function applications(): array
     {
-        return TestDb::pdo()->query('SELECT graduate_id, applied_by, application_date FROM graduate_applications ORDER BY graduate_id')->fetchAll();
+        return TestDb::pdo()->query('SELECT graduate_id, applied_by, application_date, approved_at, approved_by FROM graduate_applications ORDER BY graduate_id')->fetchAll();
     }
 
     public function testFilesEveryPairWithItsDateAndTheAdmin(): void
@@ -37,14 +37,14 @@ class BulkHgeApplyTest extends TestCase
             ['graduate_id' => 3, 'date' => '2025-01-15'],
         ], 2);
 
-        $this->assertSame(['ok' => true, 'filed' => 2, 'skipped' => 0], $result);
+        $this->assertSame(['ok' => true, 'filed' => 2, 'approved' => 0, 'skipped' => 0], $result);
         $this->assertSame([
             ['graduate_id' => 1, 'applied_by' => 2, 'application_date' => '2024-04-02'],
             ['graduate_id' => 3, 'applied_by' => 2, 'application_date' => '2025-01-15'],
         ], array_map(static fn (array $r): array => array_map('intval', array_slice($r, 0, 2)) + ['application_date' => $r['application_date']], $this->applications()));
     }
 
-    public function testAnAlreadyFiledGraduateIsSkippedAndKeepsItsOriginalDate(): void
+    public function testAnAlreadyFiledGraduateIsApprovedAndKeepsItsOriginalFilingDate(): void
     {
         TestDb::pdo()->exec("INSERT INTO graduate_applications (graduate_id, applied_by, application_date) VALUES (2, 1, '2023-03-03')");
 
@@ -53,11 +53,13 @@ class BulkHgeApplyTest extends TestCase
             ['graduate_id' => 2, 'date' => '2024-04-02'],
         ], 2);
 
-        $this->assertSame(['ok' => true, 'filed' => 1, 'skipped' => 1], $result);
+        $this->assertSame(['ok' => true, 'filed' => 1, 'approved' => 1, 'skipped' => 0], $result);
         $rows = $this->applications();
         $this->assertCount(2, $rows);
         $this->assertSame('2023-03-03', $rows[1]['application_date']);
         $this->assertSame('1', (string) $rows[1]['applied_by']);
+        $this->assertSame('2024-04-02', $rows[1]['approved_at']);
+        $this->assertSame('2', (string) $rows[1]['approved_by']);
     }
 
     public function testAVanishedGraduateIsSkippedNotFatal(): void
@@ -67,10 +69,10 @@ class BulkHgeApplyTest extends TestCase
             ['graduate_id' => 1, 'date' => '2024-04-02'],
         ], 1);
 
-        $this->assertSame(['ok' => true, 'filed' => 1, 'skipped' => 1], $result);
+        $this->assertSame(['ok' => true, 'filed' => 1, 'approved' => 0, 'skipped' => 1], $result);
     }
 
-    public function testRunningTheSameBatchTwiceIsIdempotent(): void
+    public function testRunningTheSameBatchTwiceApprovesTheSecondTimeRatherThanSkipping(): void
     {
         $pairs = [['graduate_id' => 1, 'date' => '2024-04-02'], ['graduate_id' => 2, 'date' => '2024-04-03']];
 
@@ -78,7 +80,7 @@ class BulkHgeApplyTest extends TestCase
         $second = bulk_hge_apply(TestDb::pdo(), $pairs, 1);
 
         $this->assertSame(2, $first['filed']);
-        $this->assertSame(['ok' => true, 'filed' => 0, 'skipped' => 2], $second);
+        $this->assertSame(['ok' => true, 'filed' => 0, 'approved' => 2, 'skipped' => 0], $second);
         $this->assertCount(2, $this->applications());
     }
 
@@ -113,6 +115,6 @@ class BulkHgeApplyTest extends TestCase
 
     public function testEmptyBatchFilesNothing(): void
     {
-        $this->assertSame(['ok' => true, 'filed' => 0, 'skipped' => 0], bulk_hge_apply(TestDb::pdo(), [], 1));
+        $this->assertSame(['ok' => true, 'filed' => 0, 'approved' => 0, 'skipped' => 0], bulk_hge_apply(TestDb::pdo(), [], 1));
     }
 }

@@ -131,11 +131,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 'data-filename="' + escapeHtml(row.original_filename) + '" ' +
                 'data-uploaded-at="' + escapeHtml(displayUploadedAt) + '">' + actionIcon('eye') + '</button>';
 
-            var applyBtnHtml = parseInt(row.has_applied, 10) === 1
+            var hasApplied = parseInt(row.has_applied, 10) === 1;
+            var hasApproved = parseInt(row.has_approved, 10) === 1;
+
+            var applyBtnHtml = hasApplied
                 ? ''
                 : '<button type="button" class="apply-graduate-btn rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5 motion-safe:animate-drop-in" ' + actionBtnDelay() + ' title="Mark as applied" ' +
                   'data-id="' + escapeHtml(String(row.id)) + '" ' +
                   'data-name="' + escapeHtml(row.graduate_name) + '">' + actionIcon('check') + '</button>';
+
+            var approveBtnHtml = (config.isAdmin && hasApplied && !hasApproved)
+                ? '<button type="button" class="approve-graduate-btn rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 p-1.5 motion-safe:animate-drop-in" ' + actionBtnDelay() + ' title="Mark as approved" ' +
+                  'data-id="' + escapeHtml(String(row.id)) + '" ' +
+                  'data-name="' + escapeHtml(row.graduate_name) + '">' + actionIcon('check') + '</button>'
+                : '';
+
+            var statusCellHtml = hasApproved
+                ? '<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400">APPROVED</span>' +
+                  '<p class="mt-0.5 text-[11px] text-gray-500 dark:text-gray-500">' + escapeHtml(formatDisplayDate(row.approved_at)) + '</p>'
+                : hasApplied
+                    ? '<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-orange-500/15 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400">PROCESSING</span>' +
+                      '<p class="mt-0.5 text-[11px] text-gray-500 dark:text-gray-500">' + escapeHtml(displayApplicationDate) + '</p>'
+                    : '<span class="text-gray-400 dark:text-gray-600">—</span>';
 
             var editBtnHtml = config.isAdmin
                 ? '<button type="button" class="edit-graduate-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5 motion-safe:animate-drop-in" ' + actionBtnDelay() + ' title="Edit record" ' +
@@ -161,10 +178,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<td class="px-4 py-3">' + escapeHtml(formatSchoolDisplayName(row.school_name, row.campus).toUpperCase()) + '</td>' +
                 '<td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ' + honorPillClass(row.latin_honor) + '">' + escapeHtml(row.latin_honor) + '</span>' + sourceBadgeHtml + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(displayDate) + '</td>' +
-                '<td class="px-4 py-3">' + escapeHtml(displayApplicationDate) + '</td>' +
+                '<td class="px-4 py-3">' + statusCellHtml + '</td>' +
                 '<td class="px-4 py-3"><div class="flex items-center justify-end gap-1.5">' +
                 viewBtnHtml +
                 applyBtnHtml +
+                approveBtnHtml +
                 editBtnHtml +
                 deleteBtnHtml +
                 '</div></td>' +
@@ -205,7 +223,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '<div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto overflow-y-hidden"><table class="w-full text-sm text-left">' +
             '<thead><tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">' +
             '<th class="px-4 py-3">GRADUATE NAME</th><th class="px-4 py-3">DEGREE/COURSE</th><th class="px-4 py-3">SCHOOL</th><th class="px-4 py-3">LATIN HONOR</th>' +
-            '<th class="px-4 py-3">DATE OF GRADUATION</th><th class="px-4 py-3">APPLIED</th><th class="px-4 py-3 text-right">ACTION</th></tr></thead>' +
+            '<th class="px-4 py-3">DATE OF GRADUATION</th><th class="px-4 py-3">HGE STATUS</th><th class="px-4 py-3 text-right">ACTION</th></tr></thead>' +
             '<tbody id="lookup-results-tbody">' + rowsHtml + '</tbody></table></div>' + paginationHtml;
     }
 
@@ -417,6 +435,54 @@ document.addEventListener('DOMContentLoaded', function () {
                             })
                             .catch(function () {
                                 showToast('error', 'THE APPLICATION COULD NOT BE RECORDED. PLEASE TRY AGAIN.');
+                            });
+                    },
+                },
+            ],
+        });
+    }
+
+    function openApproveModal(defaults) {
+        var bodyHtml =
+            '<div class="space-y-4">' +
+            modalField({ id: 'modal-approval-name', label: 'NAME', type: 'static', value: String(defaults.name || '').toUpperCase() }) +
+            modalField({ id: 'modal-approval-date', label: 'DATE OF APPROVAL', required: true, type: 'date', icon: 'calendar', value: todayIsoDate() }) +
+            '</div>';
+
+        showModal({
+            icon: modalHeaderIcon('check'),
+            iconClassName: 'bg-green-500/10 text-green-600 dark:text-green-400',
+            title: 'APPROVE APPLICATION',
+            subtitle: 'Record that this applicant’s HGE application has been approved.',
+            bodyHtml: bodyHtml,
+            buttons: [
+                { label: 'CANCEL', className: MODAL_BTN.secondary },
+                {
+                    label: 'CONFIRM',
+                    icon: modalButtonIcon('check'),
+                    className: 'inline-flex items-center justify-center gap-1.5 rounded-xl bg-green-600 hover:bg-green-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors',
+                    onClick: function (modalClose) {
+                        var approvalDate = document.getElementById('modal-approval-date').value;
+                        if (!approvalDate) {
+                            showToast('error', 'PLEASE SELECT A DATE OF APPROVAL.');
+                            return;
+                        }
+                        postJson(config.apiBase + '/api/approve_application.php', {
+                            csrf_token: config.csrfToken,
+                            graduate_id: defaults.id,
+                            approval_date: approvalDate,
+                        })
+                            .then(function (data) {
+                                if (data.status === 'success') {
+                                    showToast('success', data.message);
+                                    modalClose();
+                                    performSearch(currentParams(currentPageFromUrl()), false);
+                                } else {
+                                    showToast('error', data.message);
+                                }
+                            })
+                            .catch(function () {
+                                showToast('error', 'THE APPROVAL COULD NOT BE RECORDED. PLEASE TRY AGAIN.');
                             });
                     },
                 },
@@ -637,6 +703,15 @@ document.addEventListener('DOMContentLoaded', function () {
             openApplyModal({
                 id: applyBtn.dataset.id,
                 name: applyBtn.dataset.name,
+            });
+            return;
+        }
+
+        var approveBtn = event.target.closest('.approve-graduate-btn');
+        if (approveBtn) {
+            openApproveModal({
+                id: approveBtn.dataset.id,
+                name: approveBtn.dataset.name,
             });
             return;
         }

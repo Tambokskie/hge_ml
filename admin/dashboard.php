@@ -4,7 +4,6 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/uploads.php';
-require_once __DIR__ . '/../includes/activity.php';
 require_once __DIR__ . '/../includes/reports.php';
 
 require_login();
@@ -33,20 +32,58 @@ $dashboardDefaultApplied = get_applied_count_by_year($pdo, $dashboardDefaultYear
 // year at a time.
 $trendMonthly = get_filing_trend_monthly($pdo, $dashboardDefaultYear, $dashboardDefaultYear);
 
-// APPLICATION FILING OVERVIEW card: same donut as admin/reports.php, but for
-// the single selected year rather than a from/to range ($toYear defaults to
-// $fromYear) — tied to the same slicer as the two cards above.
+// APPLICATION FILING OVERVIEW card: a two-ring sunburst, tied to the same
+// slicer as the two cards above. The inner ring is the same ON RECORD vs.
+// APPLIED/NOT YET APPLIED split admin/reports.php's single-ring donut shows;
+// the outer ring only spans the inner ring's APPLIED arc (never the NOT YET
+// APPLIED remainder) and subdivides it into PROCESSING (filed, not yet
+// approved) vs. APPROVED — approved is applied's own subset, see
+// includes/reports.php:get_application_filing_report().
 $filingReport = get_application_filing_report($pdo, $dashboardDefaultYear);
-$donutRadius = 50;
-$donutCircumference = 2 * M_PI * $donutRadius;
-$appliedFraction = $filingReport['total_on_record'] > 0
-    ? $filingReport['total_applied'] / $filingReport['total_on_record']
-    : 0;
-$donutAppliedLength = $donutCircumference * $appliedFraction;
-$notYetAppliedCount = $filingReport['total_on_record'] - $filingReport['total_applied'];
-$notYetAppliedPercent = $filingReport['total_on_record'] > 0
-    ? round($notYetAppliedCount / $filingReport['total_on_record'] * 100, 1)
+$donutInnerRadius = 34;
+$donutInnerCircumference = 2 * M_PI * $donutInnerRadius;
+$donutOuterRadius = 52;
+$donutOuterCircumference = 2 * M_PI * $donutOuterRadius;
+
+$totalOnRecord = $filingReport['total_on_record'];
+$totalApplied = $filingReport['total_applied'];
+$totalApproved = $filingReport['total_approved'];
+$totalProcessing = $totalApplied - $totalApproved;
+
+$appliedFraction = $totalOnRecord > 0 ? $totalApplied / $totalOnRecord : 0;
+$donutAppliedLength = $donutInnerCircumference * $appliedFraction;
+
+$processingFraction = $totalOnRecord > 0 ? $totalProcessing / $totalOnRecord : 0;
+$approvedFraction = $totalOnRecord > 0 ? $totalApproved / $totalOnRecord : 0;
+// Each outer-ring arc is drawn with a real (start, span) stroke-dasharray/
+// offset pair rather than the inner ring's single-dash trick above (which
+// only works for an arc starting at the top) — processing starts at 0,
+// approved picks up exactly where processing ends, via a negative offset.
+$processingArcLength = round($donutOuterCircumference * $processingFraction, 2);
+$processingArcGap = round($donutOuterCircumference - $processingArcLength, 2);
+$approvedArcLength = round($donutOuterCircumference * $approvedFraction, 2);
+$approvedArcGap = round($donutOuterCircumference - $approvedArcLength, 2);
+$approvedArcOffset = round(-($processingFraction * $donutOuterCircumference), 2);
+
+$notYetAppliedCount = $totalOnRecord - $totalApplied;
+$notYetAppliedPercent = $totalOnRecord > 0
+    ? round($notYetAppliedCount / $totalOnRecord * 100, 1)
     : 0.0;
+$processingPercent = $totalOnRecord > 0 ? round($totalProcessing / $totalOnRecord * 100, 1) : 0.0;
+$approvedPercent = $totalOnRecord > 0 ? round($totalApproved / $totalOnRecord * 100, 1) : 0.0;
+
+// SCHOOL FILING SUMMARY table: same per-school rows as admin/reports.php's
+// table (ported here, single-year scoped), sorted by filing rate so the
+// default view already matches what reports.php's sort dropdown calls
+// "FILING RATE" — there's no sort control here, so this ordering has to be
+// right every time, not just as a selectable default.
+$dashboardSchools = array_map(static function (array $school): array {
+    $school['school_display'] = format_school_display_name($school['school_name'], $school['campus']);
+    return $school;
+}, $filingReport['schools']);
+usort($dashboardSchools, static function (array $a, array $b): int {
+    return $b['filing_rate'] <=> $a['filing_rate'] ?: strcasecmp($a['school_display'], $b['school_display']);
+});
 
 $recentUploads = get_recent_uploads($pdo, 10);
 
@@ -58,7 +95,6 @@ $currentUser = current_user();
 $currentPage = 'dashboard';
 $csrfToken = csrf_token();
 $isAdmin = user_has_role($currentUser, 'administrator');
-$recentActivity = $isAdmin ? get_recent_activity($pdo, 6) : [];
 
 include __DIR__ . '/../includes/header.php';
 include __DIR__ . '/../includes/sidebar.php';
@@ -102,8 +138,10 @@ include __DIR__ . '/../includes/sidebar.php';
             <?php endif; ?>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="dashboard-stat-card items-start text-left overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
+                <span class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-csc-navy-600 dark:bg-csc-navy-400"></span>
+                <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10"></span>
                 <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
@@ -118,9 +156,11 @@ include __DIR__ . '/../includes/sidebar.php';
                 <?php endif; ?>
             </div>
             <?php $schoolsMissing = max(0, $stats['total_active_schools'] - $stats['total_schools']); ?>
-            <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
+            <div class="dashboard-stat-card items-start text-left overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
+                <span class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-csc-navy-600 dark:bg-csc-navy-400"></span>
+                <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10"></span>
                 <div class="flex items-center gap-3 self-start">
-                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-500/10 text-green-600 dark:text-green-400">
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </span>
                     <p class="text-xs text-gray-600 dark:text-gray-500">HGE APPLICATIONS RECEIVED</p>
@@ -130,7 +170,23 @@ include __DIR__ . '/../includes/sidebar.php';
                     <p id="dashboard-applied-year-label" class="dashboard-stat-reveal mt-0.5 text-xs text-gray-500 dark:text-gray-500">HGE APPLICATION AS OF <?= (int) $dashboardDefaultYear ?></p>
                 </div>
             </div>
-            <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 400ms">
+            <div class="dashboard-stat-card items-start text-left overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 300ms">
+                <span class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-emerald-500"></span>
+                <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-emerald-500/10"></span>
+                <div class="flex items-center gap-3 self-start">
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </span>
+                    <p class="text-xs text-gray-600 dark:text-gray-500">APPROVED HGE</p>
+                </div>
+                <div>
+                    <p class="dashboard-stat-number" id="dashboard-approved-number" data-count-to="<?= (int) $filingReport['total_approved'] ?>">0</p>
+                    <p id="dashboard-approved-year-label" class="dashboard-stat-reveal mt-0.5 text-xs text-gray-500 dark:text-gray-500">HGE APPROVED AS OF <?= (int) $dashboardDefaultYear ?></p>
+                </div>
+            </div>
+            <div class="dashboard-stat-card items-start text-left overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 400ms">
+                <span class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-csc-navy-600 dark:bg-csc-navy-400"></span>
+                <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10"></span>
                 <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
@@ -138,7 +194,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     <p class="text-xs text-gray-600 dark:text-gray-500">SCHOOLS WITH RECORDS</p>
                 </div>
                 <div>
-                    <p class="flex items-baseline justify-center gap-1">
+                    <p class="flex items-baseline justify-start gap-1">
                         <span class="dashboard-stat-number" data-count-to="<?= (int) $stats['total_schools'] ?>">0</span>
                         <span class="text-lg font-semibold text-gray-400 dark:text-gray-500">/</span>
                         <span class="dashboard-stat-reveal text-lg font-semibold text-gray-400 dark:text-gray-500" data-count-to="<?= (int) $stats['total_active_schools'] ?>">0</span>
@@ -148,7 +204,9 @@ include __DIR__ . '/../includes/sidebar.php';
                     </p>
                 </div>
             </div>
-            <div class="dashboard-stat-card motion-safe:animate-fade-in-up" style="animation-delay: 600ms">
+            <div class="dashboard-stat-card items-start text-left overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 600ms">
+                <span class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-csc-navy-600 dark:bg-csc-navy-400"></span>
+                <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10"></span>
                 <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347M4.26 10.147a50.548 50.548 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.841c-.896.248-1.783.52-2.658.814M4.26 10.147a50.696 50.696 0 017.74-3.342M12 13.489a50.702 50.702 0 017.74-3.342" /></svg>
@@ -158,13 +216,6 @@ include __DIR__ . '/../includes/sidebar.php';
                 <p class="dashboard-stat-number" data-count-to="<?= (int) $stats['total_graduates'] ?>">0</p>
             </div>
         </div>
-
-        <?php if ($isAdmin): ?>
-        <div class="flex flex-wrap justify-end gap-3 mt-4">
-            <a href="<?= e(APP_BASE_URL) ?>/admin/schools.php" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors motion-safe:animate-fade-in" style="animation-delay: 400ms">SCHOOL MANAGEMENT</a>
-            <a href="<?= e(APP_BASE_URL) ?>/admin/upload.php" class="inline-flex items-center gap-2 rounded-lg bg-csc-navy-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-110 transition-all motion-safe:animate-fade-in" style="animation-delay: 600ms">UPLOAD PDF LIST</a>
-        </div>
-        <?php endif; ?>
 
         <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
@@ -182,6 +233,14 @@ include __DIR__ . '/../includes/sidebar.php';
                             <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400 w-[150px] shrink-0"><span class="h-2.5 w-2.5 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300 shrink-0"></span>APPLIED</span>
                             <span class="text-gray-700 dark:text-gray-300"><span id="filing-applied-count"><?= number_format($filingReport['total_applied']) ?></span> (<span id="filing-applied-percent"><?= e((string) $filingReport['filing_rate']) ?>%</span>)</span>
                         </div>
+                        <div class="flex items-center gap-3 pl-5">
+                            <span class="flex items-center gap-2 text-gray-500 dark:text-gray-500 w-[145px] shrink-0"><span class="h-2 w-2 rounded-full bg-orange-500 shrink-0"></span>PROCESSING</span>
+                            <span class="text-gray-700 dark:text-gray-300"><span id="filing-processing-count"><?= number_format($totalProcessing) ?></span> (<span id="filing-processing-percent"><?= e((string) $processingPercent) ?>%</span>)</span>
+                        </div>
+                        <div class="flex items-center gap-3 pl-5">
+                            <span class="flex items-center gap-2 text-gray-500 dark:text-gray-500 w-[145px] shrink-0"><span class="h-2 w-2 rounded-full bg-emerald-500 shrink-0"></span>APPROVED</span>
+                            <span class="text-gray-700 dark:text-gray-300"><span id="filing-approved-count"><?= number_format($totalApproved) ?></span> (<span id="filing-approved-percent"><?= e((string) $approvedPercent) ?>%</span>)</span>
+                        </div>
                         <div class="flex items-center gap-3">
                             <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400 w-[150px] shrink-0"><span class="h-2.5 w-2.5 rounded-full bg-sky-200 dark:bg-sky-500/30 shrink-0"></span>NOT YET APPLIED</span>
                             <span class="text-gray-700 dark:text-gray-300"><span id="filing-notyetapplied-count"><?= number_format($notYetAppliedCount) ?></span> (<span id="filing-notyetapplied-percent"><?= e((string) $notYetAppliedPercent) ?>%</span>)</span>
@@ -190,8 +249,10 @@ include __DIR__ . '/../includes/sidebar.php';
                     <div class="flex-1 flex justify-center">
                         <div class="relative h-40 w-40 shrink-0">
                             <svg viewBox="0 0 120 120" class="h-40 w-40 -rotate-90">
-                                <circle cx="60" cy="60" r="<?= $donutRadius ?>" fill="none" stroke="currentColor" stroke-width="16" class="text-sky-100 dark:text-sky-500/15" />
-                                <circle id="filing-donut-applied-arc" cx="60" cy="60" r="<?= $donutRadius ?>" fill="none" stroke="currentColor" stroke-width="16" class="text-csc-navy-600 dark:text-csc-navy-300 motion-safe:transition-all motion-safe:duration-1000 motion-safe:ease-out" stroke-dasharray="<?= round($donutCircumference, 2) ?>" stroke-dashoffset="<?= round($donutCircumference, 2) ?>" data-target-offset="<?= round($donutCircumference - $donutAppliedLength, 2) ?>" />
+                                <circle cx="60" cy="60" r="<?= $donutInnerRadius ?>" fill="none" stroke="currentColor" stroke-width="14" class="text-sky-100 dark:text-sky-500/15" />
+                                <circle id="filing-donut-applied-arc" cx="60" cy="60" r="<?= $donutInnerRadius ?>" fill="none" stroke="currentColor" stroke-width="14" class="text-csc-navy-600 dark:text-csc-navy-300 motion-safe:transition-all motion-safe:duration-1000 motion-safe:ease-out" stroke-dasharray="<?= round($donutInnerCircumference, 2) ?>" stroke-dashoffset="<?= round($donutInnerCircumference, 2) ?>" data-target-offset="<?= round($donutInnerCircumference - $donutAppliedLength, 2) ?>" />
+                                <circle id="filing-donut-processing-arc" cx="60" cy="60" r="<?= $donutOuterRadius ?>" fill="none" stroke="currentColor" stroke-width="12" class="text-orange-500 motion-safe:transition-all motion-safe:duration-1000 motion-safe:ease-out" stroke-dasharray="0 <?= round($donutOuterCircumference, 2) ?>" stroke-dashoffset="0" data-target-dasharray="<?= $processingArcLength ?> <?= $processingArcGap ?>" data-target-offset="0" />
+                                <circle id="filing-donut-approved-arc" cx="60" cy="60" r="<?= $donutOuterRadius ?>" fill="none" stroke="currentColor" stroke-width="12" class="text-emerald-500 motion-safe:transition-all motion-safe:duration-1000 motion-safe:ease-out" stroke-dasharray="0 <?= round($donutOuterCircumference, 2) ?>" stroke-dashoffset="0" data-target-dasharray="<?= $approvedArcLength ?> <?= $approvedArcGap ?>" data-target-offset="<?= $approvedArcOffset ?>" />
                             </svg>
                             <div class="absolute inset-0 flex flex-col items-center justify-center">
                                 <span id="filing-rate" class="text-2xl font-bold text-csc-navy-600 dark:text-white"><?= e((string) $filingReport['filing_rate']) ?>%</span>
@@ -239,6 +300,68 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
                 <div id="filing-trend-chart" class="relative w-full select-none mt-8" style="height: 220px"></div>
                 <p id="filing-trend-note" class="hidden mt-2 text-[11px] text-gray-500 dark:text-gray-400"></p>
+            </div>
+        </div>
+
+        <?php if ($isAdmin): ?>
+        <div class="flex flex-wrap justify-end gap-3 mt-4">
+            <a href="<?= e(APP_BASE_URL) ?>/admin/schools.php" class="inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors motion-safe:animate-fade-in" style="animation-delay: 400ms">SCHOOL MANAGEMENT</a>
+            <a href="<?= e(APP_BASE_URL) ?>/admin/upload.php" class="inline-flex items-center gap-2 rounded-lg bg-csc-navy-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-110 transition-all motion-safe:animate-fade-in" style="animation-delay: 600ms">UPLOAD PDF LIST</a>
+        </div>
+        <?php endif; ?>
+
+        <div class="mt-8">
+            <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 500ms">
+                <div class="flex flex-wrap items-center justify-between gap-3 p-5 pb-4">
+                    <h2 class="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
+                        SCHOOL FILING SUMMARY
+                        <span id="dashboard-school-count" class="text-xs font-normal text-gray-500 dark:text-gray-400"><?= count($dashboardSchools) ?> SCHOOL<?= count($dashboardSchools) === 1 ? '' : 'S' ?></span>
+                    </h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-white/10">
+                            <tr>
+                                <th class="px-4 py-3">#</th>
+                                <th class="px-4 py-3">SCHOOL</th>
+                                <th class="px-4 py-3">ON RECORD</th>
+                                <th class="px-4 py-3">APPLIED</th>
+                                <th class="px-4 py-3">APPROVED</th>
+                                <th class="px-4 py-3">FILING RATE</th>
+                                <th class="px-4 py-3">APPROVAL RATE</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-school-tbody">
+                            <?php if (empty($dashboardSchools)): ?>
+                                <tr><td colspan="7" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">NO HONOR GRADUATE RECORDS FOUND FOR THIS YEAR.</td></tr>
+                            <?php else: ?>
+                                <?php foreach ($dashboardSchools as $index => $school): ?>
+                                    <tr class="dashboard-school-row border-b border-gray-100 dark:border-white/5<?= $index >= 10 ? ' dashboard-school-extra-row hidden' : '' ?>">
+                                        <td class="px-4 py-3 text-gray-400 dark:text-gray-500"><?= (int) ($index + 1) ?></td>
+                                        <td class="px-4 py-3"><?= e_upper($school['school_display']) ?></td>
+                                        <td class="px-4 py-3"><?= (int) $school['on_record'] ?></td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold <?= $school['applied'] > 0 ? 'bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/20 dark:text-csc-navy-300' : 'bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400' ?>"><?= (int) $school['applied'] ?></span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold <?= $school['approved'] > 0 ? 'bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400' ?>"><?= (int) $school['approved'] ?></span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold <?= $school['filing_rate'] > 0 ? 'bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400' ?>"><?= e((string) $school['filing_rate']) ?>%</span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold <?= $school['approval_rate'] > 0 ? 'bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400' ?>"><?= e((string) $school['approval_rate']) ?>%</span>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="dashboard-school-toggle-row" class="p-4 border-t border-gray-100 dark:border-white/5 text-center<?= count($dashboardSchools) > 10 ? '' : ' hidden' ?>">
+                    <button type="button" id="dashboard-school-toggle" data-expanded="false" class="text-sm font-semibold text-csc-navy-600 dark:text-csc-navy-300 hover:underline">SHOW MORE</button>
+                </div>
             </div>
         </div>
 
@@ -297,34 +420,6 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <?php if ($isAdmin): ?>
-        <div class="mt-8">
-            <div class="bg-white dark:bg-surface-900 border border-gray-100 dark:border-white/5 rounded-2xl p-5 hge-shadow">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-sm font-semibold text-gray-900 dark:text-white">RECENT ACTIVITY</h2>
-                    <a href="<?= e(APP_BASE_URL) ?>/admin/activity_log.php" class="text-xs font-semibold text-csc-navy-600 dark:text-csc-navy-300 hover:underline">VIEW ALL &rarr;</a>
-                </div>
-                <?php if (empty($recentActivity)): ?>
-                    <p class="text-sm text-gray-600 dark:text-gray-500 text-center py-6">NO RECENT ACTIVITY.</p>
-                <?php else: ?>
-                    <ul class="divide-y divide-gray-100 dark:divide-white/5">
-                        <?php foreach ($recentActivity as $activityIndex => $entry): ?>
-                            <li class="flex items-center gap-3 py-3 motion-safe:animate-fade-in-up" style="animation-delay: <?= $activityIndex * 50 ?>ms">
-                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-csc-navy-600/10 dark:bg-csc-navy-600/15 text-csc-navy-600 dark:text-csc-navy-300">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="<?= e(activity_icon_path($entry['action'])) ?>" /></svg>
-                                </span>
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-sm text-gray-900 dark:text-white truncate"><?= e_upper(str_replace('_', ' ', $entry['action'])) ?></p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-500 truncate"><?= $entry['user_name'] !== null ? e_upper($entry['user_name']) : 'SYSTEM' ?><?= ($entry['details'] ?? '') !== '' ? ' — ' . e($entry['details']) : '' ?></p>
-                                </div>
-                                <span class="shrink-0 text-xs text-gray-400 dark:text-gray-600 whitespace-nowrap"><?= e_upper(date('M j, g:i A', strtotime($entry['created_at']))) ?></span>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php endif; ?>
     </div>
 </main>
 <?php include __DIR__ . '/../includes/footer.php'; ?>

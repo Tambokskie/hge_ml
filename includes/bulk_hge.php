@@ -279,7 +279,8 @@ function parse_bulk_hge_rows(array $sheetRows, bool $date1904 = false): array
 function bulk_hge_load_graduate_index(PDO $pdo): array
 {
     $stmt = $pdo->query(
-        'SELECT g.id, g.graduate_name, g.school_id, g.course, g.latin_honor, g.graduation_year, (a.id IS NOT NULL) AS applied,
+        'SELECT g.id, g.graduate_name, g.school_id, g.course, g.latin_honor, g.graduation_year,
+                (a.id IS NOT NULL) AS applied, (a.approved_at IS NOT NULL) AS approved,
                 s.school_name, s.campus
          FROM latin_honor_graduates g
          LEFT JOIN graduate_applications a ON a.graduate_id = g.id
@@ -298,6 +299,7 @@ function bulk_hge_load_graduate_index(PDO $pdo): array
             'tokens' => $parsed['tokens'],
             'ext' => $parsed['ext'],
             'applied' => (int) $row['applied'] === 1,
+            'approved' => (int) $row['approved'] === 1,
             'group_key' => duplicate_exact_copy_key($row),
         ];
         foreach (array_unique($parsed['tokens']) as $token) {
@@ -445,10 +447,14 @@ function bulk_hge_match_person(array $person, array $db): array
 }
 
 /**
- * Matches every person and sorts them into what will be filed, what is
- * skipped because it is already filed, what needs a human look, and what
- * simply isn't a Latin Honor graduate in this system (the source list is the
- * whole HGE applicant table, so most rows legitimately aren't).
+ * Matches every person and sorts them into what will be filed or approved,
+ * what is skipped because it is already approved, what needs a human look,
+ * and what simply isn't a Latin Honor graduate in this system (the source
+ * list is the whole HGE applicant table, so most rows legitimately aren't).
+ * A confident match that is already filed but not yet approved still goes
+ * into $toFile — see bulk_hge_insert_pairs()'s upsert, which approves an
+ * existing application rather than skipping it; only an already-APPROVED
+ * match is excluded (there's nothing left for this file's date to change).
  *
  * @param array<int, array> $people  from parse_bulk_hge_rows()
  * @return array{to_file: array, review: array, counts: array}
@@ -482,7 +488,7 @@ function bulk_hge_build_preview(PDO $pdo, array $people, array $parseErrors = []
     $counts = [
         'people' => count($people),
         'to_file' => 0,
-        'already_filed' => 0,
+        'already_approved' => 0,
         'review' => 0,
         'not_found' => 0,
         'invalid' => count($parseErrors),
@@ -498,8 +504,8 @@ function bulk_hge_build_preview(PDO $pdo, array $people, array $parseErrors = []
         $match = $matches[$i];
         switch ($match['status']) {
             case 'confident':
-                if ($db['rows'][$match['graduate_id']]['applied']) {
-                    $counts['already_filed']++;
+                if ($db['rows'][$match['graduate_id']]['approved']) {
+                    $counts['already_approved']++;
                 } else {
                     $toFile[] = ['graduate_id' => $match['graduate_id'], 'date' => $person['date']];
                     $counts['to_file']++;
@@ -533,29 +539,51 @@ function bulk_hge_build_preview(PDO $pdo, array $people, array $parseErrors = []
 // ---------------------------------------------------------------------------
 
 /**
- * Inserts the applications; the caller owns the transaction. A duplicate (the
- * graduate was filed in the meantime) or vanished graduate counts as skipped.
+ * Inserts (or approves) the applications; the caller owns the transaction.
+ * $pair['date'] is the source file's CoE Issue Date, which is treated as the
+ * approval date, not the filing date (per project decision): a graduate with
+ * no existing application yet is filed AND approved on that same date (there
+ * is no earlier filing event to preserve); a graduate who already has one is
+ * left with its original application_date untouched and only gets
+ * approved_at/approved_by set to this date — this is an upsert, never a
+ * skip, which is why graduate_applications.uq_graduate_id's ON DUPLICATE KEY
+ * branch below only ever touches the approval columns. A vanished graduate
+ * (deleted since the preview was built) still counts as skipped — that's a
+ * real FK failure, not a duplicate.
  *
  * @param array<int, array{graduate_id: int, date: string}> $pairs
- * @return array{filed: int, skipped: int}
+ * @return array{filed: int, approved: int, skipped: int}
  */
 function bulk_hge_insert_pairs(PDO $pdo, array $pairs, int $appliedBy): array
 {
-    $insert = $pdo->prepare(
-        'INSERT INTO graduate_applications (graduate_id, applied_by, application_date)
-         VALUES (:graduate_id, :applied_by, :application_date)'
+    $upsert = $pdo->prepare(
+        'INSERT INTO graduate_applications (graduate_id, applied_by, application_date, approved_at, approved_by)
+         VALUES (:graduate_id, :applied_by, :application_date, :approved_at, :approved_by)
+         ON DUPLICATE KEY UPDATE approved_at = VALUES(approved_at), approved_by = VALUES(approved_by)'
     );
 
     $filed = 0;
+    $approved = 0;
     $skipped = 0;
     foreach ($pairs as $pair) {
         try {
-            $insert->execute([
+            $upsert->execute([
                 'graduate_id' => (int) $pair['graduate_id'],
                 'applied_by' => $appliedBy,
                 'application_date' => $pair['date'],
+                'approved_at' => $pair['date'],
+                'approved_by' => $appliedBy,
             ]);
-            $filed++;
+            // MySQL's ON DUPLICATE KEY UPDATE reports 1 affected row for a
+            // fresh INSERT and 2 for a row that an UPDATE branch actually
+            // changed (0 if the duplicate's approved_at/approved_by were
+            // already identical — still an "approved" outcome, just a no-op
+            // one, so it's counted the same as a changed update).
+            if ($upsert->rowCount() === 1) {
+                $filed++;
+            } else {
+                $approved++;
+            }
         } catch (\PDOException $e) {
             if ((string) $e->getCode() !== '23000') {
                 throw $e;
@@ -564,22 +592,21 @@ function bulk_hge_insert_pairs(PDO $pdo, array $pairs, int $appliedBy): array
         }
     }
 
-    return ['filed' => $filed, 'skipped' => $skipped];
+    return ['filed' => $filed, 'approved' => $approved, 'skipped' => $skipped];
 }
 
 /**
- * Files the previewed applications in a single transaction. A graduate that
- * got an application in the meantime (or vanished) is skipped, never
- * overwritten.
+ * Files/approves the previewed applications in a single transaction. A
+ * vanished graduate (deleted since the preview was built) is skipped.
  *
  * @param array<int, array{graduate_id: int, date: string}> $pairs
- * @return array{ok: bool, filed?: int, skipped?: int, error?: string}
+ * @return array{ok: bool, filed?: int, approved?: int, skipped?: int, error?: string}
  */
 function bulk_hge_apply(PDO $pdo, array $pairs, int $appliedBy): array
 {
     try {
         $pdo->beginTransaction();
-        ['filed' => $filed, 'skipped' => $skipped] = bulk_hge_insert_pairs($pdo, $pairs, $appliedBy);
+        $counts = bulk_hge_insert_pairs($pdo, $pairs, $appliedBy);
         $pdo->commit();
     } catch (\Throwable $e) {
         try {
@@ -592,7 +619,7 @@ function bulk_hge_apply(PDO $pdo, array $pairs, int $appliedBy): array
         return ['ok' => false, 'error' => 'THE APPLICATIONS COULD NOT BE FILED. NOTHING WAS CHANGED. PLEASE TRY AGAIN.'];
     }
 
-    return ['ok' => true, 'filed' => $filed, 'skipped' => $skipped];
+    return ['ok' => true, 'filed' => $counts['filed'], 'approved' => $counts['approved'], 'skipped' => $counts['skipped']];
 }
 
 // ---------------------------------------------------------------------------
