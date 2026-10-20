@@ -38,7 +38,6 @@ const shots = [
     ['dashboard', 2, '/admin/dashboard.php', 860, null, 2800],
     ['lookup', 2, '/admin/lookup.php', 820, null, 1200],
     ['lookup-apply', 2, '/admin/lookup.php', 820, `(function(){var b=document.querySelector('.apply-graduate-btn'); if(b){b.click();return 'clicked';} return 'no button';})()`, 1200],
-    ['reports', 2, '/admin/reports.php', 1180, null, 3200],
     ['lookup-admin', 1, '/admin/lookup.php', 820, null, 1200],
     ['upload-pdf', 1, '/admin/upload.php', 900, null, 1500],
     ['upload-template', 1, '/admin/upload.php', 900, `(function(){var t=[].slice.call(document.querySelectorAll('button,a,[role=tab]')).filter(function(x){return /EXCEL TEMPLATE/i.test(x.textContent)})[0]; if(t){t.click();return 'tab';} return 'no tab';})()`, 1000],

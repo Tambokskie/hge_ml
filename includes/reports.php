@@ -20,7 +20,7 @@ function get_application_filing_report(PDO $pdo, int $fromYear, ?int $toYear = n
     $toYear = $toYear ?? $fromYear;
 
     $stmt = $pdo->prepare(
-        'SELECT s.school_name, s.campus,
+        'SELECT s.id AS school_id, s.school_name, s.campus,
                 COUNT(g.id) AS on_record,
                 COUNT(ga.id) AS applied,
                 COUNT(ga.approved_at) AS approved
@@ -46,6 +46,7 @@ function get_application_filing_report(PDO $pdo, int $fromYear, ?int $toYear = n
         $totalApproved += $approved;
 
         $schools[] = [
+            'school_id' => (int) $row['school_id'],
             'school_name' => $row['school_name'],
             'campus' => $row['campus'],
             'on_record' => $onRecord,
@@ -95,54 +96,14 @@ function get_honor_tier_breakdown_for_year(PDO $pdo, int $fromYear, ?int $toYear
 }
 
 /**
- * Latin Honor graduates on record vs. filed Honor Graduate Eligibility
- * applications for every graduation year from $fromYear to $toYear inclusive
- * (oldest first). A year with no graduates is still returned, as zeros, so
- * the chart always has one point per year.
- *
- * @return array<int, array{year: int, on_record: int, applied: int}>
- */
-function get_filing_trend(PDO $pdo, int $fromYear, int $toYear): array
-{
-    $startYear = $fromYear;
-    $endYear = $toYear;
-
-    $stmt = $pdo->prepare(
-        'SELECT g.graduation_year AS year, COUNT(g.id) AS on_record, COUNT(ga.id) AS applied
-         FROM latin_honor_graduates g
-         LEFT JOIN graduate_applications ga ON ga.graduate_id = g.id
-         WHERE g.graduation_year BETWEEN :start_year AND :end_year
-         GROUP BY g.graduation_year'
-    );
-    $stmt->execute(['start_year' => $startYear, 'end_year' => $endYear]);
-
-    $byYear = [];
-    foreach ($stmt->fetchAll() as $row) {
-        $byYear[(int) $row['year']] = ['on_record' => (int) $row['on_record'], 'applied' => (int) $row['applied']];
-    }
-
-    $trend = [];
-    for ($year = $startYear; $year <= $endYear; $year++) {
-        $trend[] = [
-            'year' => $year,
-            'on_record' => $byYear[$year]['on_record'] ?? 0,
-            'applied' => $byYear[$year]['applied'] ?? 0,
-        ];
-    }
-
-    return $trend;
-}
-
-/**
- * Month-by-month sibling of get_filing_trend(): one point per calendar month
- * from January of $fromYear to December of $toYear (oldest first, empty months
- * zero-filled). Each series is placed by its own date field, on purpose:
+ * One point per calendar month from January of $fromYear to December of
+ * $toYear (oldest first, empty months zero-filled). Each series is placed by
+ * its own date field, on purpose:
  *
  *  - on_record: a graduate is placed in the month of its graduation_date,
- *    within its graduation_year (the same year bucket get_filing_trend() uses,
- *    so the months of a year add up to that year's on-record figure). Graduates
- *    saved without a graduation_date have no month — they are returned
- *    separately as 'undated' rather than dropped.
+ *    within its graduation_year. Graduates saved without a graduation_date
+ *    have no month — they are returned separately as 'undated' rather than
+ *    dropped.
  *  - processing: an application still awaiting approval, placed in the month
  *    it was ACTUALLY FILED (graduate_applications.application_date) — a live
  *    "still processing" snapshot grouped by filing month, so an application
@@ -152,10 +113,9 @@ function get_filing_trend(PDO $pdo, int $fromYear, int $toYear): array
  *  - approved: placed in the month it was actually approved
  *    (graduate_applications.approved_at), independent of when it was filed.
  *
- * None of these sum to the yearly (graduation-year based) on_record/applied
- * figures get_filing_trend() returns, and a month's applications can exceed
- * its graduates — this answers "what happened in that month", not "what
- * year does this belong to".
+ * None of these sum to any yearly total, and a month's applications can
+ * exceed its graduates — this answers "what happened in that month", not
+ * "what year does this belong to".
  *
  * @return array{months: array<int, array{year: int, month: int, on_record: int, processing: int, approved: int}>, undated: array{on_record: int}}
  */
@@ -219,99 +179,4 @@ function get_filing_trend_monthly(PDO $pdo, int $fromYear, int $toYear): array
     }
 
     return ['months' => $months, 'undated' => $undated];
-}
-
-/**
- * Percent change of $current relative to $previous, rounded to one decimal.
- * Null when $previous is 0 — there is no prior-year baseline to compare
- * against, so the caller shows no trend line rather than a misleading 0%
- * or a division by zero.
- */
-function compute_percent_change(int $current, int $previous): ?float
-{
-    if ($previous === 0) {
-        return null;
-    }
-
-    return round(($current - $previous) / $previous * 100, 1);
-}
-
-/**
- * Most recent latin_honor_graduates.updated_at — across all graduates by
- * default (the "DATA UPDATED" line is not part of the year filter), or
- * limited to a graduation-year range when one is given. updated_at carries
- * ON UPDATE CURRENT_TIMESTAMP, so this reflects the latest save OR
- * correction, not just the original upload. Null when there is no data.
- */
-function get_latest_update_timestamp_for_year(PDO $pdo, ?int $fromYear = null, ?int $toYear = null): ?string
-{
-    if ($fromYear === null) {
-        $stmt = $pdo->query('SELECT MAX(updated_at) FROM latin_honor_graduates');
-    } else {
-        $stmt = $pdo->prepare('SELECT MAX(updated_at) FROM latin_honor_graduates WHERE graduation_year BETWEEN :from_year AND :to_year');
-        $stmt->execute(['from_year' => $fromYear, 'to_year' => $toYear ?? $fromYear]);
-    }
-    $result = $stmt->fetchColumn();
-
-    return $result === false || $result === null ? null : $result;
-}
-
-/**
- * Turns whatever from/to the browser sent into a valid reporting range:
- * both clamped to the years that exist, and "to" never earlier than "from".
- * Defaults (nothing sent) are the latest year as "to" and the 5-year
- * period ending there as "from" — the report's original behavior. Used by
- * the page, the JSON endpoint and the export so all three always agree.
- *
- * @param array<int, int> $availableYears
- * @return array{0: int, 1: int}
- */
-function normalize_report_year_range(array $availableYears, ?int $from, ?int $to): array
-{
-    if ($availableYears === []) {
-        $year = (int) date('Y');
-
-        return [$year, $year];
-    }
-
-    $min = min($availableYears);
-    $max = max($availableYears);
-
-    $to = ($to === null || $to <= 0) ? $max : max($min, min($max, $to));
-    $from = ($from === null || $from <= 0) ? max($min, $to - 4) : max($min, min($max, $from));
-
-    if ($from > $to) {
-        $to = $from;
-    }
-
-    return [$from, $to];
-}
-
-/**
- * Pure (no PDO) — takes the already-fetched $schools array from
- * get_application_filing_report() rather than re-querying. Finds the
- * school with the highest filing_rate and the school with the highest
- * applied count; ties broken by school_name ascending. Both keys are
- * null when $schools is empty.
- */
-function get_application_filing_insights(array $schools): array
-{
-    if ($schools === []) {
-        return ['top_filing_rate' => null, 'most_applicants' => null];
-    }
-
-    $byFilingRate = $schools;
-    usort($byFilingRate, static function (array $a, array $b): int {
-        return $b['filing_rate'] <=> $a['filing_rate'] ?: $a['school_name'] <=> $b['school_name'];
-    });
-
-    $byApplied = $schools;
-    usort($byApplied, static function (array $a, array $b): int {
-        return $b['applied'] <=> $a['applied'] ?: $a['school_name'] <=> $b['school_name'];
-    });
-
-    return [
-        'top_filing_rate' => $byFilingRate[0],
-        'most_applicants' => $byApplied[0],
-    ];
 }

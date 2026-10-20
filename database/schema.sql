@@ -84,7 +84,7 @@ CREATE TABLE latin_honor_graduates (
 CREATE TABLE activity_log (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NULL,
-  action ENUM('login','logout','pdf_upload','pdf_delete','template_upload','record_created','record_updated','record_removed','record_restored','record_purged','record_draft_saved','search','user_created','user_updated','user_removed','school_created','school_updated','school_removed','application_filed','application_approved','db_backup','ocr_keyword_created','ocr_keyword_removed','ai_settings_updated') NOT NULL,
+  action ENUM('login','logout','pdf_upload','pdf_delete','template_upload','record_created','record_updated','record_removed','record_restored','record_purged','record_draft_saved','search','user_created','user_updated','user_removed','school_created','school_updated','school_removed','application_filed','application_approved','application_reverted','db_backup','ocr_keyword_created','ocr_keyword_removed','ai_settings_updated') NOT NULL,
   details TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id),

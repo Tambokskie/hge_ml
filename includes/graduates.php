@@ -25,9 +25,20 @@ function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25
         $params['name'] = '%' . addcslashes($name, '\\%_') . '%';
     }
 
+    // "Needs action" — filed but still awaiting approval (admin/lookup.php's
+    // NEEDS ACTION button). Requires the same LEFT JOIN graduate_applications
+    // the main SELECT uses, so it has to be added to the count query too.
+    if (($filters['status'] ?? '') === 'pending') {
+        $conditions[] = 'a.id IS NOT NULL AND a.approved_at IS NULL';
+    }
+
     $whereSql = empty($conditions) ? '' : ('WHERE ' . implode(' AND ', $conditions));
 
-    $countStmt = $pdo->prepare("SELECT COUNT(*) FROM latin_honor_graduates g {$whereSql}");
+    $countStmt = $pdo->prepare(
+        "SELECT COUNT(*) FROM latin_honor_graduates g
+         LEFT JOIN graduate_applications a ON a.graduate_id = g.id
+         {$whereSql}"
+    );
     $countStmt->execute($params);
     $totalRows = (int) $countStmt->fetchColumn();
 
@@ -155,6 +166,51 @@ function approve_application(PDO $pdo, int $graduateId, int $approvedBy, string 
     ]);
 
     return ['ok' => true];
+}
+
+/**
+ * Undoes the most recent step recorded for a graduate's HGE application (the
+ * admin/lookup.php "revert" action — see api/revert_application.php):
+ *
+ *  - Already approved: clears the approval only (approved_at/approved_by ->
+ *    NULL) and requires $isAdmin — the filing itself is left alone, so the
+ *    record goes back to PROCESSING with its original application_date
+ *    intact, same as it was before it was approved.
+ *  - Filed but not approved: removes the filing entirely. application_date
+ *    is NOT NULL in the schema, so there is no "cleared but still filed"
+ *    state to revert to — the only way back to "not yet applied" is
+ *    deleting the row. Open to any user, mirroring file_application()'s own
+ *    permission level (the opposite of filing is available to whoever can
+ *    file).
+ *
+ * @return array{ok: bool, reverted?: string, error?: string} reverted is
+ *     'approval' or 'application'
+ */
+function revert_application(PDO $pdo, int $graduateId, bool $isAdmin): array
+{
+    $stmt = $pdo->prepare('SELECT approved_at FROM graduate_applications WHERE graduate_id = :graduate_id');
+    $stmt->execute(['graduate_id' => $graduateId]);
+    $row = $stmt->fetch();
+
+    if ($row === false) {
+        return ['ok' => false, 'error' => 'THIS GRADUATE HAS NOT FILED AN APPLICATION.'];
+    }
+
+    if ($row['approved_at'] !== null) {
+        if (!$isAdmin) {
+            return ['ok' => false, 'error' => 'ADMINISTRATOR ACCESS IS REQUIRED TO REVERT AN APPROVAL.'];
+        }
+
+        $pdo->prepare('UPDATE graduate_applications SET approved_at = NULL, approved_by = NULL WHERE graduate_id = :graduate_id')
+            ->execute(['graduate_id' => $graduateId]);
+
+        return ['ok' => true, 'reverted' => 'approval'];
+    }
+
+    $pdo->prepare('DELETE FROM graduate_applications WHERE graduate_id = :graduate_id')
+        ->execute(['graduate_id' => $graduateId]);
+
+    return ['ok' => true, 'reverted' => 'application'];
 }
 
 /**
@@ -327,6 +383,10 @@ function build_search_log_details(array $filters): string
     $name = trim((string) ($filters['name'] ?? ''));
     if ($name !== '') {
         $parts[] = 'name=' . $name;
+    }
+
+    if (($filters['status'] ?? '') === 'pending') {
+        $parts[] = 'status=pending';
     }
 
     return implode(', ', $parts);

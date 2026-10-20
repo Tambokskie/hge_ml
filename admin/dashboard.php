@@ -27,18 +27,16 @@ $dashboardDefaultYearRecords = get_graduate_count_by_year($pdo, $dashboardDefaul
 $dashboardDefaultApplied = get_applied_count_by_year($pdo, $dashboardDefaultYear);
 
 // TREND card: the selected year's own graduates-on-record vs. HGE
-// applications, broken down by month — tied to the same slicer rather than
-// admin/reports.php's multi-year range, since the slicer already picks one
-// year at a time.
+// applications, broken down by month — tied to the same slicer as the
+// other cards above.
 $trendMonthly = get_filing_trend_monthly($pdo, $dashboardDefaultYear, $dashboardDefaultYear);
 
 // APPLICATION FILING OVERVIEW card: a two-ring sunburst, tied to the same
-// slicer as the two cards above. The inner ring is the same ON RECORD vs.
-// APPLIED/NOT YET APPLIED split admin/reports.php's single-ring donut shows;
-// the outer ring only spans the inner ring's APPLIED arc (never the NOT YET
-// APPLIED remainder) and subdivides it into PROCESSING (filed, not yet
-// approved) vs. APPROVED — approved is applied's own subset, see
-// includes/reports.php:get_application_filing_report().
+// slicer as the two cards above. The inner ring is ON RECORD split into
+// APPLIED vs. NOT YET APPLIED; the outer ring only spans the inner ring's
+// APPLIED arc (never the NOT YET APPLIED remainder) and subdivides it into
+// PROCESSING (filed, not yet approved) vs. APPROVED — approved is applied's
+// own subset, see includes/reports.php:get_application_filing_report().
 $filingReport = get_application_filing_report($pdo, $dashboardDefaultYear);
 $donutInnerRadius = 34;
 $donutInnerCircumference = 2 * M_PI * $donutInnerRadius;
@@ -72,10 +70,8 @@ $notYetAppliedPercent = $totalOnRecord > 0
 $processingPercent = $totalOnRecord > 0 ? round($totalProcessing / $totalOnRecord * 100, 1) : 0.0;
 $approvedPercent = $totalOnRecord > 0 ? round($totalApproved / $totalOnRecord * 100, 1) : 0.0;
 
-// SCHOOL FILING SUMMARY table: same per-school rows as admin/reports.php's
-// table (ported here, single-year scoped), sorted by filing rate so the
-// default view already matches what reports.php's sort dropdown calls
-// "FILING RATE" — there's no sort control here, so this ordering has to be
+// SCHOOL FILING SUMMARY table: per-school rows, single-year scoped, sorted
+// by filing rate — there's no sort control here, so this ordering has to be
 // right every time, not just as a selectable default.
 $dashboardSchools = array_map(static function (array $school): array {
     $school['school_display'] = format_school_display_name($school['school_name'], $school['campus']);
@@ -141,7 +137,7 @@ include __DIR__ . '/../includes/sidebar.php';
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div class="dashboard-stat-card items-start text-left overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
                 <span class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-csc-navy-600 dark:bg-csc-navy-400"></span>
-                <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10"></span>
+                <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10 motion-safe:animate-card-glow" style="animation-delay: 0s"></span>
                 <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
@@ -158,7 +154,7 @@ include __DIR__ . '/../includes/sidebar.php';
             <?php $schoolsMissing = max(0, $stats['total_active_schools'] - $stats['total_schools']); ?>
             <div class="dashboard-stat-card items-start text-left overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
                 <span class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-csc-navy-600 dark:bg-csc-navy-400"></span>
-                <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10"></span>
+                <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10 motion-safe:animate-card-glow" style="animation-delay: 0.8s"></span>
                 <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -172,7 +168,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
             <div class="dashboard-stat-card items-start text-left overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 300ms">
                 <span class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-emerald-500"></span>
-                <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-emerald-500/10"></span>
+                <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-emerald-500/10 motion-safe:animate-card-glow" style="animation-delay: 1.6s"></span>
                 <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -186,7 +182,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
             <div class="dashboard-stat-card items-start text-left overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 400ms">
                 <span class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-csc-navy-600 dark:bg-csc-navy-400"></span>
-                <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10"></span>
+                <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10 motion-safe:animate-card-glow" style="animation-delay: 2.4s"></span>
                 <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
@@ -206,7 +202,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
             <div class="dashboard-stat-card items-start text-left overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 600ms">
                 <span class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-csc-navy-600 dark:bg-csc-navy-400"></span>
-                <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10"></span>
+                <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10 motion-safe:animate-card-glow" style="animation-delay: 3.2s"></span>
                 <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347M4.26 10.147a50.548 50.548 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.841c-.896.248-1.783.52-2.658.814M4.26 10.147a50.696 50.696 0 017.74-3.342M12 13.489a50.702 50.702 0 017.74-3.342" /></svg>
@@ -340,7 +336,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <?php foreach ($dashboardSchools as $index => $school): ?>
                                     <tr class="dashboard-school-row border-b border-gray-100 dark:border-white/5<?= $index >= 10 ? ' dashboard-school-extra-row hidden' : '' ?>">
                                         <td class="px-4 py-3 text-gray-400 dark:text-gray-500"><?= (int) ($index + 1) ?></td>
-                                        <td class="px-4 py-3"><?= e_upper($school['school_display']) ?></td>
+                                        <td class="px-4 py-3"><a href="<?= e(APP_BASE_URL) ?>/admin/school_records.php?school_id=<?= (int) $school['school_id'] ?>" class="inline-block transition-all duration-200 hover:translate-x-1 hover:text-csc-navy-600 dark:hover:text-csc-navy-300"><?= e_upper($school['school_display']) ?></a></td>
                                         <td class="px-4 py-3"><?= (int) $school['on_record'] ?></td>
                                         <td class="px-4 py-3">
                                             <span class="inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold <?= $school['applied'] > 0 ? 'bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/20 dark:text-csc-navy-300' : 'bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400' ?>"><?= (int) $school['applied'] ?></span>

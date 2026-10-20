@@ -113,44 +113,6 @@ class XlsxReadWriteTest extends TestCase
         $this->assertSame(28, xlsx_column_index('AB1'));
     }
 
-    public function testApplicationFilingReportXlsxRoundTripsThroughReader(): void
-    {
-        $report = [
-            'total_on_record' => 3,
-            'total_applied' => 1,
-            'filing_rate' => 33.3,
-            'schools' => [
-                ['school_display' => 'ABC UNIVERSITY-MAIN', 'on_record' => 2, 'applied' => 1, 'filing_rate' => 50.0],
-                ['school_display' => 'XYZ COLLEGE', 'on_record' => 1, 'applied' => 0, 'filing_rate' => 0.0],
-            ],
-        ];
-
-        $bytes = build_application_filing_report_xlsx($report, 2025);
-        $path = $this->writeTempFile($bytes);
-
-        $result = xlsx_read_first_sheet($path);
-
-        $this->assertTrue($result['ok']);
-        $rows = $result['rows'];
-        $this->assertSame('3', $rows[3][2]);
-        $this->assertSame('1', $rows[4][2]);
-        $this->assertSame('ABC UNIVERSITY-MAIN', $rows[8][1]);
-        $this->assertSame('2', $rows[8][2]);
-        $this->assertSame('XYZ COLLEGE', $rows[9][1]);
-        $this->assertSame('0', $rows[9][3]);
-    }
-
-    public function testApplicationFilingReportXlsxTitleShowsTheSelectedPeriod(): void
-    {
-        $report = ['total_on_record' => 0, 'total_applied' => 0, 'filing_rate' => 0.0, 'schools' => []];
-
-        $range = xlsx_read_first_sheet($this->writeTempFile(build_application_filing_report_xlsx($report, 2022, 2026)));
-        $single = xlsx_read_first_sheet($this->writeTempFile(build_application_filing_report_xlsx($report, 2025, 2025)));
-
-        $this->assertSame('APPLICATION FILING REPORT — 2022–2026', $range['rows'][1][1]);
-        $this->assertSame('APPLICATION FILING REPORT — 2025', $single['rows'][1][1]);
-    }
-
     public function testZipContainerIsOneExcelAccepts(): void
     {
         // Excel refuses PharData-built archives (version-needed 0, per-entry

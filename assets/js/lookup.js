@@ -31,10 +31,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function currentParams(page) {
+        var needsActionBtn = document.getElementById('lookup-needs-action-btn');
         return {
             school_id: document.getElementById('filter-school').value,
             year: document.getElementById('filter-year').value,
             name: document.getElementById('filter-name').value,
+            status: (needsActionBtn && needsActionBtn.getAttribute('aria-pressed') === 'true') ? 'pending' : '',
             page: page || 1,
         };
     }
@@ -146,6 +148,15 @@ document.addEventListener('DOMContentLoaded', function () {
                   'data-name="' + escapeHtml(row.graduate_name) + '">' + actionIcon('check') + '</button>'
                 : '';
 
+            var revertMode = hasApproved ? 'approval' : 'application';
+            var revertDisabled = !hasApplied || (hasApproved && !config.isAdmin);
+            var revertTitle = !hasApplied ? 'Nothing to revert' : (hasApproved ? 'Revert approval' : 'Revert application');
+            var revertBtnHtml = '<button type="button" class="revert-graduate-btn rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 p-1.5 motion-safe:animate-drop-in disabled:opacity-30 disabled:pointer-events-none disabled:hover:bg-yellow-500/10" ' + actionBtnDelay() + ' title="' + escapeHtml(revertTitle) + '" ' +
+                'data-id="' + escapeHtml(String(row.id)) + '" ' +
+                'data-name="' + escapeHtml(row.graduate_name) + '" ' +
+                'data-mode="' + revertMode + '"' +
+                (revertDisabled ? ' disabled' : '') + '>' + actionIcon('reset') + '</button>';
+
             var statusCellHtml = hasApproved
                 ? '<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400">APPROVED</span>'
                 : hasApplied
@@ -185,6 +196,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 viewBtnHtml +
                 applyBtnHtml +
                 approveBtnHtml +
+                revertBtnHtml +
                 editBtnHtml +
                 deleteBtnHtml +
                 '</div></td>' +
@@ -492,6 +504,47 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function openRevertModal(defaults) {
+        var isApproval = defaults.mode === 'approval';
+        var bodyHtml = isApproval
+            ? '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">THIS REMOVES THE RECORDED APPROVAL DATE FOR <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(String(defaults.name || '').toUpperCase()) + '</span>. THE APPLICATION GOES BACK TO PROCESSING, WITH ITS ORIGINAL DATE APPLIED KEPT.</p>'
+            : '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">THIS REMOVES THE RECORDED APPLICATION FOR <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(String(defaults.name || '').toUpperCase()) + '</span>. THE RECORD WILL SHOW NO HGE APPLICATION FILED.</p>';
+
+        showModal({
+            icon: modalHeaderIcon('reset'),
+            iconClassName: 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
+            title: isApproval ? 'REVERT APPROVAL' : 'REVERT APPLICATION',
+            subtitle: isApproval ? 'Undo the recorded approval.' : 'Undo the recorded application.',
+            bodyHtml: bodyHtml,
+            buttons: [
+                { label: 'CANCEL', className: MODAL_BTN.secondary },
+                {
+                    label: 'REVERT',
+                    icon: modalButtonIcon('reset'),
+                    className: MODAL_BTN.danger,
+                    onClick: function (modalClose) {
+                        postJson(config.apiBase + '/api/revert_application.php', {
+                            csrf_token: config.csrfToken,
+                            graduate_id: defaults.id,
+                        })
+                            .then(function (data) {
+                                if (data.status === 'success') {
+                                    showToast('success', data.message);
+                                    modalClose();
+                                    performSearch(currentParams(currentPageFromUrl()), false);
+                                } else {
+                                    showToast('error', data.message);
+                                }
+                            })
+                            .catch(function () {
+                                showToast('error', 'THE REVERT COULD NOT BE COMPLETED. PLEASE TRY AGAIN.');
+                            });
+                    },
+                },
+            ],
+        });
+    }
+
     function buildSchoolOptionsHtml(selectedId) {
         var sourceSelect = document.getElementById('filter-school');
         var options = Array.prototype.slice.call(sourceSelect.options).filter(function (opt) {
@@ -667,12 +720,32 @@ document.addEventListener('DOMContentLoaded', function () {
         performSearch(currentParams(1), true);
     });
 
+    var needsActionBtn = document.getElementById('lookup-needs-action-btn');
+    function setNeedsActionPressed(pressed) {
+        if (!needsActionBtn) {
+            return;
+        }
+        needsActionBtn.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+        needsActionBtn.classList.toggle('bg-orange-500', pressed);
+        needsActionBtn.classList.toggle('text-white', pressed);
+        needsActionBtn.classList.toggle('text-orange-700', !pressed);
+        needsActionBtn.classList.toggle('dark:text-orange-400', !pressed);
+        needsActionBtn.classList.toggle('hover:bg-orange-500/10', !pressed);
+    }
+    if (needsActionBtn) {
+        needsActionBtn.addEventListener('click', function () {
+            setNeedsActionPressed(needsActionBtn.getAttribute('aria-pressed') !== 'true');
+            performSearch(currentParams(1), true);
+        });
+    }
+
     var clearFiltersBtn = document.getElementById('lookup-clear-filters-btn');
     if (clearFiltersBtn) {
         clearFiltersBtn.addEventListener('click', function () {
             document.getElementById('filter-school').value = '';
             document.getElementById('filter-year').value = '';
             document.getElementById('filter-name').value = '';
+            setNeedsActionPressed(false);
             performSearch(currentParams(1), true);
         });
     }
@@ -718,6 +791,19 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        var revertBtn = event.target.closest('.revert-graduate-btn');
+        if (revertBtn) {
+            if (revertBtn.disabled) {
+                return;
+            }
+            openRevertModal({
+                id: revertBtn.dataset.id,
+                name: revertBtn.dataset.name,
+                mode: revertBtn.dataset.mode,
+            });
+            return;
+        }
+
         var editBtn = event.target.closest('.edit-graduate-btn');
         if (editBtn) {
             openEditModal({
@@ -759,11 +845,13 @@ document.addEventListener('DOMContentLoaded', function () {
             school_id: urlParams.get('school_id') || '',
             year: urlParams.get('year') || '',
             name: urlParams.get('name') || '',
+            status: urlParams.get('status') === 'pending' ? 'pending' : '',
             page: urlParams.get('page') || 1,
         };
         document.getElementById('filter-school').value = params.school_id;
         document.getElementById('filter-year').value = params.year;
         document.getElementById('filter-name').value = params.name;
+        setNeedsActionPressed(params.status === 'pending');
         performSearch(params, false);
     });
 });

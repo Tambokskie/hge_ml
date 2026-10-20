@@ -362,20 +362,13 @@ function modalField(opts) {
     return '<div>' + labelHtml + '<div class="relative">' + iconHtml + controlHtml + '</div>' + noteHtml + '</div>';
 }
 
-// Hand-rolled SVG line-trend chart (graduates on record vs. HGE
-// applications, per year or per month) — shared by admin/reports.php's
-// TREND card and admin/dashboard.php's TREND card, since both render the
-// exact same markup/ids (#filing-trend-chart, #filing-trend-note,
-// [data-trend-mode] buttons, #filing-trend-applied-label). Call once per
-// page, after that markup exists in the DOM, with that page's own
-// {initialTrend, initialTrendMonthly, initialTo} — a no-op if the chart
-// container isn't on the page at all.
-// Default 2-series setup — admin/reports.php's chart (year mode always, month
-// mode when its PER MONTH toggle is used) — graduates on record vs. Honor
-// Graduate Eligible filings, on ONE shared axis. admin/dashboard.php instead
-// passes a 3-series options.series (on_record / processing / approved,
-// `approved` being the subset of `processing`'s filed population that has
-// since been approved — see includes/reports.php:get_filing_trend_monthly()).
+// Hand-rolled SVG line-trend chart for admin/dashboard.php's TREND card
+// (#filing-trend-chart, #filing-trend-note). Call once the markup exists in
+// the DOM, with {initialTrendMonthly, initialTo} — a no-op if the chart
+// container isn't on the page. Takes an options.series list of {key,
+// textClass, dotClass, gradOpacity, label} describing which fields to plot
+// (dashboard passes on_record/processing/approved); TREND_DEFAULT_SERIES
+// below is the fallback when no options.series is given.
 var TREND_DEFAULT_SERIES = [
     { key: 'on_record', textClass: 'text-csc-navy-600 dark:text-csc-navy-300', dotClass: 'bg-csc-navy-300', gradOpacity: '0.28', label: 'GRADUATED' },
     { key: 'applied', textClass: 'text-emerald-500', dotClass: 'bg-emerald-400', gradOpacity: '0.22', label: 'APPLIED FOR HGE' },
@@ -390,15 +383,14 @@ function initTrendChart(config, options) {
     var seriesList = options.series || TREND_DEFAULT_SERIES;
     var trendSeries = config.initialTrend || [];
     var trendMonthly = config.initialTrendMonthly || { months: [], undated: { on_record: 0 } };
-    // admin/dashboard.php has no [data-trend-mode] toggle at all (its config
-    // sets initialMode: 'month' and the chart always follows its year
-    // slicer instead); admin/reports.php omits initialMode and keeps its
-    // own PER YEAR/PER MONTH buttons, unaffected.
+    // admin/dashboard.php's config sets initialMode: 'month' and the chart
+    // always follows its year slicer instead of a PER YEAR/PER MONTH toggle
+    // (there is no [data-trend-mode] button on that page, so the click
+    // handler registered below is simply inert there).
     var trendMode = config.initialMode === 'month' ? 'month' : 'year';
     var trendSelectedYear = config.initialTo;
     // Which point(s) get the "current" highlight (bold label, bigger dot).
-    // Default: every point belonging to the selected year — meaningful when
-    // several years share the axis (reports.php). admin/dashboard.php's
+    // Default: every point belonging to the selected year. admin/dashboard.php's
     // chart only ever shows one year's months, where that would bold every
     // point, so it supplies its own comparator (highlight just the latest
     // month) via options.isSelectedPoint.
@@ -699,10 +691,9 @@ function initTrendChart(config, options) {
         trendResizeFrame = requestAnimationFrame(function () { renderTrendChart(false); });
     }).observe(trendContainer);
 
-    // Lets a page swap in fresh data after its own year-range filter changes
-    // (admin/reports.php) without re-running the whole setup — newTrendMonthly
-    // is optional, matching the original behavior of keeping the current
-    // monthly data when a response doesn't include it.
+    // Lets the page swap in fresh data after its year slicer changes without
+    // re-running the whole setup — newTrendMonthly is optional, so a caller
+    // that only has a new selected year can still refresh the highlight.
     return {
         update: function (newTrend, newTrendMonthly, newSelectedYear) {
             trendSeries = newTrend || [];
@@ -716,11 +707,10 @@ function initTrendChart(config, options) {
     };
 }
 
-// Tweens each Latin Honor tier's count/percent/bar to a new total — shared by
-// admin/reports.php's own tierDistributionEls (ids "tier-*") and
+// Tweens each Latin Honor tier's count/percent/bar to a new total — used by
 // admin/dashboard.php's merged card via initFilingDonut() below (ids
 // "dashboard-tier-*"). tierEls maps each honor name to {count, percent, bar}
-// elements (any may be null/absent if that page doesn't render them).
+// elements (any may be null/absent if not all are rendered).
 function updateTierBars(tierEls, breakdown, totalOnRecord) {
     breakdown = breakdown || {};
     Object.keys(tierEls).forEach(function (tierName) {
@@ -740,23 +730,15 @@ function updateTierBars(tierEls, breakdown, totalOnRecord) {
     });
 }
 
-// APPLICATION FILING OVERVIEW donut — shared by admin/reports.php (year-range
-// filing report) and admin/dashboard.php (single-year, slicer-driven). Only
-// the donut arc/legend/rate are shared here; reports.php's other filing-report
-// fields (totals, trend arrows, school table) stay in reports.js since
-// dashboard.php has no equivalent UI for them. On admin/dashboard.php the
-// LATIN HONOR DISTRIBUTION tier bars live inside this same card (merged per
-// the year-selected donut), so update() also refreshes them there when a
-// tierBreakdown is passed in — reports.php keeps its own separate tier card
-// and update path (see tierDistributionEls / updateTierBars() in reports.js).
+// APPLICATION FILING OVERVIEW donut for admin/dashboard.php (single-year,
+// slicer-driven). The LATIN HONOR DISTRIBUTION tier bars live inside this
+// same card (merged with the year-selected donut), so update() also
+// refreshes them when a tierBreakdown is passed in.
 function initFilingDonut() {
     var donutAppliedArc = document.getElementById('filing-donut-applied-arc');
-    // admin/reports.php renders only the inner ring (a plain single-ring
-    // donut); admin/dashboard.php adds the two outer-ring arcs for the
-    // PROCESSING/APPROVED sunburst split — both are optional here, and the
-    // radius (so the circumference math matches whichever page rendered it)
-    // is always read off the element itself rather than assumed, since the
-    // two pages use different radii.
+    // The outer-ring PROCESSING/APPROVED arcs are optional (null if the
+    // markup doesn't render them), and the radius used for the circumference
+    // math is always read off each element itself rather than assumed.
     var donutProcessingArc = document.getElementById('filing-donut-processing-arc');
     var donutApprovedArc = document.getElementById('filing-donut-approved-arc');
     var innerCircumference = donutAppliedArc ? 2 * Math.PI * parseFloat(donutAppliedArc.getAttribute('r')) : 0;
@@ -808,8 +790,8 @@ function initFilingDonut() {
         });
     });
 
-    // Mirrors reports.js's animateRate(): animateCountUp() only handles whole
-    // numbers, so the one-decimal filing-rate percentage gets its own tween.
+    // animateCountUp() only handles whole numbers, so the one-decimal
+    // filing-rate percentage gets its own tween.
     function animateRate(el, target, duration) {
         var from = parseFloat(el.textContent) || 0;
         var token = el.__rateToken = (el.__rateToken || 0) + 1;
@@ -843,10 +825,9 @@ function initFilingDonut() {
         update: function (report, tierBreakdown) {
             var totalOnRecord = report.total_on_record;
             var totalApplied = report.total_applied;
-            // total_approved is absent on admin/reports.php's report shape
-            // (its own donut never renders the outer ring) — default to 0 so
-            // the legend/arc math below degrades to "nothing approved yet"
-            // instead of producing NaN there.
+            // Defaults to 0 so the legend/arc math below degrades to
+            // "nothing approved yet" instead of producing NaN if a caller
+            // ever passes a report shape without total_approved.
             var totalApproved = report.total_approved || 0;
             var totalProcessing = totalApplied - totalApproved;
 
@@ -882,8 +863,8 @@ function initFilingDonut() {
             // Counts tween from whatever's currently on screen (not 0) — same
             // "this number just changed" treatment as the tier bars above —
             // text is only ever replaced through these ids, so the fixed-width
-            // label markup around them (admin/dashboard.php, admin/reports.php)
-            // never gets clobbered by a wholesale innerHTML rewrite.
+            // label markup around them (admin/dashboard.php) never gets
+            // clobbered by a wholesale innerHTML rewrite.
             [
                 { el: legendEls.onRecord, count: totalOnRecord, percent: '100%' },
                 { el: legendEls.applied, count: totalApplied, percent: report.filing_rate + '%' },

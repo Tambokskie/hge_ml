@@ -38,7 +38,7 @@ $sections = [
         ],
         'tips' => [
             'Forgot your password? Click [[Forgot password?]] on the sign-in page and ask your system administrator to reset it.',
-            'There are two kinds of accounts. An ADMINISTRATOR can use every page. A USER can use the dashboard, look up records, record applications and view reports.',
+            'There are two kinds of accounts. An ADMINISTRATOR can use every page. A USER can use the dashboard, look up records and record applications.',
         ],
         'security' => [
             'For your security you are signed out after 4 hours without activity. Just sign in again.',
@@ -56,7 +56,7 @@ $sections = [
             '[[LATEST UPLOAD]] lists the most recent school lists, and [[RECENT ACTIVITY]] shows the latest actions in the system.',
         ],
         'tips' => [
-            'The dashboard only summarizes. To see individual graduates use [[HONOR GRAD LOOK-UP]]; for filing totals use [[REPORTS]].',
+            'To see individual graduates use [[HONOR GRAD LOOK-UP]].',
         ],
     ],
     [
@@ -105,20 +105,6 @@ $sections = [
                     'Click [[FIND DUPLICATES]] to open the duplicate records page (see "Settings" below).',
                 ],
             ],
-        ],
-    ],
-    [
-        'id' => 'reports',
-        'title' => 'Reports',
-        'admin' => false,
-        'intro' => 'The report shows how many Latin Honor graduates are on record and how many of them have had their HGE application filed.',
-        'steps' => [
-            'Click [[REPORTS]] in the menu.',
-            'Choose the reporting period with the two year boxes (from and to).',
-            'Read the summary: [[ON RECORD]] (Latin Honor graduates saved), [[FILING RATE]] and [[NOT YET APPLIED]]. The number of applications filed in a given year is shown on the Dashboard.',
-            'On the trend chart, use [[PER YEAR]] or [[PER MONTH]] to change how it is grouped. Both lines use the same scale, so you can compare them directly. Graduates are placed by the month they graduated and applications by the month they were actually filed.',
-            'In the table by school, search for a school, change the sort order, or show only schools that [[HAS FILED]] or have [[NO FILINGS YET]].',
-            'Click [[EXPORT REPORT]], then [[EXPORT XLSX]] to download it for Excel or [[PRINT REPORT]] to print it.',
         ],
     ],
     [
@@ -324,7 +310,6 @@ $chapterMeta = [
     'getting-started' => ['group' => 'basics', 'icon' => 'M21 12a9 9 0 11-18 0 9 9 0 0118 0z M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z'],
     'dashboard' => ['group' => 'basics', 'icon' => 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z'],
     'lookup' => ['group' => 'basics', 'icon' => 'M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z'],
-    'reports' => ['group' => 'basics', 'icon' => 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z'],
     'upload-pdf' => ['group' => 'uploading', 'icon' => 'M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5'],
     'upload-template' => ['group' => 'uploading', 'icon' => 'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z'],
     'review' => ['group' => 'uploading', 'icon' => 'M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3l1.5 1.5 3-3.75'],
@@ -366,7 +351,6 @@ $helpFigures = [
     'lookup#0' => [['lookup', 'The Honor Graduate Look-Up page with its search boxes and a list of results', 'Search by school, graduation year or name, then read each result row. The eye icon opens the record and the green check records an application.']],
     'lookup#2' => [['lookup-apply', 'The Honor graduate eligible window asking for the date of application', 'Check the date of application, then click Confirm.']],
     'lookup#3' => [['lookup-admin', 'The Look-Up page as an administrator sees it, with extra buttons and icons', 'An administrator also sees the pencil and trash icons on each row and the Update graduation date and Find duplicates buttons.']],
-    'reports' => [['reports', 'The Reports page with the filing summary, the charts and the trend line', 'The summary cards, the charts and the trend line. Use Per year or Per month above the trend to change how it is grouped.']],
     'upload-pdf' => [['upload-pdf', 'The upload page with the PDF file tab selected', 'Choose the school, type the school year and add the PDF, then click Upload & extract records.']],
     'upload-template' => [['upload-template', 'The upload page with the Excel template tab selected', 'On the Excel template tab, download the template, fill it in, then choose the finished file and upload it.']],
     'review#0' => [['review', 'The review screen with the extracted rows and the buttons above the table', 'Check each row, fix what is wrong, and use the buttons above the table to change the list. Nothing is saved until you click Save records.']],

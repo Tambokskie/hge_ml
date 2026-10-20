@@ -100,6 +100,13 @@ module.exports = {
           '0%': { transform: 'translateX(-30%)' },
           '100%': { transform: 'translateX(330%)' },
         },
+        // A slow ambient breathe for the small decorative corner blob on
+        // admin/dashboard.php's stat cards (grows/fades, never shrinks past
+        // its resting size, so it never looks like it's disappearing).
+        cardGlow: {
+          '0%, 100%': { transform: 'scale(1)', opacity: '0.7' },
+          '50%': { transform: 'scale(1.3)', opacity: '1' },
+        },
       },
       animation: {
         'float-a': 'floatA 22s ease-in-out infinite',
@@ -115,6 +122,7 @@ module.exports = {
         'pending-critical-pulse-dark': 'pendingCriticalPulseDark 2s ease-in-out infinite',
         'grow-bar': 'growBar 0.8s ease-out both',
         'orb-drift': 'orbDrift 20s linear infinite',
+        'card-glow': 'cardGlow 5s ease-in-out infinite',
       },
     },
   },

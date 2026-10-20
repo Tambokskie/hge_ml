@@ -15,9 +15,10 @@ $years = get_distinct_graduation_years($pdo);
 $schoolId = (isset($_GET['school_id']) && (int) $_GET['school_id'] > 0) ? (int) $_GET['school_id'] : null;
 $year = (isset($_GET['year']) && (int) $_GET['year'] > 0) ? (int) $_GET['year'] : null;
 $name = trim((string) ($_GET['name'] ?? ''));
+$status = ($_GET['status'] ?? '') === 'pending' ? 'pending' : '';
 $page = max(1, (int) ($_GET['page'] ?? 1));
 
-$filters = ['school_id' => $schoolId, 'graduation_year' => $year, 'name' => $name];
+$filters = ['school_id' => $schoolId, 'graduation_year' => $year, 'name' => $name, 'status' => $status];
 // The year filter defaults to ALL YEARS, so a search with nothing filled in is a
 // valid search that lists everything: there is always a search to run.
 $hasFilters = true;
@@ -107,6 +108,10 @@ include __DIR__ . '/../includes/sidebar.php';
                         <button type="button" id="lookup-clear-filters-btn" class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-white/15 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium px-4 py-2.5 transition-colors">
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
                             CLEAR FILTERS
+                        </button>
+                        <button type="button" id="lookup-needs-action-btn" aria-pressed="<?= $status === 'pending' ? 'true' : 'false' ?>" class="inline-flex items-center gap-1.5 rounded-xl border border-orange-500/40 text-sm font-medium px-4 py-2.5 transition-colors<?= $status === 'pending' ? ' bg-orange-500 text-white' : ' text-orange-700 dark:text-orange-400 hover:bg-orange-500/10' ?>">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+                            NEEDS ACTION
                         </button>
                         <?php if ($isAdmin): ?>
                         <button type="button" id="bulk-update-date-btn" class="inline-flex items-center gap-1.5 rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-medium px-4 py-2.5 transition-colors">UPDATE GRADUATION DATE</button>
@@ -202,6 +207,20 @@ include __DIR__ . '/../includes/sidebar.php';
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                             </button>
                                             <?php endif; ?>
+                                            <?php
+                                            $rowHasApplied = (int) $row['has_applied'] === 1;
+                                            $rowHasApproved = (int) ($row['has_approved'] ?? 0) === 1;
+                                            $revertMode = $rowHasApproved ? 'approval' : 'application';
+                                            $revertDisabled = !$rowHasApplied || ($rowHasApproved && !$isAdmin);
+                                            $revertTitle = !$rowHasApplied ? 'Nothing to revert' : ($rowHasApproved ? 'Revert approval' : 'Revert application');
+                                            ?>
+                                            <button type="button" class="revert-graduate-btn rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 p-1.5 motion-safe:animate-drop-in disabled:opacity-30 disabled:pointer-events-none disabled:hover:bg-yellow-500/10" style="animation-delay: <?= (int) ($rowIndex * 50 + ($actionBtnIndex++) * 70) ?>ms" title="<?= e($revertTitle) ?>"
+                                                data-id="<?= (int) $row['id'] ?>"
+                                                data-name="<?= e($row['graduate_name']) ?>"
+                                                data-mode="<?= e($revertMode) ?>"
+                                                <?= $revertDisabled ? 'disabled' : '' ?>>
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                                            </button>
                                             <?php if ($isAdmin): ?>
                                             <button type="button" class="edit-graduate-btn rounded-lg bg-csc-navy-600/10 hover:bg-csc-navy-600/20 text-csc-navy-600 dark:text-csc-navy-300 p-1.5 motion-safe:animate-drop-in" style="animation-delay: <?= (int) ($rowIndex * 50 + ($actionBtnIndex++) * 70) ?>ms" title="Edit record"
                                                 data-id="<?= (int) $row['id'] ?>"

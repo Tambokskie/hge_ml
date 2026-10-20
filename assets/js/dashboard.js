@@ -7,8 +7,7 @@ var dashboardFilingDonut = null;
 // Sequenced for every visitor (not just admins), so it lives in its own
 // listener rather than inside the admin-only one below.
 document.addEventListener('DOMContentLoaded', function () {
-    // One-time entrance reveal for the LATIN HONOR DISTRIBUTION tier bars —
-    // same draw-in technique as admin/reports.php's identical tier bars:
+    // One-time entrance reveal for the LATIN HONOR DISTRIBUTION tier bars:
     // PHP renders each at width:0 so the first paint is the "before" state,
     // then this sets the real target a tick later so the motion-safe
     // transition classes already on the element (admin/dashboard.php)
@@ -21,16 +20,15 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // TREND card — shares its renderer with admin/reports.php's identical
-    // chart (see initTrendChart() in utils.js), but always shows one
-    // year's months (no PER YEAR/PER MONTH toggle), so every point belongs
-    // to that same year — highlight the latest month instead of every
-    // point, which is what the shared renderer's default comparator would
-    // do here. Three series instead of the shared renderer's 2-series
-    // default: PROCESSING (orange) replaces the old single green "applied"
-    // line — same filed-by-month grouping, but exclusive of anything since
-    // approved — and APPROVED (green) is new, grouped by approval month
-    // (see includes/reports.php:get_filing_trend_monthly()).
+    // TREND card — rendered by the shared initTrendChart() in utils.js (kept
+    // generic enough for multiple callers even though this page is the only
+    // one left using it), always showing one year's months (no PER
+    // YEAR/PER MONTH toggle), so every point belongs to that same year —
+    // highlight the latest month instead of every point, which is what the
+    // shared renderer's default comparator would do here. Three series:
+    // GRADUATED (navy), PROCESSING (orange, filed-by-month, exclusive of
+    // anything since approved) and APPROVED (green, by approval month) —
+    // see includes/reports.php:get_filing_trend_monthly().
     dashboardTrendChart = initTrendChart(window.HGE_DASHBOARD || {}, {
         isSelectedPoint: function (p, i, series) {
             return i === series.length - 1;
@@ -43,9 +41,8 @@ document.addEventListener('DOMContentLoaded', function () {
         monthNote: 'GRADUATED IS PLOTTED BY GRADUATION MONTH; PROCESSING IS PLOTTED BY THE MONTH THE APPLICATION WAS FILED; APPROVED IS PLOTTED BY THE MONTH IT WAS APPROVED.',
     });
 
-    // APPLICATION FILING OVERVIEW card — shares its donut renderer with
-    // admin/reports.php (see initFilingDonut() in utils.js), scoped to the
-    // single selected year instead of a from/to range.
+    // APPLICATION FILING OVERVIEW card — rendered by the shared
+    // initFilingDonut() in utils.js, scoped to the single selected year.
     dashboardFilingDonut = initFilingDonut();
 });
 
@@ -65,11 +62,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // SCHOOL FILING SUMMARY table — ported from admin/reports.php's school
-    // table, but without its search/sort/filter controls: this card has no
-    // such controls, just a fixed top-10 view behind a SHOW MORE/SHOW LESS
-    // toggle, since the per-school rows already arrive pre-sorted by filing
-    // rate from the server (both the initial PHP render and this JSON API).
+    // SCHOOL FILING SUMMARY table — no search/sort/filter controls, just a
+    // fixed top-10 view behind a SHOW MORE/SHOW LESS toggle, since the
+    // per-school rows already arrive pre-sorted by filing rate from the
+    // server (both the initial PHP render and this JSON API).
     var schoolTbody = document.getElementById('dashboard-school-tbody');
     var schoolCount = document.getElementById('dashboard-school-count');
     var schoolToggleRow = document.getElementById('dashboard-school-toggle-row');
@@ -92,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         return '<tr class="dashboard-school-row border-b border-gray-100 dark:border-white/5' + hiddenClass + '">' +
             '<td class="px-4 py-3 text-gray-400 dark:text-gray-500">' + (index + 1) + '</td>' +
-            '<td class="px-4 py-3">' + escapeHtml(String(school.school_display).toUpperCase()) + '</td>' +
+            '<td class="px-4 py-3"><a href="' + config.apiBase + '/admin/school_records.php?school_id=' + encodeURIComponent(school.school_id) + '" class="inline-block transition-all duration-200 hover:translate-x-1 hover:text-csc-navy-600 dark:hover:text-csc-navy-300">' + escapeHtml(String(school.school_display).toUpperCase()) + '</a></td>' +
             '<td class="px-4 py-3">' + school.on_record + '</td>' +
             '<td class="px-4 py-3"><span class="inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold ' + appliedClass + '">' + school.applied + '</span></td>' +
             '<td class="px-4 py-3"><span class="inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold ' + approvedClass + '">' + school.approved + '</span></td>' +
