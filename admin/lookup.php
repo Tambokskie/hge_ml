@@ -144,6 +144,8 @@ include __DIR__ . '/../includes/sidebar.php';
                                 <th class="px-4 py-3">LATIN HONOR</th>
                                 <th class="px-4 py-3">DATE OF GRADUATION</th>
                                 <th class="px-4 py-3">HGE STATUS</th>
+                                <th class="px-4 py-3">DATE APPLIED</th>
+                                <th class="px-4 py-3">DATE APPROVED</th>
                                 <th class="px-4 py-3 text-right">ACTION</th>
                             </tr>
                         </thead>
@@ -163,14 +165,14 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <td class="px-4 py-3">
                                         <?php if ((int) ($row['has_approved'] ?? 0) === 1): ?>
                                             <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-green-500/15 text-green-700 dark:bg-green-500/10 dark:text-green-400">APPROVED</span>
-                                            <p class="mt-0.5 text-[11px] text-gray-500 dark:text-gray-500"><?= e(format_date_display($row['approved_at'])) ?></p>
                                         <?php elseif ((int) $row['has_applied'] === 1): ?>
                                             <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-orange-500/15 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400">PROCESSING</span>
-                                            <p class="mt-0.5 text-[11px] text-gray-500 dark:text-gray-500"><?= e(format_date_display($row['application_date'])) ?></p>
                                         <?php else: ?>
                                             <span class="text-gray-400 dark:text-gray-600">—</span>
                                         <?php endif; ?>
                                     </td>
+                                    <td class="px-4 py-3"><?= (int) $row['has_applied'] === 1 ? e(format_date_display($row['application_date'])) : '—' ?></td>
+                                    <td class="px-4 py-3"><?= (int) ($row['has_approved'] ?? 0) === 1 ? e(format_date_display($row['approved_at'])) : '—' ?></td>
                                     <td class="px-4 py-3">
                                         <?php $actionBtnIndex = 0; ?>
                                         <div class="flex items-center justify-end gap-1.5">
