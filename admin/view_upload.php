@@ -252,6 +252,11 @@ include __DIR__ . '/../includes/sidebar.php';
                                 </button>
                             <?php endif; ?>
                         <?php endif; ?>
+                        <a href="<?= e(APP_BASE_URL) ?>/admin/upload.php"
+                            class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-white/15 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-semibold px-4 py-2.5 transition-colors">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+                            BACK TO UPLOAD
+                        </a>
                     </div>
                 </div>
 
