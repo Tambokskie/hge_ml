@@ -194,13 +194,14 @@ $sections = [
         'intro' => 'Use this to record many applications at once from a spreadsheet of applicants, instead of one at a time in Look-Up. It is found on the [[ADMIN]] page. Nothing is recorded until you confirm.',
         'steps' => [
             'Open [[SETTINGS]] in the menu, then click [[ADMIN]], and find [[BULK UPDATE HGE APPLICATIONS]].',
-            'Click [[DOWNLOAD TEMPLATE]] and fill in one applicant per row: date applied, last name, first name, middle initial, middle name and extension. Type an underscore ( _ ) when there is no middle name. A spreadsheet exported from your source system with these columns also works.',
+            'Click [[DOWNLOAD TEMPLATE]] and fill in one applicant per row: the CoE issue date (this becomes the approval date), last name, first name, middle initial, middle name and extension. Type an underscore ( _ ) when there is no middle name. A spreadsheet exported from your source system with these columns also works.',
             'Click [[CHOOSE FILE]] and pick the file (.xls, .xlsx or .csv), then click [[UPLOAD & PREVIEW]]. This only checks the file; nothing is saved.',
-            'Read the preview: [[WILL BE FILED]] (a Latin Honor record matched), [[ALREADY FILED]] (skipped), [[NEEDS REVIEW]] (not sure who it is), [[NOT FOUND]] (no Latin Honor record) and [[UNREADABLE ROWS]] (missing name or bad date).',
+            'Read the preview: [[WILL BE FILED/APPROVED]] (a Latin Honor record matched), [[ALREADY APPROVED]] (skipped, left unchanged), [[NEEDS REVIEW]] (not sure who it is), [[NOT FOUND]] (no Latin Honor record) and [[UNREADABLE ROWS]] (missing name or bad date).',
             'If it looks right, click the confirm button, for example [[CONFIRM & FILE]] followed by the number of applications.',
             'For the applicants under [[NEEDS REVIEW]], click [[GO TO NEEDS REVIEW]]. For each one choose [[FILE FOR THIS RECORD]] next to the right saved record, or [[NOT A MATCH · DISMISS]] if none of them is the person.',
         ],
         'tips' => [
+            'The date in the file is used as the approval date. An applicant with no application yet is filed and approved on that date; one whose application is still processing is approved on that date (the original filing date is kept). Choosing [[FILE FOR THIS RECORD]] under [[NEEDS REVIEW]] also files and approves on the file\'s date.',
             'Applicants under [[NEEDS REVIEW]] stay on the list until you act on them. One that already has an application recorded for that date closes by itself.',
             '[[DOWNLOAD REVIEW FILE]] saves the uncertain and unreadable rows so you can fix them in your spreadsheet.',
         ],
