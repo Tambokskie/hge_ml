@@ -128,7 +128,8 @@ $sections = [
             'The colored dot on the upload card shows how much of today\'s free AI quota is left: green is available, yellow is moderate, red is low. When it is red, uploads use the standard text/OCR reading instead.',
             'If the AI cannot read a batch, nothing is lost: the pages already read are kept. Try again from the upload\'s page (see "School records and upload details") and it carries on from the pages it has not read yet.',
             'If the AI keeps failing, open the upload and click [[EXTRACT VIA TEXT/OCR]] to read it the standard way. It asks your permission before using OCR, which is the slowest and least accurate method.',
-            'If a list for the same school and year was already uploaded, the system asks you to confirm before it adds another.',
+            'If a list for the same school and year was already uploaded, a window says so and shows the existing file. Click [[VIEW EXISTING LIST]] to look at it, [[CANCEL]] to stop, or [[ADD AS SEPARATE UPLOAD]] to keep both. The existing list is never changed or replaced.',
+            'The first upload for a school and year keeps its normal file name (for example ..._2025_1.pdf). The second and later ones are marked as duplicates in the stored file name (..._2025_dup01.pdf, then ..._2025_dup02.pdf), so you can tell them apart on the upload\'s page.',
         ],
     ],
     [
@@ -194,7 +195,7 @@ $sections = [
         'intro' => 'Use this to record many applications at once from a spreadsheet of applicants, instead of one at a time in Look-Up. It is found on the [[ADMIN]] page. Nothing is recorded until you confirm.',
         'steps' => [
             'Open [[SETTINGS]] in the menu, then click [[ADMIN]], and find [[BULK UPDATE HGE APPLICATIONS]].',
-            'Click [[DOWNLOAD TEMPLATE]] and fill in one applicant per row: the CoE issue date (this becomes the approval date), last name, first name, middle initial, middle name and extension. Type an underscore ( _ ) when there is no middle name. A spreadsheet exported from your source system with these columns also works.',
+            'Click [[DOWNLOAD TEMPLATE]] and fill in one applicant per row: the CoE issue date (this becomes the approval date), last name, first name, middle initial, middle name and extension. Type an underscore ( _ ) when there is no middle name. A spreadsheet exported from your source system also works as it is: the system finds the columns by their headings (CoEIssueDate, LName, FName, MI, MName, ExtName) and ignores every other column, such as address, remarks, honors or the spoiled/cancelled flags.',
             'Click [[CHOOSE FILE]] and pick the file (.xls, .xlsx or .csv), then click [[UPLOAD & PREVIEW]]. This only checks the file; nothing is saved.',
             'Read the preview: [[WILL BE FILED/APPROVED]] (a Latin Honor record matched), [[ALREADY APPROVED]] (skipped, left unchanged), [[NEEDS REVIEW]] (not sure who it is), [[NOT FOUND]] (no Latin Honor record) and [[UNREADABLE ROWS]] (missing name or bad date).',
             'If it looks right, click the confirm button, for example [[CONFIRM & FILE]] followed by the number of applications.',
@@ -203,6 +204,7 @@ $sections = [
         'tips' => [
             'The date in the file is used as the approval date. An applicant with no application yet is filed and approved on that date; one whose application is still processing is approved on that date (the original filing date is kept). Choosing [[FILE FOR THIS RECORD]] under [[NEEDS REVIEW]] also files and approves on the file\'s date. If the saved record is already filed but not yet approved, the button reads [[APPROVE THIS RECORD]] and approves it on the file\'s date without changing its filing date.',
             'Applicants under [[NEEDS REVIEW]] stay on the list until you act on them. One that already has an application recorded for that date closes by itself.',
+            'Because the other columns are ignored, a raw export is not checked for spoiled or cancelled rows, or for a different honor. When a person appears on two rows, the earlier date is used. Look over the preview before you confirm, and check unusual applicants in Look-Up afterwards.',
             '[[DOWNLOAD REVIEW FILE]] saves the uncertain and unreadable rows so you can fix them in your spreadsheet.',
         ],
     ],
@@ -232,6 +234,7 @@ $sections = [
                     'Click [[DUPLICATE RECORDS]]. Records with the same name are grouped, whatever their school, year or course.',
                     'In each group the copy marked [[KEEP]] stays. A copy that already has a filed application always stays and cannot be removed. Otherwise the oldest copy is suggested.',
                     'Tick the extra copies and remove them. They go to the Recycle Bin and can be restored.',
+                    'A small [[DUP01]] tag next to "Upload 2" means the record came from a second upload of the same school and year (DUP02 for the third, and so on). Records from the first upload have no tag.',
                 ],
             ],
             [
