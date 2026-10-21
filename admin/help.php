@@ -201,7 +201,7 @@ $sections = [
             'For the applicants under [[NEEDS REVIEW]], click [[GO TO NEEDS REVIEW]]. For each one choose [[FILE FOR THIS RECORD]] next to the right saved record, or [[NOT A MATCH · DISMISS]] if none of them is the person.',
         ],
         'tips' => [
-            'The date in the file is used as the approval date. An applicant with no application yet is filed and approved on that date; one whose application is still processing is approved on that date (the original filing date is kept). Choosing [[FILE FOR THIS RECORD]] under [[NEEDS REVIEW]] also files and approves on the file\'s date.',
+            'The date in the file is used as the approval date. An applicant with no application yet is filed and approved on that date; one whose application is still processing is approved on that date (the original filing date is kept). Choosing [[FILE FOR THIS RECORD]] under [[NEEDS REVIEW]] also files and approves on the file\'s date. If the saved record is already filed but not yet approved, the button reads [[APPROVE THIS RECORD]] and approves it on the file\'s date without changing its filing date.',
             'Applicants under [[NEEDS REVIEW]] stay on the list until you act on them. One that already has an application recorded for that date closes by itself.',
             '[[DOWNLOAD REVIEW FILE]] saves the uncertain and unreadable rows so you can fix them in your spreadsheet.',
         ],

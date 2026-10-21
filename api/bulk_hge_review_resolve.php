@@ -21,7 +21,7 @@ $itemId = (int) ($_POST['item_id'] ?? 0);
 $action = (string) ($_POST['action'] ?? '');
 $graduateId = (int) ($_POST['graduate_id'] ?? 0);
 
-if ($itemId <= 0 || !in_array($action, ['file', 'dismiss'], true) || ($action === 'file' && $graduateId <= 0)) {
+if ($itemId <= 0 || !in_array($action, ['file', 'approve', 'dismiss'], true) || ($action !== 'dismiss' && $graduateId <= 0)) {
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => 'INVALID REQUEST.']);
     exit;
@@ -36,14 +36,17 @@ try {
         $result = bulk_hge_review_dismiss($pdo, $itemId, (int) $currentUser['id']);
         $message = 'ITEM DISMISSED. NOTHING WAS FILED.';
     } else {
-        $result = bulk_hge_review_file($pdo, $itemId, $graduateId, (int) $currentUser['id']);
-        $message = 'APPLICATION FILED.';
+        $approving = $action === 'approve';
+        $result = $approving
+            ? bulk_hge_review_approve($pdo, $itemId, $graduateId, (int) $currentUser['id'])
+            : bulk_hge_review_file($pdo, $itemId, $graduateId, (int) $currentUser['id']);
+        $message = $approving ? 'APPLICATION APPROVED.' : 'APPLICATION FILED.';
         if ($result['ok']) {
             log_activity(
                 $pdo,
                 $currentUser['id'] ?? null,
                 'application_filed',
-                'bulk review: ' . $result['person'] . ' filed against ' . $result['graduate_name'] . ' (' . $result['date'] . ')'
+                'bulk review: ' . $result['person'] . ($approving ? ' approved for ' : ' filed against ') . $result['graduate_name'] . ' (' . $result['date'] . ')'
             );
         }
     }

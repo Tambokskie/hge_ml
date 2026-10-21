@@ -158,6 +158,41 @@ class BulkHgeReviewTest extends TestCase
         $this->assertSame('2023-03-03', $shown['applied_on'], 'the list flags a record that was filed since');
     }
 
+    public function testApprovingAnAlreadyFiledCandidateUsesTheFileDateAndKeepsTheFilingDate(): void
+    {
+        bulk_hge_review_save(TestDb::pdo(), $this->previewReview('2024-05-09'), 1, 'file.xls');
+        $item = bulk_hge_review_list(TestDb::pdo())['items'][0];
+        $chosen = $item['candidates'][0]['id'];
+        TestDb::pdo()->exec("INSERT INTO graduate_applications (graduate_id, applied_by, application_date) VALUES ({$chosen}, 1, '2024-05-08')");
+
+        $shown = bulk_hge_review_list(TestDb::pdo())['items'][0]['candidates'][0];
+        $this->assertFalse($shown['approved']);
+
+        $result = bulk_hge_review_approve(TestDb::pdo(), $item['id'], $chosen, 2);
+
+        $this->assertTrue($result['ok']);
+        $row = TestDb::pdo()->query("SELECT application_date, approved_at, approved_by FROM graduate_applications WHERE graduate_id = {$chosen}")->fetch();
+        $this->assertSame(['2024-05-08', '2024-05-09', 2], [$row['application_date'], $row['approved_at'], (int) $row['approved_by']]);
+        $this->assertSame(1, bulk_hge_review_pending_count(TestDb::pdo()));
+        $status = TestDb::pdo()->query('SELECT status, resolved_graduate_id FROM bulk_hge_review_items WHERE id = ' . $item['id'])->fetch();
+        $this->assertSame(['filed', $chosen], [$status['status'], (int) $status['resolved_graduate_id']]);
+    }
+
+    public function testApprovingIsRefusedWhenThereIsNoApplicationOrItIsAlreadyApproved(): void
+    {
+        bulk_hge_review_save(TestDb::pdo(), $this->previewReview('2024-05-09'), 1, 'file.xls');
+        $item = bulk_hge_review_list(TestDb::pdo())['items'][0];
+        $unfiled = $item['candidates'][0]['id'];
+        $approved = $item['candidates'][1]['id'];
+        TestDb::pdo()->exec("INSERT INTO graduate_applications (graduate_id, applied_by, application_date, approved_at, approved_by) VALUES ({$approved}, 1, '2024-01-01', '2024-01-02', 1)");
+
+        $this->assertFalse(bulk_hge_review_approve(TestDb::pdo(), $item['id'], $unfiled, 1)['ok']);
+        $this->assertFalse(bulk_hge_review_approve(TestDb::pdo(), $item['id'], $approved, 1)['ok']);
+
+        $this->assertSame('2024-01-02', TestDb::pdo()->query("SELECT approved_at FROM graduate_applications WHERE graduate_id = {$approved}")->fetchColumn());
+        $this->assertSame(2, bulk_hge_review_pending_count(TestDb::pdo()));
+    }
+
     public function testDismissingClosesTheItemWithoutFilingAndOnlyOnce(): void
     {
         bulk_hge_review_save(TestDb::pdo(), $this->previewReview(), 1, 'file.xls');

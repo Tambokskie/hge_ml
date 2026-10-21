@@ -339,7 +339,7 @@ function bulk_hge_review_list(PDO $pdo, int $limit = 100, int $offset = 0): arra
     if ($ids !== []) {
         $in = implode(',', array_map('intval', array_keys($ids)));
         $stmt = $pdo->query(
-            "SELECT g.id, g.graduate_name, g.course, g.latin_honor, g.graduation_year, s.school_name, s.campus, a.application_date AS applied_on
+            "SELECT g.id, g.graduate_name, g.course, g.latin_honor, g.graduation_year, s.school_name, s.campus, a.application_date AS applied_on, (a.approved_at IS NOT NULL) AS approved
              FROM latin_honor_graduates g
              LEFT JOIN schools s ON s.id = g.school_id
              LEFT JOIN graduate_applications a ON a.graduate_id = g.id
@@ -354,6 +354,7 @@ function bulk_hge_review_list(PDO $pdo, int $limit = 100, int $offset = 0): arra
                 'course' => (string) $g['course'],
                 'honor' => (string) $g['latin_honor'],
                 'applied_on' => $g['applied_on'],
+                'approved' => (int) $g['approved'] === 1,
             ];
         }
     }
@@ -471,6 +472,98 @@ function bulk_hge_review_file(PDO $pdo, int $itemId, int $graduateId, int $userI
     return [
         'ok' => true,
         'graduate_name' => (string) $graduateName,
+        'date' => (string) $item['application_date'],
+        'person' => bulk_hge_person_display([
+            'last' => $item['last_name'], 'first' => $item['first_name'], 'mi' => $item['mi'],
+            'middle' => $item['middle_name'], 'ext' => $item['ext_name'],
+        ]),
+    ];
+}
+
+/**
+ * For a candidate that is already filed but not yet approved: approves its
+ * existing application using the item's date (the file's CoE Issue Date) and
+ * closes the item. The original application_date is left alone - same rule as
+ * the confident-match upsert in bulk_hge_insert_pairs().
+ *
+ * @return array{ok: bool, error?: string, graduate_name?: string, date?: string, person?: string}
+ */
+function bulk_hge_review_approve(PDO $pdo, int $itemId, int $graduateId, int $userId): array
+{
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare('SELECT * FROM bulk_hge_review_items WHERE id = :id FOR UPDATE');
+        $stmt->execute(['id' => $itemId]);
+        $item = $stmt->fetch();
+
+        if ($item === false || $item['status'] !== 'pending') {
+            $pdo->rollBack();
+
+            return ['ok' => false, 'error' => 'THIS ITEM WAS ALREADY RESOLVED.'];
+        }
+
+        $candidateIds = array_map('intval', (array) json_decode((string) $item['candidate_ids'], true));
+        if (!in_array($graduateId, $candidateIds, true)) {
+            $pdo->rollBack();
+
+            return ['ok' => false, 'error' => 'THAT RECORD IS NOT ONE OF THE POSSIBLE MATCHES FOR THIS APPLICANT.'];
+        }
+
+        $row = $pdo->prepare(
+            'SELECT g.graduate_name, a.id AS application_id, a.approved_at
+             FROM latin_honor_graduates g
+             LEFT JOIN graduate_applications a ON a.graduate_id = g.id
+             WHERE g.id = :id FOR UPDATE'
+        );
+        $row->execute(['id' => $graduateId]);
+        $graduate = $row->fetch();
+
+        if ($graduate === false) {
+            $pdo->rollBack();
+
+            return ['ok' => false, 'error' => 'THAT GRADUATE RECORD NO LONGER EXISTS.'];
+        }
+        if ($graduate['application_id'] === null) {
+            $pdo->rollBack();
+
+            return ['ok' => false, 'error' => 'THIS GRADUATE HAS NOT FILED AN APPLICATION YET. FILE IT INSTEAD.'];
+        }
+        if ($graduate['approved_at'] !== null) {
+            $pdo->rollBack();
+
+            return ['ok' => false, 'error' => 'THIS APPLICATION IS ALREADY APPROVED. DISMISS THIS ITEM INSTEAD.'];
+        }
+
+        $pdo->prepare(
+            'UPDATE graduate_applications SET approved_at = :approved_at, approved_by = :approved_by WHERE graduate_id = :graduate_id'
+        )->execute([
+            'approved_at' => $item['application_date'],
+            'approved_by' => $userId,
+            'graduate_id' => $graduateId,
+        ]);
+
+        $pdo->prepare(
+            "UPDATE bulk_hge_review_items
+             SET status = 'filed', resolved_by = :resolved_by, resolved_at = :resolved_at, resolved_graduate_id = :graduate_id
+             WHERE id = :id"
+        )->execute([
+            'resolved_by' => $userId,
+            'resolved_at' => date('Y-m-d H:i:s'),
+            'graduate_id' => $graduateId,
+            'id' => $itemId,
+        ]);
+
+        $pdo->commit();
+    } catch (\Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+
+    return [
+        'ok' => true,
+        'graduate_name' => (string) $graduate['graduate_name'],
         'date' => (string) $item['application_date'],
         'person' => bulk_hge_person_display([
             'last' => $item['last_name'], 'first' => $item['first_name'], 'mi' => $item['mi'],

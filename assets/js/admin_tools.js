@@ -427,8 +427,11 @@ document.addEventListener('DOMContentLoaded', function () {
     var BULK_REVIEW_DISMISS_CLASS = BULK_REVIEW_SMALL_BTN + 'border-gray-300 dark:border-white/15 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5';
 
     function bulkReviewCandidateHtml(item, candidate) {
-        var action = candidate.applied_on
-            ? '<span class="text-xs font-semibold text-gray-500 dark:text-gray-400">ALREADY FILED (' + escapeHtml(candidate.applied_on) + ')</span>'
+        var action = candidate.applied_on && candidate.approved
+            ? '<span class="text-xs font-semibold text-gray-500 dark:text-gray-400">ALREADY APPROVED (' + escapeHtml(candidate.applied_on) + ')</span>'
+            : candidate.applied_on
+            ? '<span class="flex items-center gap-3"><span class="text-xs font-semibold text-gray-500 dark:text-gray-400">ALREADY FILED (' + escapeHtml(candidate.applied_on) + ')</span>' +
+              '<button type="button" data-bulk-review-file data-item-id="' + item.id + '" data-graduate-id="' + candidate.id + '" class="' + BULK_REVIEW_FILE_CLASS + '">APPROVE THIS RECORD</button></span>'
             : '<button type="button" data-bulk-review-file data-item-id="' + item.id + '" data-graduate-id="' + candidate.id + '" class="' + BULK_REVIEW_FILE_CLASS + '">FILE FOR THIS RECORD</button>';
 
         return '<div class="flex flex-wrap items-center justify-between gap-2 py-2">' +
@@ -542,22 +545,31 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function confirmBulkReviewFile(item, candidate) {
+        // A record that is already filed (but not approved) is approved with the
+        // file's CoE Issue Date; its original filing date is kept.
+        var approving = !!candidate.applied_on;
         showModal({
             icon: modalHeaderIcon('check'),
-            title: 'FILE THIS APPLICATION?',
-            subtitle: 'The application is recorded against the saved record you chose.',
+            title: approving ? 'APPROVE THIS APPLICATION?' : 'FILE THIS APPLICATION?',
+            subtitle: approving
+                ? 'The application already on record is marked approved. Its filing date is not changed.'
+                : 'The application is recorded against the saved record you chose.',
             bodyHtml: '<p>APPLICANT IN YOUR FILE: <strong>' + escapeHtml(item.name) + '</strong><br>' +
-                'WILL BE FILED FOR: <strong>' + escapeHtml(candidate.name) + '</strong> (' + escapeHtml(candidate.school) + ', ' + escapeHtml(candidate.year) + ')<br>' +
-                'DATE APPLIED: <strong>' + escapeHtml(item.date) + '</strong></p>',
+                (approving ? 'WILL BE APPROVED FOR: ' : 'WILL BE FILED FOR: ') + '<strong>' + escapeHtml(candidate.name) + '</strong> (' + escapeHtml(candidate.school) + ', ' + escapeHtml(candidate.year) + ')<br>' +
+                (approving ? 'ALREADY FILED ON: <strong>' + escapeHtml(candidate.applied_on) + '</strong><br>DATE APPROVED (COE ISSUE DATE): <strong>' : 'DATE APPLIED: <strong>') +
+                escapeHtml(item.date) + '</strong></p>',
             buttons: [
                 { label: 'CANCEL', className: MODAL_BTN.secondary },
                 {
-                    label: 'FILE APPLICATION',
+                    label: approving ? 'APPROVE APPLICATION' : 'FILE APPLICATION',
                     icon: modalButtonIcon('check'),
                     className: MODAL_BTN.primary,
                     onClick: function (modalClose) {
                         modalClose();
-                        resolveBulkReview({ item_id: item.id, action: 'file', graduate_id: candidate.id }, 'FILING APPLICATION');
+                        resolveBulkReview(
+                            { item_id: item.id, action: approving ? 'approve' : 'file', graduate_id: candidate.id },
+                            approving ? 'APPROVING APPLICATION' : 'FILING APPLICATION'
+                        );
                     },
                 },
             ],
