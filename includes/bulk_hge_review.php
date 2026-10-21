@@ -56,7 +56,9 @@ function bulk_hge_review_missing_table_message(\Throwable $e): ?string
 
 /**
  * For the saved records that still exist: id => the date their application was
- * filed (null when none). A deleted record is simply absent.
+ * filed (null when none, or when it is filed but NOT yet approved - a filed,
+ * unapproved record is not "acted on" for an item that exists to approve it).
+ * A deleted record is simply absent.
  *
  * @param int[] $ids
  * @return array<int, ?string>
@@ -67,13 +69,13 @@ function bulk_hge_review_applied_dates(PDO $pdo, array $ids): array
     foreach (array_chunk(array_values(array_unique(array_map('intval', $ids))), 1000) as $chunk) {
         $in = implode(',', $chunk);
         $stmt = $pdo->query(
-            "SELECT g.id, a.application_date
+            "SELECT g.id, a.application_date, a.approved_at
              FROM latin_honor_graduates g
              LEFT JOIN graduate_applications a ON a.graduate_id = g.id
              WHERE g.id IN ({$in})"
         );
         foreach ($stmt->fetchAll() as $row) {
-            $dates[(int) $row['id']] = $row['application_date'] !== null ? (string) $row['application_date'] : null;
+            $dates[(int) $row['id']] = $row['application_date'] !== null && $row['approved_at'] !== null ? (string) $row['application_date'] : null;
         }
     }
 

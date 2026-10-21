@@ -240,9 +240,23 @@ class BulkHgeReviewTest extends TestCase
         ];
     }
 
-    private function applyOn(int $graduateId, string $date): void
+    private function applyOn(int $graduateId, string $date, bool $approved = true): void
     {
-        TestDb::pdo()->exec("INSERT INTO graduate_applications (graduate_id, applied_by, application_date) VALUES ({$graduateId}, 1, '{$date}')");
+        $approvedAt = $approved ? "'{$date}'" : 'NULL';
+        $approvedBy = $approved ? '1' : 'NULL';
+        TestDb::pdo()->exec("INSERT INTO graduate_applications (graduate_id, applied_by, application_date, approved_at, approved_by) VALUES ({$graduateId}, 1, '{$date}', {$approvedAt}, {$approvedBy})");
+    }
+
+    public function testAnItemStaysWhenTheRecordIsFiledForThatDateButNotYetApproved(): void
+    {
+        $gradId = $this->addGraduate('Ma. April Rose F. Gambol');
+        $this->applyOn($gradId, '2025-07-30', false);
+        TestDb::pdo()->prepare('INSERT INTO bulk_hge_review_items (person_key, last_name, first_name, application_date, reason, candidate_ids, created_by) VALUES (?, ?, ?, ?, ?, ?, 1)')
+            ->execute([str_repeat('b', 40), 'GAMBOL', 'MA.', '2025-07-30', 'loose', json_encode([$gradId])]);
+
+        $list = bulk_hge_review_list(TestDb::pdo());
+        $this->assertSame(1, $list['total'], 'it still waits so an administrator can approve it');
+        $this->assertFalse($list['items'][0]['candidates'][0]['approved']);
     }
 
     public function testTheSamePersonTypedTwiceClosesTheOtherItemOnceOneIsFiled(): void
