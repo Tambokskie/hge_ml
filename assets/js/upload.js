@@ -203,13 +203,14 @@ document.addEventListener('DOMContentLoaded', function () {
             showModal({
                 icon: modalHeaderIcon('warning'),
                 iconClassName: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
-                title: 'POSSIBLE DUPLICATE UPLOAD',
-                subtitle: data.message,
-                bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">EXISTING FILE: <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(data.existing_upload.original_filename) + '</span></p>',
+                title: 'THIS SCHOOL YEAR ALREADY HAS A LIST',
+                subtitle: 'A LIST WAS ALREADY UPLOADED FOR THIS SCHOOL AND SCHOOL YEAR.',
+                bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">EXISTING FILE: <span class="font-medium text-gray-900 dark:text-white">' + escapeHtml(data.existing_upload.original_filename) + '</span></p>' +
+                    '<p class="mt-3 text-sm text-gray-600 dark:text-gray-400">THE EXISTING LIST WILL NOT BE CHANGED. IF YOU CONTINUE, YOUR NEW FILE IS SAVED AS A SEPARATE UPLOAD, AND ITS FILE NAME IS MARKED AS A DUPLICATE (FOR EXAMPLE, _DUP01).</p>',
                 buttons: [
                     { label: 'CANCEL', className: MODAL_BTN.secondary },
                     {
-                        label: 'VIEW EXISTING',
+                        label: 'VIEW EXISTING LIST',
                         icon: modalButtonIcon('eye'),
                         className: MODAL_BTN.secondary,
                         onClick: function (close) {
@@ -218,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         },
                     },
                     {
-                        label: 'UPLOAD ANYWAY',
+                        label: 'ADD AS SEPARATE UPLOAD',
                         icon: modalButtonIcon('check'),
                         className: MODAL_BTN.primary,
                         onClick: function (close) {
