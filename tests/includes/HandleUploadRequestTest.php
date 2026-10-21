@@ -136,7 +136,7 @@ class HandleUploadRequestTest extends TestCase
 
         $this->assertSame('success', $result['status']);
         $this->assertSame(2, $result['upload']['upload_number']);
-        $this->assertFileExists($this->storageDir . '/ABC_UNIVERSITY_2025_2.pdf');
+        $this->assertFileExists($this->storageDir . '/ABC_UNIVERSITY_2025_dup01.pdf');
     }
 
     public function testCrossSchoolFilenameCollisionReturnsErrorWithoutOverwriting(): void

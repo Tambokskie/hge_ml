@@ -70,7 +70,7 @@ function fetch_duplicate_candidates(PDO $pdo, ?array $schoolIds = null, ?array $
 
     $stmt = $pdo->prepare(
         "SELECT g.id, g.upload_id, g.school_id, g.graduate_name, g.course, g.latin_honor, g.graduation_date,
-                g.graduation_year, s.school_name, s.campus, u.original_filename, u.upload_number,
+                g.graduation_year, s.school_name, s.campus, u.original_filename, u.upload_number, u.stored_filename,
                 a.application_date, (a.id IS NOT NULL) AS has_applied
          FROM latin_honor_graduates g
          JOIN schools s ON s.id = g.school_id

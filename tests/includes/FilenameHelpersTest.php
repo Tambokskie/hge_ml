@@ -24,9 +24,19 @@ class FilenameHelpersTest extends TestCase
         $this->assertSame('ABC_UNIVERSITY_2025_1.pdf', build_stored_filename('ABC University', '2025', 1));
     }
 
-    public function testBuildStoredFilenameIncludesUploadNumber(): void
+    public function testBuildStoredFilenameMarksSecondAndLaterUploadsAsDuplicates(): void
     {
-        $this->assertSame('ABC_UNIVERSITY_2025_3.pdf', build_stored_filename('ABC University', '2025', 3));
+        $this->assertSame('ABC_UNIVERSITY_2025_dup01.pdf', build_stored_filename('ABC University', '2025', 2));
+        $this->assertSame('ABC_UNIVERSITY_2025_dup02.pdf', build_stored_filename('ABC University', '2025', 3));
+        $this->assertSame('ABC_UNIVERSITY_ISABEL_2025_dup01.xlsx', build_stored_filename('ABC University', '2025', 2, 'Isabel', 'xlsx'));
+    }
+
+    public function testUploadDupTagIsReadFromTheStoredFilename(): void
+    {
+        $this->assertSame('DUP01', upload_dup_tag('ABC_UNIVERSITY_2025_dup01.pdf'));
+        $this->assertSame('DUP12', upload_dup_tag('ABC_UNIVERSITY_2025_dup12.xlsx'));
+        $this->assertNull(upload_dup_tag('ABC_UNIVERSITY_2025_1.pdf'));
+        $this->assertNull(upload_dup_tag('ABC_UNIVERSITY_2026_2.pdf'), 'a lone #2 that was never renamed is not a duplicate');
     }
 
     public function testBuildStoredFilenameIncludesCampusWhenProvided(): void

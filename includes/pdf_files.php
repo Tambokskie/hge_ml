@@ -15,7 +15,21 @@ function build_stored_filename(string $schoolName, string $schoolYear, int $uplo
 
     $namePart = $campusPart !== '' ? "{$schoolPart}_{$campusPart}" : $schoolPart;
 
-    return "{$namePart}_{$yearPart}_{$uploadNumber}.{$extension}";
+    // The first upload for a school+year keeps the plain number (..._2025_1); the 2nd, 3rd...
+    // are marked as duplicates (..._2025_dup01, ..._2025_dup02) so they are told apart at a glance.
+    $suffix = $uploadNumber > 1 ? sprintf('dup%02d', $uploadNumber - 1) : (string) $uploadNumber;
+
+    return "{$namePart}_{$yearPart}_{$suffix}.{$extension}";
+}
+
+/**
+ * The duplicate-upload tag of a stored file name ("DUP01" for ..._2025_dup01.pdf), or
+ * null for a first upload. Read from the file name so an upload that was never renamed
+ * (e.g. a lone #2 whose #1 no longer exists) is not labelled a duplicate.
+ */
+function upload_dup_tag(string $storedFilename): ?string
+{
+    return preg_match('/_dup(\d{2,})\.[A-Za-z0-9]+$/', $storedFilename, $m) === 1 ? 'DUP' . $m[1] : null;
 }
 
 function validate_pdf_file_content(string $path, int $size, int $maxBytes): array

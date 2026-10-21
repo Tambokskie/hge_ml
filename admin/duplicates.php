@@ -5,6 +5,7 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/schools.php';
 require_once __DIR__ . '/../includes/duplicates.php';
+require_once __DIR__ . '/../includes/pdf_files.php';
 
 require_role('administrator');
 
@@ -112,7 +113,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                         </td>
                                         <td class="px-2 py-2.5 text-xs text-gray-500 dark:text-gray-400">#<?= (int) $member['id'] ?></td>
                                         <td class="px-2 py-2.5 text-xs text-gray-900 dark:text-white"><?= e_upper(format_school_display_name($member['school_name'], $member['campus'])) ?> · <?= e_upper($member['course'] !== '' ? $member['course'] : '—') ?> · <?= e($member['latin_honor']) ?> · <?= (int) $member['graduation_year'] ?></td>
-                                        <td class="px-2 py-2.5 text-xs text-gray-600 dark:text-gray-300"><?= e($member['original_filename']) ?> (UPLOAD <?= (int) $member['upload_number'] ?>)</td>
+                                        <td class="px-2 py-2.5 text-xs text-gray-600 dark:text-gray-300"><?= e($member['original_filename']) ?> (UPLOAD <?= (int) $member['upload_number'] ?>)<?php $dupTag = upload_dup_tag((string) ($member['stored_filename'] ?? '')); ?><?php if ($dupTag !== null): ?> <span class="ml-1 inline-flex items-center rounded-md bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300"><?= e($dupTag) ?></span><?php endif; ?></td>
                                         <td class="px-2 py-2.5 text-xs text-gray-600 dark:text-gray-300"><?= $member['graduation_date'] ? e_upper(date('M j, Y', strtotime($member['graduation_date']))) : '—' ?></td>
                                         <td class="px-2 py-2.5 text-right">
                                             <?php if ($isKeeper): ?>
