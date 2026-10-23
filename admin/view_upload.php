@@ -37,7 +37,7 @@ if ($upload !== null) {
         'extracted' => 'YOUR FILE HAS BEEN EXTRACTED AND IS READY FOR REVIEW. YOU CAN CONTINUE THE REVIEW OR DOWNLOAD A COPY FOR YOUR RECORDS.',
         'draft' => 'YOU HAVE A SAVED DRAFT FOR THIS UPLOAD. RESUME THE REVIEW WHEN YOU\'RE READY TO FINISH IT.',
         'reviewed' => 'THIS UPLOAD HAS BEEN REVIEWED AND ITS RECORDS ARE SAVED TO THE DATABASE.',
-        'failed' => 'TEXT COULD NOT BE RELIABLY EXTRACTED FROM THIS PDF. YOU CAN ADD RECORDS MANUALLY IN THE REVIEW SCREEN.',
+        'failed' => 'TEXT COULD NOT BE RELIABLY EXTRACTED FROM THIS FILE. YOU CAN ADD RECORDS MANUALLY IN THE REVIEW SCREEN.',
     ][$status] ?? 'YOUR FILE HAS BEEN SUCCESSFULLY UPLOADED.';
 
     $canManageExtraction = $isAdmin && $status !== 'reviewed';
@@ -299,7 +299,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
                                 </span>
                                 <span class="min-w-0 flex-1">
-                                    <span class="block text-sm font-semibold text-gray-900 dark:text-white">DOWNLOAD <?= $isTemplateUpload ? 'FILE' : 'PDF' ?></span>
+                                    <span class="block text-sm font-semibold text-gray-900 dark:text-white">DOWNLOAD <?= $isTemplateUpload || is_image_filename((string) $upload['stored_filename']) ? 'FILE' : 'PDF' ?></span>
                                     <span class="block text-xs text-gray-500 dark:text-gray-500">SAVE A COPY TO YOUR DEVICE.</span>
                                 </span>
                                 <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-navy-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
@@ -399,6 +399,7 @@ window.HGE_VIEW_UPLOAD = {
     pdfDetails: {
         school: <?= json_encode(mb_strtoupper(format_school_display_name($upload['school_name'], $upload['campus']))) ?>,
         schoolYear: <?= json_encode($upload['school_year']) ?>,
+        fileFormat: <?= json_encode($fileExtension) ?>,
         uploadedAt: <?= json_encode(mb_strtoupper(date('F j, Y', strtotime($upload['uploaded_at'])))) ?>
     }
 };

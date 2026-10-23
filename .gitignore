@@ -17,3 +17,7 @@ composer.phar
 /storage/recycle_bin/*
 !/storage/recycle_bin/.htaccess
 !/storage/recycle_bin/.gitkeep
+
+# Separate project with its own git repo/remote (Tambokskie/hge_ml.git) that
+# happens to live as a subdirectory here — not part of this repo's history.
+/hge_ml/

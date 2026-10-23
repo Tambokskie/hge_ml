@@ -204,7 +204,7 @@ function handle_upload_request(PDO $pdo, array $post, array $files, int $uploade
 
     $file = $files['pdf_file'] ?? null;
     if (!is_array($file) || ($file['tmp_name'] ?? '') === '') {
-        return ['status' => 'error', 'message' => 'PLEASE SELECT A PDF FILE TO UPLOAD.'];
+        return ['status' => 'error', 'message' => 'PLEASE SELECT A PDF, JPG/JPEG OR PNG FILE TO UPLOAD.'];
     }
 
     $size = filesize($file['tmp_name']);
@@ -233,7 +233,7 @@ function handle_upload_request(PDO $pdo, array $post, array $files, int $uploade
     }
 
     $uploadNumber = next_upload_number($pdo, $school['id'], $schoolYear);
-    $storedFilename = build_stored_filename($school['school_name'], $schoolYear, $uploadNumber, (string) ($school['campus'] ?? ''));
+    $storedFilename = build_stored_filename($school['school_name'], $schoolYear, $uploadNumber, (string) ($school['campus'] ?? ''), $validation['extension'] ?? 'pdf');
 
     $resolvedStorageDir = realpath($storageDir);
     if ($resolvedStorageDir === false) {

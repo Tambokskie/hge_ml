@@ -32,21 +32,38 @@ $dashboardDefaultApplied = get_applied_count_by_year($pdo, $dashboardDefaultYear
 $trendMonthly = get_filing_trend_monthly($pdo, $dashboardDefaultYear, $dashboardDefaultYear);
 
 // APPLICATION FILING OVERVIEW card: a two-ring sunburst, tied to the same
-// slicer as the two cards above. The inner ring is ON RECORD split into
-// APPLIED vs. NOT YET APPLIED; the outer ring only spans the inner ring's
-// APPLIED arc (never the NOT YET APPLIED remainder) and subdivides it into
-// PROCESSING (filed, not yet approved) vs. APPROVED — approved is applied's
-// own subset, see includes/reports.php:get_application_filing_report().
+// slicer as the two cards above. The inner ring is ON RECORD (always
+// graduation-year scoped) split into APPLIED vs. NOT YET APPLIED; the outer
+// ring only spans the inner ring's APPLIED arc (never the NOT YET APPLIED
+// remainder) and subdivides it into PROCESSING (filed, not yet approved) vs.
+// APPROVED — approved is applied's own subset, see
+// includes/reports.php:get_application_filing_report().
+//
+// APPLIED/PROCESSING/APPROVED themselves are scoped by the year the
+// application was FILED (application_date), matching the "HGE APPLICATIONS
+// RECEIVED" stat card above and includes/functions.php:get_applied_count_by_year()
+// — not by the applicant's graduation_year — see
+// includes/reports.php:get_applied_breakdown_by_filed_year(). The
+// graduation-year-scoped figures (on_record, and the per-school table below)
+// still come from $filingReport; its applied/approved are kept as
+// $gradYear* to show alongside the main figures as a "(N are from <year>)"
+// annotation rather than being discarded.
 $filingReport = get_application_filing_report($pdo, $dashboardDefaultYear);
+$filedYearBreakdown = get_applied_breakdown_by_filed_year($pdo, $dashboardDefaultYear);
 $donutInnerRadius = 34;
 $donutInnerCircumference = 2 * M_PI * $donutInnerRadius;
 $donutOuterRadius = 52;
 $donutOuterCircumference = 2 * M_PI * $donutOuterRadius;
 
 $totalOnRecord = $filingReport['total_on_record'];
-$totalApplied = $filingReport['total_applied'];
-$totalApproved = $filingReport['total_approved'];
-$totalProcessing = $totalApplied - $totalApproved;
+$totalApplied = $filedYearBreakdown['total_applied'];
+$totalApproved = $filedYearBreakdown['total_approved'];
+$totalProcessing = $filedYearBreakdown['total_processing'];
+$filingRate = $totalOnRecord > 0 ? round($totalApplied / $totalOnRecord * 100, 1) : 0.0;
+
+$gradYearApplied = $filingReport['total_applied'];
+$gradYearApproved = $filingReport['total_approved'];
+$gradYearProcessing = $gradYearApplied - $gradYearApproved;
 
 $appliedFraction = $totalOnRecord > 0 ? $totalApplied / $totalOnRecord : 0;
 $donutAppliedLength = $donutInnerCircumference * $appliedFraction;
@@ -97,7 +114,7 @@ include __DIR__ . '/../includes/sidebar.php';
 ?>
 <main class="lg:ml-64 min-h-screen bg-gray-50 dark:bg-surface-950">
     <div class="p-6 lg:p-8">
-        <div class="mb-6">
+        <div class="relative z-30 mb-6">
             <div class="flex items-start gap-4">
                 <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
                     <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>
@@ -109,7 +126,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
             <?php if (!empty($dashboardYears)): ?>
                 <?php $dashboardYearsNeedPaging = count($dashboardYears) > 5; ?>
-                <div class="mt-4 flex items-center justify-center gap-2">
+                <div class="mt-4 relative flex items-center justify-center gap-2">
                     <?php if ($dashboardYearsNeedPaging): ?>
                         <button type="button" id="dashboard-year-prev" class="shrink-0 rounded-lg p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none motion-safe:animate-fade-in" style="animation-delay: 100ms" aria-label="Show more recent years">
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
@@ -130,12 +147,51 @@ include __DIR__ . '/../includes/sidebar.php';
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
                         </button>
                     <?php endif; ?>
+
+                    <?php if (!empty($graduationYears)): ?>
+                    <div class="absolute right-0 top-1/2 -translate-y-1/2 motion-safe:animate-fade-in" style="animation-delay: 100ms">
+                        <button type="button" id="dashboard-download-report-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="dashboard-download-report-panel" class="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 p-3 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5" title="Download Report">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                        </button>
+                        <div id="dashboard-download-report-panel" class="hidden absolute right-0 z-20 mt-2 w-72 rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-800 p-4 text-left shadow-xl">
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">DOWNLOAD REPORT</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">SELECT OPTIONS</p>
+                            <div class="mt-3 border-t border-gray-100 dark:border-white/10 pt-3 space-y-3">
+                                <div>
+                                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        <input type="radio" name="dashboard-download-scope" id="dashboard-download-scope-year" value="year" checked class="h-4 w-4 border-gray-300 text-csc-navy-600 focus:ring-csc-navy-600">
+                                        SPECIFIC YEAR
+                                    </label>
+                                    <select id="dashboard-download-year-select" class="mt-1.5 w-full rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300">
+                                        <?php foreach ($graduationYears as $gy): ?>
+                                            <option value="<?= (int) $gy ?>"<?= $gy === $dashboardDefaultYear ? ' selected' : '' ?>><?= (int) $gy ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        <input type="radio" name="dashboard-download-scope" id="dashboard-download-scope-range" value="range" class="h-4 w-4 border-gray-300 text-csc-navy-600 focus:ring-csc-navy-600">
+                                        RANGE OF YEARS
+                                    </label>
+                                    <select id="dashboard-download-range-select" disabled class="mt-1.5 w-full rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 disabled:opacity-50">
+                                        <option value="past5">PAST 5 YEARS</option>
+                                        <option value="past4">PAST 4 YEARS</option>
+                                        <option value="past3">PAST 3 YEARS</option>
+                                        <option value="past2">PAST 2 YEARS</option>
+                                        <option value="all">ALL YEARS ON RECORD</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="button" id="dashboard-download-report-submit" class="mt-4 w-full rounded-lg bg-csc-navy-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-110 transition-all">DOWNLOAD</button>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div class="dashboard-stat-card items-start text-left overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
+            <div class="dashboard-stat-card overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 0ms">
                 <span class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-csc-navy-600 dark:bg-csc-navy-400"></span>
                 <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10 motion-safe:animate-card-glow" style="animation-delay: 0s"></span>
                 <div class="flex items-center gap-3 self-start">
@@ -146,8 +202,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
                 <p class="dashboard-stat-number" id="dashboard-year-records-number" data-count-to="<?= (int) $dashboardDefaultYearRecords ?>">0</p>
             </div>
-            <?php $schoolsMissing = max(0, $stats['total_active_schools'] - $stats['total_schools']); ?>
-            <div class="dashboard-stat-card items-start text-left overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
+            <div class="dashboard-stat-card overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
                 <span class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-csc-navy-600 dark:bg-csc-navy-400"></span>
                 <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10 motion-safe:animate-card-glow" style="animation-delay: 0.8s"></span>
                 <div class="flex items-center gap-3 self-start">
@@ -158,7 +213,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
                 <p class="dashboard-stat-number" id="dashboard-applied-number" data-count-to="<?= (int) $dashboardDefaultApplied ?>">0</p>
             </div>
-            <div class="dashboard-stat-card items-start text-left overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 300ms">
+            <div class="dashboard-stat-card overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 300ms">
                 <span class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-csc-navy-600 dark:bg-csc-navy-400"></span>
                 <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10 motion-safe:animate-card-glow" style="animation-delay: 1.6s"></span>
                 <div class="flex items-center gap-3 self-start">
@@ -167,9 +222,9 @@ include __DIR__ . '/../includes/sidebar.php';
                     </span>
                     <p class="text-xs text-gray-600 dark:text-gray-500">APPROVED HGE</p>
                 </div>
-                <p class="dashboard-stat-number" id="dashboard-approved-number" data-count-to="<?= (int) $filingReport['total_approved'] ?>">0</p>
+                <p class="dashboard-stat-number" id="dashboard-approved-number" data-count-to="<?= (int) $totalApproved ?>">0</p>
             </div>
-            <div class="dashboard-stat-card items-start text-left overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 400ms">
+            <div class="dashboard-stat-card overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 400ms">
                 <span class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-csc-navy-600 dark:bg-csc-navy-400"></span>
                 <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10 motion-safe:animate-card-glow" style="animation-delay: 2.4s"></span>
                 <div class="flex items-center gap-3 self-start">
@@ -179,24 +234,21 @@ include __DIR__ . '/../includes/sidebar.php';
                     <p class="text-xs text-gray-600 dark:text-gray-500">SCHOOLS WITH RECORDS</p>
                 </div>
                 <div>
-                    <p class="flex items-baseline justify-start gap-1">
+                    <p class="flex items-baseline justify-center gap-1">
                         <span class="dashboard-stat-number" data-count-to="<?= (int) $stats['total_schools'] ?>">0</span>
                         <span class="text-lg font-semibold text-gray-400 dark:text-gray-500">/</span>
                         <span class="dashboard-stat-reveal text-lg font-semibold text-gray-400 dark:text-gray-500" data-count-to="<?= (int) $stats['total_active_schools'] ?>">0</span>
                     </p>
-                    <p class="dashboard-stat-reveal text-[11px] text-gray-500 dark:text-gray-500 mt-0.5">
-                        <?= $schoolsMissing > 0 ? $schoolsMissing . ' SCHOOL' . ($schoolsMissing === 1 ? '' : 'S') . ' WITH NO SUBMISSION YET' : 'ALL SCHOOLS HAVE SUBMITTED' ?>
-                    </p>
                 </div>
             </div>
-            <div class="dashboard-stat-card items-start text-left overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 600ms">
+            <div class="dashboard-stat-card overflow-hidden motion-safe:animate-fade-in-up" style="animation-delay: 600ms">
                 <span class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-csc-navy-600 dark:bg-csc-navy-400"></span>
                 <span class="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-400/10 motion-safe:animate-card-glow" style="animation-delay: 3.2s"></span>
                 <div class="flex items-center gap-3 self-start">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-csc-navy-600/10 text-csc-navy-600 dark:bg-csc-navy-600/15 dark:text-csc-navy-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347M4.26 10.147a50.548 50.548 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.841c-.896.248-1.783.52-2.658.814M4.26 10.147a50.696 50.696 0 017.74-3.342M12 13.489a50.702 50.702 0 017.74-3.342" /></svg>
                     </span>
-                    <p class="text-xs text-gray-600 dark:text-gray-500">TOTAL GRADUATES ON RECORD</p>
+                    <p class="text-xs text-gray-600 dark:text-gray-500">TOTAL GRADUATES WITH LATIN HONOR ON RECORD</p>
                 </div>
                 <p class="dashboard-stat-number" data-count-to="<?= (int) $stats['total_graduates'] ?>">0</p>
             </div>
@@ -216,17 +268,26 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400"><span class="h-2.5 w-2.5 rounded-full bg-gray-400 shrink-0"></span>ON RECORD</span>
                                     <span class="text-gray-700 dark:text-gray-300 text-right"><span id="filing-onrecord-count"><?= number_format($filingReport['total_on_record']) ?></span> (<span id="filing-onrecord-percent">100%</span>)</span>
                                 </div>
-                                <div class="flex items-center justify-between gap-3 motion-safe:animate-fade-in-up" style="animation-delay: 340ms">
-                                    <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400"><span class="h-2.5 w-2.5 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300 shrink-0"></span>APPLIED</span>
-                                    <span class="text-gray-700 dark:text-gray-300 text-right"><span id="filing-applied-count"><?= number_format($filingReport['total_applied']) ?></span> (<span id="filing-applied-percent"><?= e((string) $filingReport['filing_rate']) ?>%</span>)</span>
+                                <div class="flex items-start justify-between gap-3 motion-safe:animate-fade-in-up" style="animation-delay: 340ms">
+                                    <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400"><span class="h-2.5 w-2.5 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300 shrink-0"></span>APPLICATION RECIEVED</span>
+                                    <span class="flex flex-col items-end text-right">
+                                        <span class="text-gray-700 dark:text-gray-300"><span id="filing-applied-count"><?= number_format($totalApplied) ?></span> (<span id="filing-applied-percent"><?= e((string) $filingRate) ?>%</span>)</span>
+                                        <span id="filing-applied-subnote" class="text-xs text-gray-500 dark:text-gray-500">(<?= number_format($gradYearApplied) ?> are from <?= (int) $dashboardDefaultYear ?>)</span>
+                                    </span>
                                 </div>
-                                <div class="flex items-center justify-between gap-3 pl-5 motion-safe:animate-fade-in-up" style="animation-delay: 430ms">
+                                <div class="flex items-start justify-between gap-3 pl-5 motion-safe:animate-fade-in-up" style="animation-delay: 430ms">
                                     <span class="flex items-center gap-2 text-gray-500 dark:text-gray-500"><span class="h-2 w-2 rounded-full bg-orange-500 shrink-0"></span>PROCESSING</span>
-                                    <span class="text-gray-700 dark:text-gray-300 text-right"><span id="filing-processing-count"><?= number_format($totalProcessing) ?></span> (<span id="filing-processing-percent"><?= e((string) $processingPercent) ?>%</span>)</span>
+                                    <span class="flex flex-col items-end text-right">
+                                        <span class="text-gray-700 dark:text-gray-300"><span id="filing-processing-count"><?= number_format($totalProcessing) ?></span> (<span id="filing-processing-percent"><?= e((string) $processingPercent) ?>%</span>)</span>
+                                        <span id="filing-processing-subnote" class="text-xs text-gray-500 dark:text-gray-500">(<?= number_format($gradYearProcessing) ?> are from <?= (int) $dashboardDefaultYear ?>)</span>
+                                    </span>
                                 </div>
-                                <div class="flex items-center justify-between gap-3 pl-5 motion-safe:animate-fade-in-up" style="animation-delay: 520ms">
+                                <div class="flex items-start justify-between gap-3 pl-5 motion-safe:animate-fade-in-up" style="animation-delay: 520ms">
                                     <span class="flex items-center gap-2 text-gray-500 dark:text-gray-500"><span class="h-2 w-2 rounded-full bg-emerald-500 shrink-0"></span>APPROVED</span>
-                                    <span class="text-gray-700 dark:text-gray-300 text-right"><span id="filing-approved-count"><?= number_format($totalApproved) ?></span> (<span id="filing-approved-percent"><?= e((string) $approvedPercent) ?>%</span>)</span>
+                                    <span class="flex flex-col items-end text-right">
+                                        <span class="text-gray-700 dark:text-gray-300"><span id="filing-approved-count"><?= number_format($totalApproved) ?></span> (<span id="filing-approved-percent"><?= e((string) $approvedPercent) ?>%</span>)</span>
+                                        <span id="filing-approved-subnote" class="text-xs text-gray-500 dark:text-gray-500">(<?= number_format($gradYearApproved) ?> are from <?= (int) $dashboardDefaultYear ?>)</span>
+                                    </span>
                                 </div>
                                 <div class="flex items-center justify-between gap-3 motion-safe:animate-fade-in-up" style="animation-delay: 610ms">
                                     <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400"><span class="h-2.5 w-2.5 rounded-full bg-sky-200 dark:bg-sky-500/30 shrink-0"></span>NOT YET APPLIED</span>
@@ -243,7 +304,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <circle id="filing-donut-approved-arc" cx="60" cy="60" r="<?= $donutOuterRadius ?>" fill="none" stroke="currentColor" stroke-width="12" class="text-emerald-500 motion-safe:transition-all motion-safe:duration-1000 motion-safe:ease-out" stroke-dasharray="0 <?= round($donutOuterCircumference, 2) ?>" stroke-dashoffset="0" data-target-dasharray="<?= $approvedArcLength ?> <?= $approvedArcGap ?>" data-target-offset="<?= $approvedArcOffset ?>" />
                                 </svg>
                                 <div class="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span id="filing-rate" class="text-2xl font-bold text-csc-navy-600 dark:text-white"><?= e((string) $filingReport['filing_rate']) ?>%</span>
+                                    <span id="filing-rate" class="text-2xl font-bold text-csc-navy-600 dark:text-white"><?= e((string) $filingRate) ?>%</span>
                                     <span class="text-[10px] text-gray-500 dark:text-gray-400 tracking-wide">FILING RATE</span>
                                 </div>
                             </div>

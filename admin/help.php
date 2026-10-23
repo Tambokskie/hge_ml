@@ -115,14 +115,14 @@ $sections = [
         'id' => 'upload-pdf',
         'title' => 'Upload a Latin Honor list (PDF)',
         'admin' => true,
-        'intro' => 'Start here when a school sends its list as a PDF. The system reads the PDF for you; you then check the result before it is saved.',
+        'intro' => 'Start here when a school sends its list as a PDF or as a photo or scan (JPG, JPEG or PNG). The system reads the file for you; you then check the result before it is saved.',
         'steps' => [
             'Click [[UPLOAD HON GRAD LIST]] in the menu.',
             'Under [[SCHOOL]], choose the school. If it is not in the list, click [[MANAGE SCHOOLS]] and create it first (see "Settings" below).',
             'Type the [[SCHOOL YEAR]], for example 2025.',
-            'Drag the PDF onto the box, or click it to browse your computer and choose the file (up to 20 MB).',
+            'Drag the file onto the box, or click it to browse your computer and choose it (PDF, JPG, JPEG or PNG, up to 20 MB). An image counts as one page, so a list photographed on several pages needs one upload per image; the later ones are marked as duplicates (DUP) and can be told apart on their upload pages.',
             'Click [[UPLOAD & EXTRACT RECORDS]]. A progress window shows while the list is being read.',
-            'The AI reads the PDF 2 pages at a time. The batches follow one another on their own, and a batch the AI fails to read is sent again, up to 3 tries. When every page has been read you are taken straight to the review screen. If a batch still fails after 3 tries you are left on the upload\'s page: click [[CONTINUE EXTRACTION]] to carry on from where it stopped.',
+            'The AI reads a PDF 2 pages at a time (an image is read in one go). The batches follow one another on their own, and a batch the AI fails to read is sent again, up to 3 tries. When every page has been read you are taken straight to the review screen. If a batch still fails after 3 tries you are left on the upload\'s page: click [[CONTINUE EXTRACTION]] to carry on from where it stopped.',
         ],
         'tips' => [
             'The colored dot on the upload card shows how much of today\'s free AI quota is left: green is available, yellow is moderate, red is low. When it is red, uploads use the standard text/OCR reading instead.',
@@ -143,7 +143,7 @@ $sections = [
                 'steps' => [
                     'Look at the [[STATUS]] column. [[VALID]] rows are ready. [[INCOMPLETE]] rows are missing a name, a Latin Honor or a year and must be fixed before you can save.',
                     'Click the pencil icon on a row to correct it. Rows read by a machine carry an [[AI — VERIFY]] or [[OCR — VERIFY]] tag: compare them with the original.',
-                    'Click [[VIEW UPLOADED PDF]] to open the original file next to the table.',
+                    'Click [[VIEW UPLOADED PDF]] (or [[VIEW UPLOADED IMAGE]] for a JPG/PNG upload) to open the original file next to the table.',
                     'Use the search box and the course filter above the table to find a row quickly.',
                 ],
             ],

@@ -110,16 +110,16 @@ include __DIR__ . '/../includes/sidebar.php';
                         </div>
 
                         <div>
-                            <label class="mb-1.5 block text-xs font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">LATIN HONOR LIST PDF <span class="text-csc-red-600">*</span></label>
+                            <label class="mb-1.5 block text-xs font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">LATIN HONOR LIST (PDF, JPG/JPEG OR PNG) <span class="text-csc-red-600">*</span></label>
                             <div id="dropzone" class="cursor-pointer rounded-xl border-2 border-dashed border-gray-300 dark:border-white/15 px-6 py-10 text-center hover:border-csc-navy-500 transition-colors">
                                 <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
                                     <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 8.25 12 3.75m0 0L7.5 8.25M12 3.75v12" /></svg>
                                 </div>
-                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">DRAG &amp; DROP YOUR PDF HERE</p>
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">DRAG &amp; DROP YOUR FILE HERE</p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">OR CLICK TO BROWSE</p>
-                                <p class="text-xs text-gray-400 dark:text-gray-600 mt-2">PDF FILE ONLY &bull; MAXIMUM 20 MB</p>
+                                <p class="text-xs text-gray-400 dark:text-gray-600 mt-2">PDF, JPG/JPEG OR PNG &bull; ONE IMAGE PER UPLOAD &bull; MAXIMUM 20 MB</p>
                             </div>
-                            <input type="file" id="pdf_file" name="pdf_file" accept="application/pdf" required class="hidden">
+                            <input type="file" id="pdf_file" name="pdf_file" accept="application/pdf,image/jpeg,image/png,.jpg,.jpeg,.png" required class="hidden">
                             <p id="file-info" class="text-xs text-gray-500 dark:text-gray-400 mt-2"></p>
                         </div>
 

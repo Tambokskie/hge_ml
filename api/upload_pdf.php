@@ -19,7 +19,7 @@ if (!csrf_verify($_POST['csrf_token'] ?? null)) {
 
 $file = $_FILES['pdf_file'] ?? null;
 if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'] ?? '')) {
-    echo json_encode(['status' => 'error', 'message' => 'PLEASE SELECT A VALID PDF FILE TO UPLOAD.']);
+    echo json_encode(['status' => 'error', 'message' => 'PLEASE SELECT A VALID PDF, JPG/JPEG OR PNG FILE TO UPLOAD.']);
     exit;
 }
 

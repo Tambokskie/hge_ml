@@ -162,7 +162,7 @@ class GeminiExtractor implements ExtractorInterface
             return ['status' => 'failed', 'rows' => [], 'unreachable' => false, 'timed_out' => false];
         }
 
-        $payload = self::buildGeminiRequestPayload(base64_encode($pdfBytes));
+        $payload = self::buildGeminiRequestPayload(base64_encode($pdfBytes), self::mimeTypeForPath($filePath));
 
         try {
             $decoded = $this->callGeminiApi($payload);
@@ -188,15 +188,29 @@ class GeminiExtractor implements ExtractorInterface
     }
 
     /**
+     * Pure — the MIME type Gemini is told the file is, from its extension
+     * (stored uploads and page-slice temp files always carry the right one).
+     * Anything that is not a JPEG/PNG image is sent as a PDF.
+     */
+    public static function mimeTypeForPath(string $filePath): string
+    {
+        return match (strtolower((string) pathinfo($filePath, PATHINFO_EXTENSION))) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            default => 'application/pdf',
+        };
+    }
+
+    /**
      * Pure — builds the request body. No network I/O, unit-testable directly.
      */
-    public static function buildGeminiRequestPayload(string $pdfBase64): array
+    public static function buildGeminiRequestPayload(string $pdfBase64, string $mimeType = 'application/pdf'): array
     {
         return [
             'contents' => [[
                 'parts' => [
                     ['text' => self::extractionPrompt()],
-                    ['inline_data' => ['mime_type' => 'application/pdf', 'data' => $pdfBase64]],
+                    ['inline_data' => ['mime_type' => $mimeType, 'data' => $pdfBase64]],
                 ],
             ]],
             'generationConfig' => [
@@ -495,7 +509,7 @@ class GeminiExtractor implements ExtractorInterface
     private static function extractionPrompt(): string
     {
         return <<<PROMPT
-You are extracting a Latin Honor graduate list from a scanned PDF for a
+You are extracting a Latin Honor graduate list from a scanned PDF or a photo/scan image of the list for a
 Philippine government eligibility database. Read the document and return a
 JSON array. Each element must have exactly these fields:
 - graduate_name: the full name of the honor graduate, exactly as printed (do not reorder or reformat)

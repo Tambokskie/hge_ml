@@ -42,11 +42,33 @@ function validate_pdf_file_content(string $path, int $size, int $maxBytes): arra
     $mime = finfo_file($finfo, $path);
     finfo_close($finfo);
 
-    if ($mime !== 'application/pdf') {
-        return ['ok' => false, 'error' => 'ONLY PDF FILES ARE ACCEPTED.'];
+    $extension = UPLOAD_IMAGE_MIME_EXTENSIONS[$mime] ?? ($mime === 'application/pdf' ? 'pdf' : null);
+    if ($extension === null) {
+        return ['ok' => false, 'error' => 'ONLY PDF, JPG/JPEG OR PNG FILES ARE ACCEPTED.'];
     }
 
-    return ['ok' => true, 'error' => null];
+    // 'extension' comes from the detected content, never from the uploaded file's name.
+    return ['ok' => true, 'error' => null, 'extension' => $extension];
+}
+
+/** Image types accepted besides PDF, by detected MIME type -> stored file extension. */
+const UPLOAD_IMAGE_MIME_EXTENSIONS = ['image/jpeg' => 'jpg', 'image/png' => 'png'];
+
+/** True for a stored file name (or path) that is a JPG/JPEG/PNG image rather than a PDF/template. */
+function is_image_filename(string $filename): bool
+{
+    return in_array(strtolower((string) pathinfo($filename, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png'], true);
+}
+
+/** MIME type to serve/send a stored file as, from its extension. */
+function mime_type_for_filename(string $filename): string
+{
+    return match (strtolower((string) pathinfo($filename, PATHINFO_EXTENSION))) {
+        'jpg', 'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        default => 'application/pdf',
+    };
 }
 
 function validate_pdf_upload(array $file, int $maxBytes): array

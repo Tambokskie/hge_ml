@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../includes/ocr_tools.php';
+require_once __DIR__ . '/../includes/pdf_files.php';
 require_once __DIR__ . '/ExtractorInterface.php';
 require_once __DIR__ . '/ParsesHonorRows.php';
 
@@ -28,6 +29,11 @@ class OcrExtractor implements ExtractorInterface
     {
         $ghostscriptPath = resolve_ghostscript_path();
         $tesseractPath = resolve_tesseract_path();
+
+        // A JPG/JPEG/PNG upload is one page already: OCR it directly, no Ghostscript rasterizing.
+        if (is_image_filename($filePath)) {
+            return $this->extractFromImages([$filePath], $tesseractPath);
+        }
 
         $tmpDir = sys_get_temp_dir() . '/hge_ocr_' . uniqid();
 
@@ -61,35 +67,46 @@ class OcrExtractor implements ExtractorInterface
                 return ['status' => 'failed', 'rows' => []];
             }
 
-            $textParts = [];
-            $totalPages = count($pageImages);
-            foreach ($pageImages as $pageIndex => $imagePath) {
-                try {
-                    $pageText = (new \thiagoalessio\TesseractOCR\TesseractOCR($imagePath))
-                        ->executable($tesseractPath)
-                        ->run(60);
-                    $textParts[] = $pageText;
-                } catch (\Throwable $e) {
-                    error_log('OcrExtractor: Tesseract failed on ' . $imagePath . ': ' . $e->getMessage());
-                }
-
-                if ($this->onPageProgress !== null) {
-                    ($this->onPageProgress)($pageIndex + 1, $totalPages);
-                }
-            }
-
-            $text = implode("\n", $textParts);
-            $rows = array_map(function (array $row): array {
-                $row['source'] = 'ocr';
-                return $row;
-            }, $this->parseRows($text));
-
-            return [
-                'status' => empty($rows) ? 'failed' : 'ok',
-                'rows' => $rows,
-            ];
+            return $this->extractFromImages($pageImages, $tesseractPath);
         } finally {
             $cleanup();
         }
+    }
+
+    /**
+     * Runs Tesseract over each image (rasterized PDF pages, or the uploaded JPG/PNG itself)
+     * and parses the combined text.
+     *
+     * @param string[] $images
+     */
+    private function extractFromImages(array $images, string $tesseractPath): array
+    {
+        $textParts = [];
+        $totalPages = count($images);
+        foreach ($images as $pageIndex => $imagePath) {
+            try {
+                $pageText = (new \thiagoalessio\TesseractOCR\TesseractOCR($imagePath))
+                    ->executable($tesseractPath)
+                    ->run(60);
+                $textParts[] = $pageText;
+            } catch (\Throwable $e) {
+                error_log('OcrExtractor: Tesseract failed on ' . $imagePath . ': ' . $e->getMessage());
+            }
+
+            if ($this->onPageProgress !== null) {
+                ($this->onPageProgress)($pageIndex + 1, $totalPages);
+            }
+        }
+
+        $text = implode("\n", $textParts);
+        $rows = array_map(function (array $row): array {
+            $row['source'] = 'ocr';
+            return $row;
+        }, $this->parseRows($text));
+
+        return [
+            'status' => empty($rows) ? 'failed' : 'ok',
+            'rows' => $rows,
+        ];
     }
 }

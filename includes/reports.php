@@ -8,7 +8,9 @@
  * year when $toYear is omitted). A school with zero Latin Honor graduates in
  * the range is excluded entirely (INNER JOIN, not LEFT JOIN) rather than shown as an all-zero
  * row. filing_rate/approval_rate are always computed here in PHP, never in
- * SQL, and only ever divide by an on_record value already confirmed > 0.
+ * SQL. filing_rate divides by on_record (already confirmed > 0); approval_rate
+ * divides by applied (approved / applied * 100 — the share of FILED
+ * applications that were approved, not the share of on-record graduates).
  * `approved` (COUNT of non-NULL approved_at, see includes/graduates.php:
  * approve_application()) is always <= `applied` — it is the applied count's
  * own subset, not a separate population — so `applied - approved` is exactly
@@ -53,7 +55,7 @@ function get_application_filing_report(PDO $pdo, int $fromYear, ?int $toYear = n
             'applied' => $applied,
             'approved' => $approved,
             'filing_rate' => $onRecord > 0 ? round($applied / $onRecord * 100, 1) : 0.0,
-            'approval_rate' => $onRecord > 0 ? round($approved / $onRecord * 100, 1) : 0.0,
+            'approval_rate' => $applied > 0 ? round($approved / $applied * 100, 1) : 0.0,
         ];
     }
 
@@ -62,8 +64,44 @@ function get_application_filing_report(PDO $pdo, int $fromYear, ?int $toYear = n
         'total_applied' => $totalApplied,
         'total_approved' => $totalApproved,
         'filing_rate' => $totalOnRecord > 0 ? round($totalApplied / $totalOnRecord * 100, 1) : 0.0,
-        'approval_rate' => $totalOnRecord > 0 ? round($totalApproved / $totalOnRecord * 100, 1) : 0.0,
+        'approval_rate' => $totalApplied > 0 ? round($totalApproved / $totalApplied * 100, 1) : 0.0,
         'schools' => $schools,
+    ];
+}
+
+/**
+ * Dashboard-only sibling of get_application_filing_report() above: applied/
+ * approved/processing counted by the year an application was actually FILED
+ * (application_date), not by the applicant's own graduation_year. This is
+ * what admin/dashboard.php's "HGE APPLICATIONS RECEIVED" stat card and the
+ * APPLICATION FILING OVERVIEW donut's main figures show (an applicant who
+ * graduated in an earlier year but files this year still counts as
+ * "received" this year) — includes/functions.php:get_applied_count_by_year()
+ * already computes the same total_applied figure alone; this adds the
+ * approved/processing split on the same application_date-year dimension so
+ * the donut's arcs and legend can share one consistent scope. The
+ * graduation-year-scoped get_application_filing_report() figures are shown
+ * alongside these as a "(N are from <year>)" annotation rather than being
+ * replaced, since on_record and the per-school table are only meaningful
+ * scoped by graduation_year.
+ */
+function get_applied_breakdown_by_filed_year(PDO $pdo, int $year): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT COUNT(*) AS applied, COUNT(approved_at) AS approved
+         FROM graduate_applications
+         WHERE YEAR(application_date) = :year'
+    );
+    $stmt->execute(['year' => $year]);
+    $row = $stmt->fetch();
+
+    $applied = (int) $row['applied'];
+    $approved = (int) $row['approved'];
+
+    return [
+        'total_applied' => $applied,
+        'total_approved' => $approved,
+        'total_processing' => $applied - $approved,
     ];
 }
 

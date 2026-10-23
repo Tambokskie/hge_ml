@@ -678,6 +678,7 @@ function initTrendChart(config, options) {
         });
     });
 
+    updateTrendNote();
     renderTrendChart(true);
 
     var trendResizeFrame = null;
@@ -751,6 +752,16 @@ function initFilingDonut() {
         processing: { count: document.getElementById('filing-processing-count'), percent: document.getElementById('filing-processing-percent') },
         approved: { count: document.getElementById('filing-approved-count'), percent: document.getElementById('filing-approved-percent') },
         notYetApplied: { count: document.getElementById('filing-notyetapplied-count'), percent: document.getElementById('filing-notyetapplied-percent') },
+    };
+    // "(N are from <year>)" annotations next to APPLIED/PROCESSING/APPROVED —
+    // those counts are scoped by the year an application was FILED, while
+    // this subnote names how many of that total belong to applicants who
+    // also graduated in the selected year (see includes/reports.php:
+    // get_applied_breakdown_by_filed_year() / get_application_filing_report()).
+    var subnoteEls = {
+        applied: document.getElementById('filing-applied-subnote'),
+        processing: document.getElementById('filing-processing-subnote'),
+        approved: document.getElementById('filing-approved-subnote'),
     };
 
     var tierEls = {
@@ -884,6 +895,21 @@ function initFilingDonut() {
 
             if (tierBreakdown) {
                 updateTierBars(tierEls, tierBreakdown, totalOnRecord);
+            }
+
+            if (report.year) {
+                var gradYearApplied = report.grad_year_applied || 0;
+                var gradYearApproved = report.grad_year_approved || 0;
+                var gradYearProcessing = gradYearApplied - gradYearApproved;
+                if (subnoteEls.applied) {
+                    subnoteEls.applied.textContent = '(' + formatCount(gradYearApplied) + ' are from ' + report.year + ')';
+                }
+                if (subnoteEls.processing) {
+                    subnoteEls.processing.textContent = '(' + formatCount(gradYearProcessing) + ' are from ' + report.year + ')';
+                }
+                if (subnoteEls.approved) {
+                    subnoteEls.approved.textContent = '(' + formatCount(gradYearApproved) + ' are from ' + report.year + ')';
+                }
             }
         }
     };

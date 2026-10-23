@@ -86,6 +86,9 @@ try {
     }
 
     $isTemplateUpload = strtolower((string) pathinfo($upload['stored_filename'], PATHINFO_EXTENSION)) === 'xlsx';
+    // A JPG/JPEG/PNG upload is a single page: no page counting or slicing (Ghostscript is for
+    // PDFs), and it has no text layer, so the text-parsing fallback is skipped for it.
+    $isImageUpload = is_image_filename((string) $upload['stored_filename']);
 
     try {
         if ($isTemplateUpload) {
@@ -107,7 +110,9 @@ try {
                 // OcrExtractor chain directly, skipping AI entirely so this
                 // retry isn't delayed by re-trying a path already known to fail.
                 write_extraction_progress($uploadId, 20, 'READING DOCUMENT TEXT...');
-                $result = (new GenericExtractor($extraCourseKeywords))->extract($upload['file_path']);
+                $result = $isImageUpload
+                    ? ['status' => 'failed', 'rows' => []]
+                    : (new GenericExtractor($extraCourseKeywords))->extract($upload['file_path']);
             } else {
                 // AI extraction always runs in page chunks, with no
                 // exemption for a document that would fit in a single call
@@ -135,7 +140,7 @@ try {
                     $upload['extracted_through_page'] = 0;
                 }
 
-                $totalPages = $upload['total_pages'];
+                $totalPages = $isImageUpload ? 1 : $upload['total_pages'];
                 if ($totalPages === null) {
                     $totalPages = count_pdf_pages($upload['file_path']);
                     if ($totalPages === null) {
@@ -159,7 +164,10 @@ try {
 
                 $chunkFirst = $chunk['first'];
                 $chunkLast = $chunk['last'];
-                $chunkFilePath = extract_pdf_page_range($upload['file_path'], $chunkFirst, $chunkLast);
+                // An image is sent as stored (it is the only "page"); it must never be unlinked below.
+                $chunkFilePath = $isImageUpload
+                    ? $upload['file_path']
+                    : extract_pdf_page_range($upload['file_path'], $chunkFirst, $chunkLast);
                 if ($chunkFilePath === null) {
                     clear_extraction_progress($uploadId);
                     echo json_encode(['status' => 'error', 'message' => 'THE FILE COULD NOT BE PROCESSED.']);
@@ -170,7 +178,7 @@ try {
                 // AI Extraction (admin/users.php) over the env-var default.
                 $geminiExtractor = new GeminiExtractor(resolve_gemini_api_keys($pdo));
                 $geminiExtractor->setDeadline($requestStartedAt + AI_EXTRACTION_BUDGET_SECONDS);
-                write_extraction_progress($uploadId, 15, 'SENDING PAGES ' . $chunkFirst . '-' . $chunkLast . ' TO AI...');
+                write_extraction_progress($uploadId, 15, $isImageUpload ? 'SENDING IMAGE TO AI...' : 'SENDING PAGES ' . $chunkFirst . '-' . $chunkLast . ' TO AI...');
                 $result = $geminiExtractor->extract($chunkFilePath);
 
                 if ($result['status'] === 'failed' && !GeminiExtractor::isQuotaExhausted() && empty($result['unreachable']) && empty($result['timed_out'])) {
@@ -187,7 +195,9 @@ try {
                 $aiQuotaExhausted = GeminiExtractor::isQuotaExhausted();
                 $aiUnreachable = !empty($result['unreachable']);
 
-                @unlink($chunkFilePath);
+                if (!$isImageUpload) {
+                    @unlink($chunkFilePath);
+                }
 
                 if ($result['status'] === 'failed') {
                     clear_extraction_progress($uploadId);
@@ -274,7 +284,7 @@ try {
                     exit;
                 }
 
-                write_extraction_progress($uploadId, 50, 'RASTERIZING PDF PAGES...');
+                write_extraction_progress($uploadId, 50, $isImageUpload ? 'PREPARING IMAGE FOR OCR...' : 'RASTERIZING PDF PAGES...');
                 $result = (new OcrExtractor($extraCourseKeywords, function (int $currentPage, int $totalPages) use ($uploadId): void {
                     // OCR's per-page loop is the only genuinely steppable part
                     // of the whole pipeline — spread across the remaining 55-95%

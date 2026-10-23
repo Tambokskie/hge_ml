@@ -361,4 +361,58 @@ document.addEventListener('DOMContentLoaded', function () {
             renderOffset();
         }
     }
+
+    // DOWNLOAD REPORT panel — icon toggle + a two-mode (SPECIFIC YEAR /
+    // RANGE OF YEARS) form that builds a query string for
+    // api/export_dashboard_filing_report.php and navigates to it (a plain
+    // GET file download, no CSRF needed — nothing is changed server-side).
+    var downloadToggle = document.getElementById('dashboard-download-report-toggle');
+    var downloadPanel = document.getElementById('dashboard-download-report-panel');
+    if (downloadToggle && downloadPanel) {
+        var scopeYearRadio = document.getElementById('dashboard-download-scope-year');
+        var scopeRangeRadio = document.getElementById('dashboard-download-scope-range');
+        var yearSelect = document.getElementById('dashboard-download-year-select');
+        var rangeSelect = document.getElementById('dashboard-download-range-select');
+        var submitBtn = document.getElementById('dashboard-download-report-submit');
+
+        function closeDownloadPanel() {
+            downloadPanel.classList.add('hidden');
+            downloadToggle.setAttribute('aria-expanded', 'false');
+        }
+
+        downloadToggle.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var isOpen = !downloadPanel.classList.contains('hidden');
+            if (isOpen) {
+                closeDownloadPanel();
+            } else {
+                downloadPanel.classList.remove('hidden');
+                downloadToggle.setAttribute('aria-expanded', 'true');
+            }
+        });
+
+        downloadPanel.addEventListener('click', function (e) {
+            e.stopPropagation();
+        });
+
+        document.addEventListener('click', closeDownloadPanel);
+
+        function syncScopeInputs() {
+            var isRange = scopeRangeRadio.checked;
+            yearSelect.disabled = isRange;
+            rangeSelect.disabled = !isRange;
+        }
+        scopeYearRadio.addEventListener('change', syncScopeInputs);
+        scopeRangeRadio.addEventListener('change', syncScopeInputs);
+
+        if (submitBtn) {
+            submitBtn.addEventListener('click', function () {
+                var params = scopeRangeRadio.checked
+                    ? 'mode=range&range=' + encodeURIComponent(rangeSelect.value)
+                    : 'mode=year&year=' + encodeURIComponent(yearSelect.value);
+                window.location.href = config.apiBase + '/api/export_dashboard_filing_report.php?' + params;
+                closeDownloadPanel();
+            });
+        }
+    }
 });

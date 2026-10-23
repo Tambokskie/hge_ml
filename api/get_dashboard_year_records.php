@@ -30,7 +30,24 @@ try {
     if (!$isApplied) {
         $response['trend_monthly'] = get_filing_trend_monthly($pdo, $year, $year);
         $filingReport = get_application_filing_report($pdo, $year);
-        $response['filing_report'] = $filingReport;
+        $filedYearBreakdown = get_applied_breakdown_by_filed_year($pdo, $year);
+
+        // Mirrors admin/dashboard.php's initial render: ON RECORD stays
+        // graduation-year scoped, while APPLIED/APPROVED (and the filing
+        // rate derived from them) switch to application_date-year scope —
+        // the grad_year_* figures ride along so the donut legend's
+        // "(N are from <year>)" annotation can also refresh on a year
+        // switch, see includes/reports.php:get_applied_breakdown_by_filed_year().
+        $totalOnRecord = $filingReport['total_on_record'];
+        $response['filing_report'] = [
+            'total_on_record' => $totalOnRecord,
+            'total_applied' => $filedYearBreakdown['total_applied'],
+            'total_approved' => $filedYearBreakdown['total_approved'],
+            'filing_rate' => $totalOnRecord > 0 ? round($filedYearBreakdown['total_applied'] / $totalOnRecord * 100, 1) : 0.0,
+            'grad_year_applied' => $filingReport['total_applied'],
+            'grad_year_approved' => $filingReport['total_approved'],
+            'year' => $year,
+        ];
         $response['honor_breakdown'] = get_honor_tier_breakdown_for_year($pdo, $year);
 
         // SCHOOL FILING SUMMARY table (admin/dashboard.php): same

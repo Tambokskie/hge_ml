@@ -28,7 +28,56 @@ class PdfValidationTest extends TestCase
     {
         $result = validate_pdf_file_content($this->notAPdf, filesize($this->notAPdf), 20971520);
         $this->assertFalse($result['ok']);
-        $this->assertSame('ONLY PDF FILES ARE ACCEPTED.', $result['error']);
+        $this->assertSame('ONLY PDF, JPG/JPEG OR PNG FILES ARE ACCEPTED.', $result['error']);
+    }
+
+    public function testValidatePdfFileContentReportsPdfExtension(): void
+    {
+        $result = validate_pdf_file_content($this->samplePdf, filesize($this->samplePdf), 20971520);
+        $this->assertSame('pdf', $result['extension']);
+    }
+
+    public function testValidatePdfFileContentAcceptsJpegAndPngByContent(): void
+    {
+        // 1x1 images, written to a name with a misleading extension: only the content counts.
+        $jpeg = $this->tempFile(base64_decode('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA='));
+        $png = $this->tempFile(base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='));
+
+        $jpegResult = validate_pdf_file_content($jpeg, filesize($jpeg), 20971520);
+        $pngResult = validate_pdf_file_content($png, filesize($png), 20971520);
+
+        $this->assertTrue($jpegResult['ok']);
+        $this->assertSame('jpg', $jpegResult['extension']);
+        $this->assertTrue($pngResult['ok']);
+        $this->assertSame('png', $pngResult['extension']);
+    }
+
+    public function testValidatePdfFileContentRejectsATextFileNamedAsAnImage(): void
+    {
+        $fake = $this->tempFile('this is not an image', 'fake.jpg');
+        $result = validate_pdf_file_content($fake, filesize($fake), 20971520);
+        $this->assertFalse($result['ok']);
+    }
+
+    public function testImageFilenameHelpers(): void
+    {
+        $this->assertTrue(is_image_filename('ABC_2025_1.jpg'));
+        $this->assertTrue(is_image_filename('ABC_2025_dup01.PNG'));
+        $this->assertTrue(is_image_filename('x.jpeg'));
+        $this->assertFalse(is_image_filename('ABC_2025_1.pdf'));
+        $this->assertSame('image/jpeg', mime_type_for_filename('a.jpg'));
+        $this->assertSame('image/png', mime_type_for_filename('a.png'));
+        $this->assertSame('application/pdf', mime_type_for_filename('a.pdf'));
+        $this->assertSame('ABC_UNIVERSITY_2025_1.jpg', build_stored_filename('ABC University', '2025', 1, '', 'jpg'));
+    }
+
+    private function tempFile(string $contents, string $name = 'upload.bin'): string
+    {
+        $path = sys_get_temp_dir() . '/hge_test_' . uniqid() . '_' . $name;
+        file_put_contents($path, $contents);
+        register_shutdown_function(static fn () => @unlink($path));
+
+        return $path;
     }
 
     public function testValidatePdfFileContentRejectsOversizedFile(): void

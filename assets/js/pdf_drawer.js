@@ -25,7 +25,7 @@ function renderPdfDrawerDetails(filename, details) {
     if (details.uploadedAt) {
         rows += pdfDrawerDetailRow('calendar', 'DATE UPLOADED', details.uploadedAt);
     }
-    rows += pdfDrawerDetailRow('tag', 'FILE FORMAT', 'PDF');
+    rows += pdfDrawerDetailRow('tag', 'FILE FORMAT', details.fileFormat || 'PDF');
 
     fields.innerHTML = rows;
 }

@@ -358,3 +358,63 @@ function build_bulk_hge_review_xlsx(array $review, array $invalid): string
         'xl/worksheets/sheet1.xml' => xlsx_build_sheet_xml($rows, [1 => 12, 2 => 14, 3 => 22, 4 => 22, 5 => 6, 6 => 20, 7 => 6, 8 => 60, 9 => 70]),
     ]);
 }
+
+/**
+ * admin/dashboard.php's DOWNLOAD REPORT panel
+ * (api/export_dashboard_filing_report.php): one sheet listing every
+ * school's ON RECORD/APPLIED/APPROVED/FILING RATE/APPROVAL RATE for the
+ * chosen year or year range, plus a TOTAL row — the same figures the
+ * dashboard's SCHOOL FILING SUMMARY table shows on screen, graduation-year
+ * scoped like includes/reports.php:get_application_filing_report() (not
+ * the filed-year scope the donut's own APPLIED/APPROVED figures use).
+ *
+ * @param array{total_on_record: int, total_applied: int, total_approved: int, filing_rate: float, approval_rate: float, schools: array<int, array{school_display: string, on_record: int, applied: int, approved: int, filing_rate: float, approval_rate: float}>} $report
+ */
+function build_dashboard_filing_report_xlsx(array $report, int $fromYear, int $toYear): string
+{
+    $title = 'APPLICATION FILING REPORT - ' . ($fromYear === $toYear ? (string) $fromYear : $fromYear . '-' . $toYear);
+
+    $rows = [
+        1 => [1 => ['value' => $title, 'style' => 1]],
+        3 => [
+            1 => ['value' => 'SCHOOL', 'style' => 1],
+            2 => ['value' => 'ON RECORD', 'style' => 1],
+            3 => ['value' => 'APPLIED', 'style' => 1],
+            4 => ['value' => 'APPROVED', 'style' => 1],
+            5 => ['value' => 'FILING RATE', 'style' => 1],
+            6 => ['value' => 'APPROVAL RATE', 'style' => 1],
+        ],
+    ];
+
+    $rowNum = 4;
+    foreach ($report['schools'] as $school) {
+        $rows[$rowNum++] = [
+            1 => ['value' => strtoupper((string) $school['school_display'])],
+            2 => ['value' => (string) $school['on_record'], 'type' => 'n'],
+            3 => ['value' => (string) $school['applied'], 'type' => 'n'],
+            4 => ['value' => (string) $school['approved'], 'type' => 'n'],
+            5 => ['value' => $school['filing_rate'] . '%'],
+            6 => ['value' => $school['approval_rate'] . '%'],
+        ];
+    }
+
+    $rows[$rowNum] = [
+        1 => ['value' => 'TOTAL', 'style' => 1],
+        2 => ['value' => (string) $report['total_on_record'], 'style' => 1, 'type' => 'n'],
+        3 => ['value' => (string) $report['total_applied'], 'style' => 1, 'type' => 'n'],
+        4 => ['value' => (string) $report['total_approved'], 'style' => 1, 'type' => 'n'],
+        5 => ['value' => $report['filing_rate'] . '%', 'style' => 1],
+        6 => ['value' => $report['approval_rate'] . '%', 'style' => 1],
+    ];
+
+    $sheetXml = xlsx_build_sheet_xml($rows, [1 => 34, 2 => 14, 3 => 12, 4 => 12, 5 => 14, 6 => 16]);
+
+    return xlsx_zip_parts([
+        '[Content_Types].xml' => xlsx_content_types_xml(),
+        '_rels/.rels' => xlsx_package_rels_xml(),
+        'xl/workbook.xml' => xlsx_workbook_xml('FILING REPORT'),
+        'xl/_rels/workbook.xml.rels' => xlsx_workbook_rels_xml(),
+        'xl/styles.xml' => xlsx_styles_xml(),
+        'xl/worksheets/sheet1.xml' => $sheetXml,
+    ]);
+}

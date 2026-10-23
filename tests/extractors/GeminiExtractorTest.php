@@ -201,6 +201,21 @@ class GeminiExtractorTest extends TestCase
         $this->assertSame('BASE64DATA==', $inlineData['data']);
     }
 
+    public function testBuildRequestPayloadUsesTheGivenImageMimeType(): void
+    {
+        $payload = \GeminiExtractor::buildGeminiRequestPayload('X', 'image/jpeg');
+
+        $this->assertSame('image/jpeg', $payload['contents'][0]['parts'][1]['inline_data']['mime_type']);
+    }
+
+    public function testMimeTypeForPathFollowsTheFileExtension(): void
+    {
+        $this->assertSame('image/jpeg', \GeminiExtractor::mimeTypeForPath('/x/LIST_2025_1.jpg'));
+        $this->assertSame('image/jpeg', \GeminiExtractor::mimeTypeForPath('/x/list.JPEG'));
+        $this->assertSame('image/png', \GeminiExtractor::mimeTypeForPath('/x/list.png'));
+        $this->assertSame('application/pdf', \GeminiExtractor::mimeTypeForPath('/tmp/hge_chunk_1.pdf'));
+    }
+
     public function testBuildRequestPayloadIncludesANonEmptyPromptBeforeTheDocument(): void
     {
         $payload = \GeminiExtractor::buildGeminiRequestPayload('X');

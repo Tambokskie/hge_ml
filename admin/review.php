@@ -107,7 +107,7 @@ include __DIR__ . '/../includes/sidebar.php';
 
         <?php if ($upload['extraction_status'] === 'failed'): ?>
             <div class="mb-6 rounded-lg border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 text-sm px-4 py-3">
-                TEXT COULD NOT BE RELIABLY EXTRACTED FROM THIS PDF. PLEASE ADD RECORDS MANUALLY BELOW.
+                TEXT COULD NOT BE RELIABLY EXTRACTED FROM THIS FILE. PLEASE ADD RECORDS MANUALLY BELOW.
             </div>
         <?php endif; ?>
 
@@ -178,7 +178,7 @@ include __DIR__ . '/../includes/sidebar.php';
                 <button type="button" id="view-pdf-btn"
                         data-pdf-url="<?= e(APP_BASE_URL) ?>/api/serve_pdf.php?id=<?= (int) $uploadId ?>"
                         data-filename="<?= e($upload['original_filename']) ?>"
-                        class="rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-medium px-4 py-2.5 transition-colors">VIEW UPLOADED PDF</button>
+                        class="rounded-xl border border-csc-navy-500/40 text-csc-navy-600 dark:text-csc-navy-300 hover:bg-csc-navy-500/10 text-sm font-medium px-4 py-2.5 transition-colors">VIEW UPLOADED <?= is_image_filename((string) $upload['stored_filename']) ? 'IMAGE' : 'PDF' ?></button>
                 <?php endif; ?>
                 <button type="button" id="save-draft-btn"
                     class="rounded-xl border border-orange-500/40 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10 text-sm font-medium px-4 py-2.5 transition-colors">SAVE AS DRAFT</button>
@@ -306,6 +306,7 @@ window.HGE_REVIEW = {
     pdfDetails: {
         school: <?= json_encode(mb_strtoupper(format_school_display_name($upload['school_name'], $upload['campus']))) ?>,
         schoolYear: <?= json_encode($upload['school_year']) ?>,
+        fileFormat: <?= json_encode(mb_strtoupper((string) pathinfo($upload['stored_filename'], PATHINFO_EXTENSION))) ?>,
         uploadedAt: <?= json_encode(mb_strtoupper(date('F j, Y', strtotime($upload['uploaded_at'])))) ?>
     }
 };
