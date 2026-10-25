@@ -16,9 +16,14 @@ $schoolId = (isset($_GET['school_id']) && (int) $_GET['school_id'] > 0) ? (int) 
 $year = (isset($_GET['year']) && (int) $_GET['year'] > 0) ? (int) $_GET['year'] : null;
 $name = trim((string) ($_GET['name'] ?? ''));
 $status = ($_GET['status'] ?? '') === 'pending' ? 'pending' : '';
+// Drill-down target of admin/dashboard.php's "HGE APPLICATIONS RECEIVED" card
+// (?applied_year=<year>) — no form control for it, since it's a one-way link
+// from the dashboard rather than something searched for directly; shown as a
+// dismissible badge below instead. See includes/graduates.php:search_graduates().
+$appliedYear = (isset($_GET['applied_year']) && (int) $_GET['applied_year'] > 0) ? (int) $_GET['applied_year'] : null;
 $page = max(1, (int) ($_GET['page'] ?? 1));
 
-$filters = ['school_id' => $schoolId, 'graduation_year' => $year, 'name' => $name, 'status' => $status];
+$filters = ['school_id' => $schoolId, 'graduation_year' => $year, 'name' => $name, 'status' => $status, 'applied_year' => $appliedYear];
 // The year filter defaults to ALL YEARS, so a search with nothing filled in is a
 // valid search that lists everything: there is always a search to run.
 $hasFilters = true;
@@ -58,6 +63,15 @@ include __DIR__ . '/../includes/sidebar.php';
                 <h1 class="text-2xl font-bold text-csc-navy-600 dark:text-white">HONOR GRADUATE LOOK-UP</h1>
                 <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">SEARCH BY SCHOOL, GRADUATION YEAR, OR GRADUATE NAME TO VERIFY A HONOR GRADUATE RECORD.</p>
             </div>
+        </div>
+
+        <div id="lookup-applied-year-badge-slot" class="mb-4<?= $appliedYear === null ? ' hidden' : '' ?>">
+            <span id="lookup-applied-year-badge" class="inline-flex items-center gap-2 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-600/15 px-3 py-1.5 text-sm font-medium text-csc-navy-600 dark:text-csc-navy-300">
+                <span id="lookup-applied-year-badge-text">SHOWING APPLICATIONS FILED IN <?= (int) $appliedYear ?></span>
+                <button type="button" id="lookup-applied-year-badge-clear" class="rounded-full p-0.5 hover:bg-csc-navy-600/20 dark:hover:bg-csc-navy-600/25" title="Clear this filter" aria-label="Clear this filter">
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </span>
         </div>
 
         <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow motion-safe:animate-fade-in-up">

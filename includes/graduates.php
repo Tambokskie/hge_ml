@@ -32,6 +32,19 @@ function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25
         $conditions[] = 'a.id IS NOT NULL AND a.approved_at IS NULL';
     }
 
+    // Drill-down from admin/dashboard.php's "HGE APPLICATIONS RECEIVED" card:
+    // applications FILED in this calendar year, regardless of the
+    // applicant's own graduation_year — matches
+    // includes/functions.php:get_applied_count_by_year() exactly, so the
+    // row count here always equals that card's number. Deliberately NOT the
+    // same scope as graduation_year above (see includes/reports.php's
+    // get_application_filing_report() vs. get_applied_breakdown_by_filed_year()
+    // docblocks for why these two scopes are kept distinct).
+    if (!empty($filters['applied_year'])) {
+        $conditions[] = 'YEAR(a.application_date) = :applied_year';
+        $params['applied_year'] = (int) $filters['applied_year'];
+    }
+
     $whereSql = empty($conditions) ? '' : ('WHERE ' . implode(' AND ', $conditions));
 
     $countStmt = $pdo->prepare(
@@ -387,6 +400,10 @@ function build_search_log_details(array $filters): string
 
     if (($filters['status'] ?? '') === 'pending') {
         $parts[] = 'status=pending';
+    }
+
+    if (!empty($filters['applied_year'])) {
+        $parts[] = 'applied_year=' . (int) $filters['applied_year'];
     }
 
     return implode(', ', $parts);

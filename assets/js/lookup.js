@@ -30,6 +30,27 @@ document.addEventListener('DOMContentLoaded', function () {
         return campus === '' ? schoolName : schoolName + '-' + campus;
     }
 
+    // Drill-down state from admin/dashboard.php's "HGE APPLICATIONS RECEIVED"
+    // card (?applied_year=<year>). There's no form control for it — it
+    // persists across searches/pagination until explicitly cleared via the
+    // badge's X button or CLEAR FILTERS, same as the form fields do.
+    var appliedYear = new URLSearchParams(window.location.search).get('applied_year') || '';
+
+    function updateAppliedYearBadge(year) {
+        appliedYear = year || '';
+        var slot = document.getElementById('lookup-applied-year-badge-slot');
+        var text = document.getElementById('lookup-applied-year-badge-text');
+        if (!slot || !text) {
+            return;
+        }
+        if (!appliedYear) {
+            slot.classList.add('hidden');
+            return;
+        }
+        text.textContent = 'SHOWING APPLICATIONS FILED IN ' + appliedYear;
+        slot.classList.remove('hidden');
+    }
+
     function currentParams(page) {
         var needsActionBtn = document.getElementById('lookup-needs-action-btn');
         return {
@@ -37,6 +58,7 @@ document.addEventListener('DOMContentLoaded', function () {
             year: document.getElementById('filter-year').value,
             name: document.getElementById('filter-name').value,
             status: (needsActionBtn && needsActionBtn.getAttribute('aria-pressed') === 'true') ? 'pending' : '',
+            applied_year: appliedYear,
             page: page || 1,
         };
     }
@@ -746,6 +768,15 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('filter-year').value = '';
             document.getElementById('filter-name').value = '';
             setNeedsActionPressed(false);
+            updateAppliedYearBadge('');
+            performSearch(currentParams(1), true);
+        });
+    }
+
+    var appliedYearBadgeClearBtn = document.getElementById('lookup-applied-year-badge-clear');
+    if (appliedYearBadgeClearBtn) {
+        appliedYearBadgeClearBtn.addEventListener('click', function () {
+            updateAppliedYearBadge('');
             performSearch(currentParams(1), true);
         });
     }
@@ -846,12 +877,14 @@ document.addEventListener('DOMContentLoaded', function () {
             year: urlParams.get('year') || '',
             name: urlParams.get('name') || '',
             status: urlParams.get('status') === 'pending' ? 'pending' : '',
+            applied_year: urlParams.get('applied_year') || '',
             page: urlParams.get('page') || 1,
         };
         document.getElementById('filter-school').value = params.school_id;
         document.getElementById('filter-year').value = params.year;
         document.getElementById('filter-name').value = params.name;
         setNeedsActionPressed(params.status === 'pending');
+        updateAppliedYearBadge(params.applied_year);
         performSearch(params, false);
     });
 });

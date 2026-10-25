@@ -284,6 +284,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var yearRecordsNumber = document.getElementById('dashboard-year-records-number');
         var appliedNumber = document.getElementById('dashboard-applied-number');
         var approvedNumber = document.getElementById('dashboard-approved-number');
+        var appliedCardLink = document.getElementById('dashboard-applied-card');
         var activePillClasses = ['bg-csc-navy-600', 'text-white'];
         var inactivePillClasses = ['text-gray-600', 'dark:text-gray-400', 'hover:bg-white', 'dark:hover:bg-white/10'];
 
@@ -293,6 +294,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
                 var year = pill.dataset.year;
+
+                if (appliedCardLink) {
+                    appliedCardLink.href = config.apiBase + '/admin/lookup.php?applied_year=' + encodeURIComponent(year);
+                }
 
                 yearTrack.querySelectorAll('.dashboard-year-pill').forEach(function (p) {
                     p.classList.remove.apply(p.classList, activePillClasses);

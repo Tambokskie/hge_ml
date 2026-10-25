@@ -135,6 +135,7 @@ class GraduateSearchTest extends TestCase
         $this->assertSame('name=cruz', build_search_log_details(['name' => 'cruz']));
         $this->assertSame('', build_search_log_details([]));
         $this->assertSame('', build_search_log_details(['school_id' => null, 'graduation_year' => null, 'name' => '']));
+        $this->assertSame('applied_year=2026', build_search_log_details(['applied_year' => 2026]));
     }
 
     public function testResultRowsIncludeCourse(): void
@@ -297,6 +298,61 @@ class GraduateSearchTest extends TestCase
 
         $this->assertSame(1, $byName['Juan Dela Cruz']);
         $this->assertSame(0, $byName['Maria Santos']);
+    }
+
+    // admin/dashboard.php's "HGE APPLICATIONS RECEIVED" card links here with
+    // ?applied_year=<year>, matching includes/functions.php:get_applied_count_by_year()'s
+    // scope exactly: by application_date, regardless of the applicant's own
+    // graduation_year.
+    public function testFilterByAppliedYearMatchesApplicationFiledThatCalendarYearRegardlessOfGraduationYear(): void
+    {
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025);
+        $juanId = (int) TestDb::pdo()->lastInsertId();
+        $this->insertGraduate(2, 2, 'Maria Santos', 'CUM LAUDE', '2024-06-15', 2024);
+        $mariaId = (int) TestDb::pdo()->lastInsertId();
+        $this->insertGraduate(1, 1, 'Pedro Reyes', 'CUM LAUDE', '2025-06-15', 2025);
+
+        // Juan graduated 2025 but filed in 2026; Maria graduated 2024 but
+        // also filed in 2026 — both belong to "filed in 2026" regardless of
+        // their own graduation year. Pedro never filed at all.
+        file_application(TestDb::pdo(), $juanId, 1, '2026-01-10');
+        file_application(TestDb::pdo(), $mariaId, 1, '2026-03-01');
+
+        $result = search_graduates(TestDb::pdo(), ['applied_year' => 2026], 1);
+
+        $names = array_column($result['rows'], 'graduate_name');
+        sort($names);
+        $this->assertSame(['Juan Dela Cruz', 'Maria Santos'], $names);
+        $this->assertSame(2, $result['pagination']['total_rows']);
+    }
+
+    public function testFilterByAppliedYearExcludesApplicationsFiledInOtherYears(): void
+    {
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025);
+        $juanId = (int) TestDb::pdo()->lastInsertId();
+
+        file_application(TestDb::pdo(), $juanId, 1, '2025-03-01');
+
+        $result = search_graduates(TestDb::pdo(), ['applied_year' => 2026], 1);
+
+        $this->assertSame([], $result['rows']);
+        $this->assertSame(0, $result['pagination']['total_rows']);
+    }
+
+    public function testFilterByAppliedYearCombinesWithSchoolFilter(): void
+    {
+        $this->insertGraduate(1, 1, 'Juan Dela Cruz', 'CUM LAUDE', '2025-06-15', 2025);
+        $atAbc = (int) TestDb::pdo()->lastInsertId();
+        $this->insertGraduate(2, 2, 'Juan Dela Cruz', 'CUM LAUDE', '2024-06-15', 2024);
+        $atXyz = (int) TestDb::pdo()->lastInsertId();
+
+        file_application(TestDb::pdo(), $atAbc, 1, '2026-01-10');
+        file_application(TestDb::pdo(), $atXyz, 1, '2026-02-10');
+
+        $result = search_graduates(TestDb::pdo(), ['applied_year' => 2026, 'school_id' => 1], 1);
+
+        $this->assertCount(1, $result['rows']);
+        $this->assertSame('ABC University', $result['rows'][0]['school_name']);
     }
 
     public function testGetGraduationYearsForSchoolReturnsDistinctYearsDescending(): void
