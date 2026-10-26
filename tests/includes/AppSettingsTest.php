@@ -172,4 +172,30 @@ class AppSettingsTest extends TestCase
         $this->assertStringNotContainsString('secret', $status['masked']);
         $this->assertFalse(ai_slot_display_status($pdo, 3)['configured']);
     }
+
+    public function testAProviderWithAFallbackBehindItGetsHalfOfTheRemainingTime(): void
+    {
+        // 200s left: the first provider may use 100s, the last one everything that remains
+        $this->assertEqualsWithDelta(1100.0, ai_segment_deadline(1000.0, 1200.0, true), 0.001);
+        $this->assertEqualsWithDelta(1200.0, ai_segment_deadline(1000.0, 1200.0, false), 0.001);
+        // nothing left: no time is invented
+        $this->assertEqualsWithDelta(1300.0, ai_segment_deadline(1300.0, 1200.0, true), 0.001);
+    }
+
+    public function testClaudeKeysAreTriedBeforeGeminiKeysKeepingSlotOrderInEachGroup(): void
+    {
+        $slots = [
+            ['slot' => 1, 'provider' => 'gemini', 'key' => 'g1'],
+            ['slot' => 2, 'provider' => 'claude', 'key' => 'c2'],
+            ['slot' => 3, 'provider' => 'gemini', 'key' => 'g3'],
+            ['slot' => 5, 'provider' => 'claude', 'key' => 'c5'],
+        ];
+
+        $ordered = prioritize_claude_slots($slots);
+
+        $this->assertSame([2, 5, 1, 3], array_column($ordered, 'slot'));
+        $segments = group_ai_slots_into_segments($ordered);
+        $this->assertSame(['claude', 'gemini'], array_column($segments, 'provider'));
+        $this->assertSame(['c2', 'c5'], $segments[0]['keys']);
+    }
 }

@@ -145,4 +145,13 @@ class ClaudeExtractorTest extends TestCase
         $this->assertFalse($result['timed_out']);
         $this->assertFalse($result['quota']);
     }
+
+    public function testAnEmptyRowsAnswerIsARealAnswerButARefusalIsNot(): void
+    {
+        $this->assertTrue(\ClaudeExtractor::isEmptyListResponse($this->response('{"rows":[]}')));
+        $this->assertFalse(\ClaudeExtractor::isEmptyListResponse($this->response('{"rows":[]}', 'refusal')));
+        $this->assertFalse(\ClaudeExtractor::isEmptyListResponse($this->response('sorry')));
+        $this->assertFalse(\ClaudeExtractor::isEmptyListResponse($this->response('{"rows":{"a":1}}')));
+        $this->assertFalse(\ClaudeExtractor::isEmptyListResponse([]));
+    }
 }

@@ -183,7 +183,7 @@ try {
                 // provider's extractor rotates through; the first provider that
                 // returns rows wins. With no key configured at all the Gemini
                 // extractor fails at once, as it always did.
-                $aiSegments = group_ai_slots_into_segments(resolve_ai_key_slots($pdo));
+                $aiSegments = group_ai_slots_into_segments(prioritize_claude_slots(resolve_ai_key_slots($pdo)));
                 if ($aiSegments === []) {
                     $aiSegments = [['provider' => 'gemini', 'keys' => []]];
                 }
@@ -193,12 +193,14 @@ try {
                 $result = ['status' => 'failed', 'rows' => [], 'unreachable' => false, 'timed_out' => false];
                 $aiQuotaExhausted = false;
                 $aiProvider = 'gemini';
-                foreach ($aiSegments as $aiSegment) {
+                foreach ($aiSegments as $aiSegmentIndex => $aiSegment) {
                     $aiProvider = $aiSegment['provider'];
                     $aiExtractor = $aiProvider === 'claude'
                         ? new ClaudeExtractor($aiSegment['keys'])
                         : new GeminiExtractor($aiSegment['keys']);
-                    $aiExtractor->setDeadline($aiDeadline);
+                    // A provider with another one queued behind it gets half of the time left, so a
+                    // slow Gemini can't leave the Claude fallback with no time at all.
+                    $aiExtractor->setDeadline(ai_segment_deadline(microtime(true), $aiDeadline, $aiSegmentIndex < count($aiSegments) - 1));
                     // Gemini keeps a shared "out of quota today" flag; Claude reports it in the result.
                     $quotaOf = static fn (array $r): bool => $aiProvider === 'claude' ? !empty($r['quota']) : GeminiExtractor::isQuotaExhausted();
 
@@ -219,6 +221,13 @@ try {
                     if ($result['status'] !== 'failed') {
                         break;
                     }
+                }
+
+                // A page with nothing on it (e.g. the signature page at the end of a list) comes back
+                // as an empty answer: fine after earlier batches, but an upload that has produced no
+                // rows at all still counts as failed so the text/OCR fallback is offered.
+                if ($result['status'] === 'ok' && $result['rows'] === [] && !$isContinuing) {
+                    $result['status'] = 'failed';
                 }
 
                 $aiUnreachable = !empty($result['unreachable']);

@@ -91,6 +91,14 @@ class ClaudeExtractor implements ExtractorInterface
         }
 
         $rows = self::parseResponseRows($decoded);
+        if (empty($rows) && self::isEmptyListResponse($decoded)) {
+            // The model read the page and found no graduates on it (a signature or cover page): a
+            // real answer, not a failure — the caller decides whether an empty page is acceptable.
+            return ['status' => 'ok', 'rows' => [], 'unreachable' => false, 'timed_out' => false, 'quota' => false];
+        }
+        if (empty($rows)) {
+            error_log('ClaudeExtractor: no rows in the response (stop_reason=' . ($decoded['stop_reason'] ?? 'none') . ', output_tokens=' . ($decoded['usage']['output_tokens'] ?? '?') . ')');
+        }
 
         return ['status' => empty($rows) ? 'failed' : 'ok', 'rows' => $rows, 'unreachable' => false, 'timed_out' => false, 'quota' => false];
     }
@@ -155,6 +163,23 @@ class ClaudeExtractor implements ExtractorInterface
                 'content' => [$media, ['type' => 'text', 'text' => self::extractionPrompt()]],
             ]],
         ];
+    }
+
+    /** Pure — true when the model finished normally and answered with an empty `rows` list. */
+    public static function isEmptyListResponse(array $decodedApiResponse): bool
+    {
+        if (($decodedApiResponse['stop_reason'] ?? null) !== 'end_turn') {
+            return false;
+        }
+        foreach (($decodedApiResponse['content'] ?? []) as $block) {
+            if (is_array($block) && ($block['type'] ?? null) === 'text' && is_string($block['text'] ?? null)) {
+                $decoded = json_decode($block['text'], true);
+
+                return is_array($decoded) && ($decoded['rows'] ?? null) === [];
+            }
+        }
+
+        return false;
     }
 
     /**

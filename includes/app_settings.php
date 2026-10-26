@@ -91,6 +91,21 @@ function resolve_ai_key_slots(PDO $pdo): array
 }
 
 /**
+ * Pure. Puts the slots connected to Claude ahead of the others, keeping the slot order within each
+ * group: Claude is tried first and Gemini is the fallback behind it.
+ *
+ * @param array<int, array{slot: int, provider: string, key: string}> $slots
+ * @return array<int, array{slot: int, provider: string, key: string}>
+ */
+function prioritize_claude_slots(array $slots): array
+{
+    $claude = array_values(array_filter($slots, static fn (array $s): bool => $s['provider'] === 'claude'));
+    $others = array_values(array_filter($slots, static fn (array $s): bool => $s['provider'] !== 'claude'));
+
+    return array_merge($claude, $others);
+}
+
+/**
  * Pure. Groups consecutive slots of the same provider, so the extraction tries them in slot order
  * but hands each provider's neighbouring keys to its extractor as one list (which rotates through
  * them on a quota failure).
@@ -111,6 +126,19 @@ function group_ai_slots_into_segments(array $slots): array
     }
 
     return $segments;
+}
+
+/**
+ * Pure. The time limit for one provider's turn within the shared AI time budget. A provider that
+ * still has another one queued behind it may use at most half of what is left, so one slow or
+ * hanging service can never use up the whole budget and leave the fallback with no time to try; the
+ * last provider gets everything that remains.
+ */
+function ai_segment_deadline(float $now, float $overallDeadline, bool $hasLaterSegment): float
+{
+    $remaining = max(0.0, $overallDeadline - $now);
+
+    return $hasLaterSegment ? $now + $remaining / 2 : $overallDeadline;
 }
 
 /**
