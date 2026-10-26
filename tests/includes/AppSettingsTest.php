@@ -106,4 +106,70 @@ class AppSettingsTest extends TestCase
         $this->assertTrue($status['configured']);
         $this->assertSame('••••kKey', $status['masked']);
     }
+    public function testTheFifthKeyIsAClaudeKeyUnlessAnotherProviderIsChosen(): void
+    {
+        $pdo = TestDb::pdo();
+        set_app_setting($pdo, 'gemini_api_key', 'G1', 1);
+        set_app_setting($pdo, 'ai_api_key_5', 'C5', 1);
+
+        $this->assertSame('gemini', resolve_ai_slot_provider($pdo, 1));
+        $this->assertSame('claude', resolve_ai_slot_provider($pdo, 5));
+        // only the Gemini slot feeds GeminiExtractor
+        $this->assertSame(['G1'], resolve_gemini_api_keys($pdo));
+        $this->assertSame(
+            [['slot' => 1, 'provider' => 'gemini', 'key' => 'G1'], ['slot' => 5, 'provider' => 'claude', 'key' => 'C5']],
+            resolve_ai_key_slots($pdo)
+        );
+    }
+
+    public function testASlotCanBeConnectedToAnotherProvider(): void
+    {
+        $pdo = TestDb::pdo();
+        set_app_setting($pdo, 'gemini_api_key', 'WasGemini', 1);
+        set_app_setting($pdo, 'ai_provider_1', 'claude', 1);
+        set_app_setting($pdo, 'ai_api_key_5', 'NowGemini', 1);
+        set_app_setting($pdo, 'ai_provider_5', 'gemini', 1);
+
+        $this->assertSame(['NowGemini'], resolve_gemini_api_keys($pdo));
+        $this->assertSame('claude', resolve_ai_slot_provider($pdo, 1));
+    }
+
+    public function testAnUnknownSavedProviderFallsBackToTheSlotsDefault(): void
+    {
+        $pdo = TestDb::pdo();
+        set_app_setting($pdo, 'ai_provider_2', 'openai', 1);
+        set_app_setting($pdo, 'ai_provider_5', '', 1);
+
+        $this->assertSame('gemini', resolve_ai_slot_provider($pdo, 2));
+        $this->assertSame('claude', resolve_ai_slot_provider($pdo, 5));
+    }
+
+    public function testNeighbouringSlotsOfOneProviderShareASegmentAndSlotOrderIsKept(): void
+    {
+        $slot = static fn (int $n, string $provider, string $key): array => ['slot' => $n, 'provider' => $provider, 'key' => $key];
+
+        $this->assertSame(
+            [['provider' => 'gemini', 'keys' => ['G1', 'G2']], ['provider' => 'claude', 'keys' => ['C5']]],
+            group_ai_slots_into_segments([$slot(1, 'gemini', 'G1'), $slot(2, 'gemini', 'G2'), $slot(5, 'claude', 'C5')])
+        );
+        $this->assertSame(
+            [['provider' => 'claude', 'keys' => ['C1']], ['provider' => 'gemini', 'keys' => ['G2']], ['provider' => 'claude', 'keys' => ['C3']]],
+            group_ai_slots_into_segments([$slot(1, 'claude', 'C1'), $slot(2, 'gemini', 'G2'), $slot(3, 'claude', 'C3')])
+        );
+        $this->assertSame([], group_ai_slots_into_segments([]));
+    }
+
+    public function testASlotStatusNamesTheProviderAndMasksTheKey(): void
+    {
+        $pdo = TestDb::pdo();
+        set_app_setting($pdo, 'ai_api_key_5', 'sk-ant-secret-1234', 1);
+
+        $status = ai_slot_display_status($pdo, 5);
+
+        $this->assertTrue($status['configured']);
+        $this->assertSame('claude', $status['provider']);
+        $this->assertStringEndsWith('1234', $status['masked']);
+        $this->assertStringNotContainsString('secret', $status['masked']);
+        $this->assertFalse(ai_slot_display_status($pdo, 3)['configured']);
+    }
 }

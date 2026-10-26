@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/gemini.php';
+require_once __DIR__ . '/../config/claude.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/uploads.php';
@@ -14,6 +15,7 @@ require_once __DIR__ . '/../includes/pdf_pages.php';
 require_once __DIR__ . '/../extractors/ExtractorInterface.php';
 require_once __DIR__ . '/../extractors/ParsesHonorRows.php';
 require_once __DIR__ . '/../extractors/GeminiExtractor.php';
+require_once __DIR__ . '/../extractors/ClaudeExtractor.php';
 require_once __DIR__ . '/../extractors/generic_extractor.php';
 require_once __DIR__ . '/../extractors/ocr_extractor.php';
 require_once __DIR__ . '/../extractors/TemplateExtractor.php';
@@ -174,25 +176,51 @@ try {
                     exit;
                 }
 
-                // resolve_gemini_api_keys() prefers a key saved via Settings ->
-                // AI Extraction (admin/users.php) over the env-var default.
-                $geminiExtractor = new GeminiExtractor(resolve_gemini_api_keys($pdo));
-                $geminiExtractor->setDeadline($requestStartedAt + AI_EXTRACTION_BUDGET_SECONDS);
+                // The extraction API keys (Settings -> AI Extraction Settings,
+                // admin/admin_tools.php; a saved key beats the env-var default)
+                // each belong to a provider, Gemini or Claude. They are tried in
+                // slot order, neighbours of one provider as a single list that the
+                // provider's extractor rotates through; the first provider that
+                // returns rows wins. With no key configured at all the Gemini
+                // extractor fails at once, as it always did.
+                $aiSegments = group_ai_slots_into_segments(resolve_ai_key_slots($pdo));
+                if ($aiSegments === []) {
+                    $aiSegments = [['provider' => 'gemini', 'keys' => []]];
+                }
+                $aiDeadline = $requestStartedAt + AI_EXTRACTION_BUDGET_SECONDS;
                 write_extraction_progress($uploadId, 15, $isImageUpload ? 'SENDING IMAGE TO AI...' : 'SENDING PAGES ' . $chunkFirst . '-' . $chunkLast . ' TO AI...');
-                $result = $geminiExtractor->extract($chunkFilePath);
 
-                if ($result['status'] === 'failed' && !GeminiExtractor::isQuotaExhausted() && empty($result['unreachable']) && empty($result['timed_out'])) {
-                    // Today's estimated AI usage still has room and Google was
-                    // actually reachable, so this wasn't a quota or connectivity
-                    // problem — most likely a transient overload or a one-off
-                    // unparseable response. Give AI a single extra try before
-                    // conceding (bounded, not a loop, so a persistently failing
-                    // chunk can't blow past PHP's execution time limit).
-                    write_extraction_progress($uploadId, 25, 'RETRYING AI EXTRACTION...');
-                    $result = $geminiExtractor->extract($chunkFilePath);
+                $result = ['status' => 'failed', 'rows' => [], 'unreachable' => false, 'timed_out' => false];
+                $aiQuotaExhausted = false;
+                $aiProvider = 'gemini';
+                foreach ($aiSegments as $aiSegment) {
+                    $aiProvider = $aiSegment['provider'];
+                    $aiExtractor = $aiProvider === 'claude'
+                        ? new ClaudeExtractor($aiSegment['keys'])
+                        : new GeminiExtractor($aiSegment['keys']);
+                    $aiExtractor->setDeadline($aiDeadline);
+                    // Gemini keeps a shared "out of quota today" flag; Claude reports it in the result.
+                    $quotaOf = static fn (array $r): bool => $aiProvider === 'claude' ? !empty($r['quota']) : GeminiExtractor::isQuotaExhausted();
+
+                    $result = $aiExtractor->extract($chunkFilePath);
+
+                    if ($result['status'] === 'failed' && !$quotaOf($result) && empty($result['unreachable']) && empty($result['timed_out'])) {
+                        // Usage still has room and the service was actually
+                        // reachable, so this wasn't a quota or connectivity
+                        // problem — most likely a transient overload or a one-off
+                        // unparseable response. Give it a single extra try before
+                        // conceding (bounded, not a loop, so a persistently failing
+                        // chunk can't blow past PHP's execution time limit).
+                        write_extraction_progress($uploadId, 25, 'RETRYING AI EXTRACTION...');
+                        $result = $aiExtractor->extract($chunkFilePath);
+                    }
+
+                    $aiQuotaExhausted = $quotaOf($result);
+                    if ($result['status'] !== 'failed') {
+                        break;
+                    }
                 }
 
-                $aiQuotaExhausted = GeminiExtractor::isQuotaExhausted();
                 $aiUnreachable = !empty($result['unreachable']);
 
                 if (!$isImageUpload) {
@@ -202,7 +230,7 @@ try {
                 if ($result['status'] === 'failed') {
                     clear_extraction_progress($uploadId);
                     $reason = $aiQuotaExhausted
-                        ? "TODAY'S FREE AI EXTRACTION QUOTA HAS BEEN USED UP."
+                        ? ($aiProvider === 'claude' ? 'THE CLAUDE API QUOTA OR CREDIT HAS BEEN USED UP.' : "TODAY'S FREE AI EXTRACTION QUOTA HAS BEEN USED UP.")
                         : ($aiUnreachable
                             ? 'THE AI EXTRACTION SERVICE COULD NOT BE REACHED.'
                             : (!empty($result['timed_out'])

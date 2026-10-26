@@ -1,6 +1,8 @@
 <?php
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/gemini.php';
+require_once __DIR__ . '/../config/claude.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/app_settings.php';
@@ -29,15 +31,34 @@ if ($verifiedUser === null || $verifiedUser['role'] !== 'administrator') {
     exit;
 }
 
-$keys = [
-    'gemini_api_key' => trim((string) ($_POST['gemini_api_key'] ?? '')),
-    'gemini_api_key_2' => trim((string) ($_POST['gemini_api_key_2'] ?? '')),
-    'gemini_api_key_3' => trim((string) ($_POST['gemini_api_key_3'] ?? '')),
-    'gemini_api_key_4' => trim((string) ($_POST['gemini_api_key_4'] ?? '')),
-];
+// Each of the five slots has a key (blank = keep the current one) and the provider
+// it is connected to (Gemini or Claude).
+$keys = [];
+$providers = [];
+for ($slot = 1; $slot <= AI_KEY_SLOT_COUNT; $slot++) {
+    $info = ai_key_slot($slot);
+    $keys[$info['key_setting']] = trim((string) ($_POST[$info['key_setting']] ?? ''));
 
-if (array_filter($keys) === []) {
-    echo json_encode(['status' => 'error', 'message' => 'ENTER AT LEAST ONE API KEY TO SAVE. LEAVE A FIELD BLANK TO KEEP ITS CURRENT VALUE.']);
+    $provider = trim((string) ($_POST[$info['provider_setting']] ?? ''));
+    if ($provider === '') {
+        continue; // not sent: leave the slot's provider as it is
+    }
+    if (!isset(AI_PROVIDERS[$provider])) {
+        echo json_encode(['status' => 'error', 'message' => 'CHOOSE GEMINI OR CLAUDE FOR EACH API KEY.']);
+        exit;
+    }
+    $providers[$slot] = $provider;
+}
+
+$changedProviders = [];
+foreach ($providers as $slot => $provider) {
+    if ($provider !== resolve_ai_slot_provider($pdo, $slot)) {
+        $changedProviders[$slot] = $provider;
+    }
+}
+
+if (array_filter($keys) === [] && $changedProviders === []) {
+    echo json_encode(['status' => 'error', 'message' => 'ENTER AT LEAST ONE API KEY OR CHANGE A PROVIDER TO SAVE. LEAVE A KEY FIELD BLANK TO KEEP ITS CURRENT VALUE.']);
     exit;
 }
 
@@ -49,6 +70,11 @@ try {
             set_app_setting($pdo, $settingKey, $value, (int) $verifiedUser['id']);
             $updated[] = mb_strtoupper($settingKey);
         }
+    }
+
+    foreach ($changedProviders as $slot => $provider) {
+        set_app_setting($pdo, ai_key_slot($slot)['provider_setting'], $provider, (int) $verifiedUser['id']);
+        $updated[] = 'SLOT ' . $slot . ' PROVIDER: ' . mb_strtoupper($provider);
     }
 
     log_activity($pdo, (int) $verifiedUser['id'], 'ai_settings_updated', implode(', ', $updated) . ' UPDATED');

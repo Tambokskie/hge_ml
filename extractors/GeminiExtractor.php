@@ -239,6 +239,15 @@ class GeminiExtractor implements ExtractorInterface
             return [];
         }
 
+        return self::normalizeExtractedItems($items);
+    }
+
+    /**
+     * Pure — the decoded JSON array the model returned (any provider) turned into
+     * the row shape the rest of the pipeline expects; see parseGeminiResponseRows().
+     */
+    public static function normalizeExtractedItems(array $items): array
+    {
         $rows = [];
         foreach ($items as $item) {
             if (!is_array($item)) {
@@ -506,7 +515,7 @@ class GeminiExtractor implements ExtractorInterface
         @file_put_contents(self::QUOTA_STATUS_FILE, json_encode($data), LOCK_EX);
     }
 
-    private static function extractionPrompt(): string
+    public static function extractionPrompt(): string
     {
         return <<<PROMPT
 You are extracting a Latin Honor graduate list from a scanned PDF or a photo/scan image of the list for a

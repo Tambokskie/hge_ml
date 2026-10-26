@@ -153,25 +153,42 @@ document.addEventListener('DOMContentLoaded', function () {
     // rather than trusting a client-side "already verified" flag.
     function openAiSettingsModal(verifiedUsername, verifiedPassword) {
         var submitting = false;
-        var status = config.geminiKeyStatus || {};
-        var key1Placeholder = status.key1 && status.key1.configured ? 'CURRENT: ' + status.key1.masked : 'NOT CONFIGURED';
-        var key2Placeholder = status.key2 && status.key2.configured ? 'CURRENT: ' + status.key2.masked : 'NOT CONFIGURED';
-        var key3Placeholder = status.key3 && status.key3.configured ? 'CURRENT: ' + status.key3.masked : 'NOT CONFIGURED';
-        var key4Placeholder = status.key4 && status.key4.configured ? 'CURRENT: ' + status.key4.masked : 'NOT CONFIGURED';
+        var slots = config.aiKeySlots || [];
+        var providers = config.aiProviders || { gemini: 'GEMINI', claude: 'CLAUDE' };
+        var slotLabels = ['KEY 1', 'KEY 2 (FALLBACK)', 'KEY 3 (FALLBACK)', 'KEY 4 (FALLBACK)', 'KEY 5 (FALLBACK)'];
+
+        // One row per slot: which service the key belongs to, then the key itself.
+        function slotRowHtml(index) {
+            var slot = slots[index] || {};
+            var providerOptions = Object.keys(providers).map(function (value) {
+                return '<option value="' + escapeHtml(value) + '"' + (slot.provider === value ? ' selected' : '') + '>' + escapeHtml(providers[value]) + '</option>';
+            }).join('');
+            var placeholder = slot.configured ? 'CURRENT: ' + slot.masked : 'NOT CONFIGURED';
+
+            return '<div class="grid grid-cols-1 sm:grid-cols-5 gap-3 items-start">' +
+                '<div class="sm:col-span-2">' +
+                modalField({ id: 'modal-ai-provider-' + (index + 1), label: slotLabels[index] + ' CONNECTED TO', type: 'select', optionsHtml: providerOptions }) +
+                '</div>' +
+                '<div class="sm:col-span-3">' +
+                modalField({ id: 'modal-ai-key-' + (index + 1), label: 'KEY', optional: true, type: 'password', icon: 'lock', placeholder: placeholder, note: 'Leave blank to keep the current value.' }) +
+                '</div>' +
+                '</div>';
+        }
+
+        var rowsHtml = '';
+        for (var i = 0; i < 5; i++) {
+            rowsHtml += slotRowHtml(i);
+        }
 
         var bodyHtml =
             '<div class="space-y-4">' +
-            '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">CONFIGURE THE GEMINI API KEY(S) USED FOR AI-BASED PDF EXTRACTION. THE SAVED VALUE TAKES EFFECT IMMEDIATELY — NO SERVER RESTART NEEDED.</p>' +
-            modalField({ id: 'modal-ai-key-1', label: 'GEMINI API KEY', optional: true, type: 'password', icon: 'lock', placeholder: key1Placeholder, note: 'Leave blank to keep the current value.' }) +
-            modalField({ id: 'modal-ai-key-2', label: 'GEMINI API KEY 2 (QUOTA FALLBACK)', optional: true, type: 'password', icon: 'lock', placeholder: key2Placeholder, note: 'Leave blank to keep the current value.' }) +
-            modalField({ id: 'modal-ai-key-3', label: 'GEMINI API KEY 3 (QUOTA FALLBACK)', optional: true, type: 'password', icon: 'lock', placeholder: key3Placeholder, note: 'Leave blank to keep the current value.' }) +
-            modalField({ id: 'modal-ai-key-4', label: 'GEMINI API KEY 4 (QUOTA FALLBACK)', optional: true, type: 'password', icon: 'lock', placeholder: key4Placeholder, note: 'Leave blank to keep the current value.' }) +
+            '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">CHOOSE WHICH SERVICE EACH API KEY BELONGS TO (GEMINI OR CLAUDE). KEYS ARE TRIED IN ORDER, KEY 1 FIRST; WHEN ONE CANNOT READ A LIST (QUOTA USED UP, SERVICE DOWN), THE NEXT ONE IS USED. THE SAVED VALUES TAKE EFFECT IMMEDIATELY — NO SERVER RESTART NEEDED.</p>' +
+            rowsHtml +
             '</div>';
-
         showModal({
             icon: modalHeaderIcon('lock'),
             title: 'AI EXTRACTION SETTINGS',
-            subtitle: 'Identity confirmed. Leave a field blank to keep its current value.',
+            subtitle: 'Identity confirmed. Leave a key blank to keep its current value.',
             bodyHtml: bodyHtml,
             buttons: [
                 { label: 'CANCEL', className: MODAL_BTN.secondary },
@@ -193,6 +210,12 @@ document.addEventListener('DOMContentLoaded', function () {
                             gemini_api_key_2: document.getElementById('modal-ai-key-2').value,
                             gemini_api_key_3: document.getElementById('modal-ai-key-3').value,
                             gemini_api_key_4: document.getElementById('modal-ai-key-4').value,
+                            ai_api_key_5: document.getElementById('modal-ai-key-5').value,
+                            ai_provider_1: document.getElementById('modal-ai-provider-1').value,
+                            ai_provider_2: document.getElementById('modal-ai-provider-2').value,
+                            ai_provider_3: document.getElementById('modal-ai-provider-3').value,
+                            ai_provider_4: document.getElementById('modal-ai-provider-4').value,
+                            ai_provider_5: document.getElementById('modal-ai-provider-5').value,
                         })
                             .then(function (data) {
                                 if (data.status === 'success') {

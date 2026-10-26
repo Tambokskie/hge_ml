@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/gemini.php';
+require_once __DIR__ . '/../config/claude.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/app_settings.php';
@@ -9,10 +10,10 @@ require_once __DIR__ . '/../includes/app_settings.php';
 require_role('administrator');
 
 $pdo = get_pdo();
-$geminiKey1Status = gemini_key_display_status($pdo, 'gemini_api_key', defined('GEMINI_API_KEY') ? GEMINI_API_KEY : '');
-$geminiKey2Status = gemini_key_display_status($pdo, 'gemini_api_key_2', defined('GEMINI_API_KEY_2') ? GEMINI_API_KEY_2 : '');
-$geminiKey3Status = gemini_key_display_status($pdo, 'gemini_api_key_3', defined('GEMINI_API_KEY_3') ? GEMINI_API_KEY_3 : '');
-$geminiKey4Status = gemini_key_display_status($pdo, 'gemini_api_key_4', defined('GEMINI_API_KEY_4') ? GEMINI_API_KEY_4 : '');
+$aiKeySlots = [];
+for ($aiSlot = 1; $aiSlot <= AI_KEY_SLOT_COUNT; $aiSlot++) {
+    $aiKeySlots[] = ai_slot_display_status($pdo, $aiSlot);
+}
 
 $currentUser = current_user();
 $currentPage = 'admin_tools';
@@ -57,7 +58,7 @@ include __DIR__ . '/../includes/sidebar.php';
                     </span>
                     <h2 class="text-base font-bold text-csc-navy-600 dark:text-white">AI EXTRACTION SETTINGS</h2>
                 </div>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-5 flex-1">VIEW OR CHANGE THE GEMINI API KEYS USED FOR AI EXTRACTION OF UPLOADED LISTS, INCLUDING THE QUOTA-FALLBACK KEYS. YOU MUST CONFIRM YOUR USERNAME AND PASSWORD FIRST.</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-5 flex-1">VIEW OR CHANGE THE API KEYS USED FOR AI EXTRACTION OF UPLOADED LISTS (GEMINI OR CLAUDE), INCLUDING THE FALLBACK KEYS. YOU MUST CONFIRM YOUR USERNAME AND PASSWORD FIRST.</p>
                 <div>
                     <button type="button" id="configure-ai-settings-btn" class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-white/15 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium px-4 py-2.5 transition-colors">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
@@ -109,12 +110,8 @@ include __DIR__ . '/../includes/sidebar.php';
 window.HGE_ADMIN = {
     csrfToken: <?= json_encode($csrfToken) ?>,
     apiBase: <?= json_encode(APP_BASE_URL) ?>,
-    geminiKeyStatus: {
-        key1: <?= json_encode($geminiKey1Status) ?>,
-        key2: <?= json_encode($geminiKey2Status) ?>,
-        key3: <?= json_encode($geminiKey3Status) ?>,
-        key4: <?= json_encode($geminiKey4Status) ?>
-    }
+    aiKeySlots: <?= json_encode($aiKeySlots) ?>,
+    aiProviders: <?= json_encode(AI_PROVIDERS) ?>
 };
 </script>
 <script src="<?= e(asset_url('assets/js/admin_tools.js')) ?>"></script>
