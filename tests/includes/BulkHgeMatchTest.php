@@ -30,7 +30,7 @@ class BulkHgeMatchTest extends TestCase
         $pdo = TestDb::pdo();
         $stmt = $pdo->prepare(
             "INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, course, latin_honor, graduation_year)
-             VALUES (:u, :s, :n, :c, 'CUM LAUDE', 2025)"
+             VALUES (:u, :s, :n, :c, 'CUM LAUDE', 2020)"
         );
         $stmt->execute(['u' => $uploadId, 's' => $schoolId, 'n' => $name, 'c' => $course]);
 
@@ -201,13 +201,13 @@ class BulkHgeMatchTest extends TestCase
             ['graduate_id' => $toApprove, 'date' => '2024-05-01'],
         ], $preview['to_file']);
         $this->assertSame([
-            'people' => 6, 'to_file' => 2, 'already_approved' => 1, 'review' => 2, 'not_found' => 1, 'invalid' => 1,
+            'people' => 6, 'to_file' => 2, 'already_approved' => 1, 'review' => 2, 'not_found' => 1, 'invalid' => 1, 'invalid_date' => 0,
         ], $preview['counts']);
         $this->assertCount(2, $preview['review']);
         $this->assertStringContainsString('LOOSE', $preview['review'][0]['reason']);
         $this->assertStringContainsString('AMBIGUOUS', $preview['review'][1]['reason']);
         $this->assertSame(['REYES, ANA'], $preview['review'][0]['saved_names']);
-        $this->assertSame([['name' => 'REYES, ANA', 'school' => 'ABC UNIVERSITY-MAIN', 'year' => '2025']], $preview['review'][0]['saved']);
+        $this->assertSame([['name' => 'REYES, ANA', 'school' => 'ABC UNIVERSITY-MAIN', 'year' => '2020']], $preview['review'][0]['saved']);
         $this->assertSame(
             [['LOPEZ, MARK T.', 'ABC UNIVERSITY-MAIN'], ['LOPEZ, MARK T.', 'XYZ COLLEGE-MAIN']],
             array_map(static fn (array $s): array => [$s['name'], $s['school']], $preview['review'][1]['saved'])

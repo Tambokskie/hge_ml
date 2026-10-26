@@ -124,10 +124,98 @@ function update_graduate(PDO $pdo, int $id, array $data): void
 }
 
 /**
+ * Pure. The year a graduate finished: the year of the graduation date when there is one, otherwise
+ * the stored graduation year.
+ */
+function graduate_effective_graduation_year(?string $graduationDate, int $graduationYear): int
+{
+    if ($graduationDate !== null && preg_match('/^(\d{4})-/', $graduationDate, $m) === 1) {
+        return (int) $m[1];
+    }
+
+    return $graduationYear;
+}
+
+/**
+ * Pure. The rule for the date applied and the date approved: its year may not be before the year the
+ * graduate graduated (nobody applies for a Latin Honor before earning it). Returns the message to show
+ * the user, or null when the date is acceptable.
+ */
+function application_date_year_error(int $graduationYear, string $date, string $label): ?string
+{
+    $year = (int) substr($date, 0, 4);
+    if ($year >= $graduationYear) {
+        return null;
+    }
+
+    return 'THE ' . $label . ' (' . $year . ') IS INVALID: IT IS BEFORE THE YEAR THE APPLICANT GRADUATED (' . $graduationYear . '). PLEASE ENTER A DATE IN ' . $graduationYear . ' OR LATER.';
+}
+
+/**
+ * Applications whose date applied or date approved falls in a year before the graduate's graduation
+ * year. Read-only.
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function find_invalid_application_dates(PDO $pdo): array
+{
+    return $pdo->query(
+        'SELECT a.id AS application_id, a.graduate_id, g.graduate_name, g.upload_id, g.school_id,
+                g.graduation_date, g.graduation_year,
+                COALESCE(YEAR(g.graduation_date), g.graduation_year) AS effective_year,
+                a.application_date, a.approved_at, a.applied_by, a.approved_by
+         FROM graduate_applications a
+         JOIN latin_honor_graduates g ON g.id = a.graduate_id
+         WHERE YEAR(a.application_date) < COALESCE(YEAR(g.graduation_date), g.graduation_year)
+            OR (a.approved_at IS NOT NULL AND YEAR(a.approved_at) < COALESCE(YEAR(g.graduation_date), g.graduation_year))
+         ORDER BY a.id'
+    )->fetchAll();
+}
+
+/**
+ * Removes the date applied and date approved of every application that breaks the rule above.
+ * application_date is NOT NULL, so removing the dates means removing the application row: the graduate
+ * goes back to "not applied". Returns the removed rows (as find_invalid_application_dates() listed them).
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function remove_invalid_application_dates(PDO $pdo): array
+{
+    $pdo->beginTransaction();
+    try {
+        $invalid = find_invalid_application_dates($pdo);
+        $delete = $pdo->prepare('DELETE FROM graduate_applications WHERE id = :id');
+        foreach ($invalid as $row) {
+            $delete->execute(['id' => $row['application_id']]);
+        }
+        $pdo->commit();
+    } catch (\Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+
+    return $invalid;
+}
+
+/**
  * @return array{ok: bool, error?: string}
  */
 function file_application(PDO $pdo, int $graduateId, int $appliedBy, string $applicationDate): array
 {
+    $graduate = get_graduate_by_id($pdo, $graduateId);
+    if ($graduate === null) {
+        return ['ok' => false, 'error' => 'GRADUATE RECORD NOT FOUND.'];
+    }
+    $yearError = application_date_year_error(
+        graduate_effective_graduation_year($graduate['graduation_date'], (int) $graduate['graduation_year']),
+        $applicationDate,
+        'DATE OF APPLICATION'
+    );
+    if ($yearError !== null) {
+        return ['ok' => false, 'error' => $yearError];
+    }
     try {
         $stmt = $pdo->prepare(
             'INSERT INTO graduate_applications (graduate_id, applied_by, application_date)
@@ -166,6 +254,18 @@ function approve_application(PDO $pdo, int $graduateId, int $approvedBy, string 
     $exists->execute(['graduate_id' => $graduateId]);
     if ($exists->fetchColumn() === false) {
         return ['ok' => false, 'error' => 'THIS GRADUATE HAS NOT FILED AN APPLICATION YET.'];
+    }
+
+    $graduate = get_graduate_by_id($pdo, $graduateId);
+    if ($graduate !== null) {
+        $yearError = application_date_year_error(
+            graduate_effective_graduation_year($graduate['graduation_date'], (int) $graduate['graduation_year']),
+            $approvalDate,
+            'DATE OF APPROVAL'
+        );
+        if ($yearError !== null) {
+            return ['ok' => false, 'error' => $yearError];
+        }
     }
 
     $pdo->prepare(

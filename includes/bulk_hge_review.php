@@ -304,7 +304,25 @@ function bulk_hge_apply_with_review(PDO $pdo, array $pairs, array $review, int $
         ];
     }
 
-    return ['ok' => true, 'filed' => $filedCounts['filed'], 'approved' => $filedCounts['approved'], 'skipped' => $filedCounts['skipped'], 'review' => $reviewCounts];
+    return ['ok' => true, 'filed' => $filedCounts['filed'], 'approved' => $filedCounts['approved'], 'skipped' => $filedCounts['skipped'], 'invalid_date' => $filedCounts['invalid_date'], 'review' => $reviewCounts];
+}
+
+/**
+ * The year rule (application_date_year_error()) for a NEEDS REVIEW item's date against one saved
+ * graduate; null when the date is acceptable or the graduate cannot be found.
+ */
+function bulk_hge_review_date_error(PDO $pdo, int $graduateId, string $date): ?string
+{
+    $graduate = get_graduate_by_id($pdo, $graduateId);
+    if ($graduate === null) {
+        return null;
+    }
+
+    return application_date_year_error(
+        graduate_effective_graduation_year($graduate['graduation_date'], (int) $graduate['graduation_year']),
+        $date,
+        'DATE'
+    );
 }
 
 function bulk_hge_review_pending_count(PDO $pdo): int
@@ -426,6 +444,13 @@ function bulk_hge_review_file(PDO $pdo, int $itemId, int $graduateId, int $userI
             return ['ok' => false, 'error' => 'THAT GRADUATE RECORD NO LONGER EXISTS.'];
         }
 
+        $yearError = bulk_hge_review_date_error($pdo, $graduateId, (string) $item['application_date']);
+        if ($yearError !== null) {
+            $pdo->rollBack();
+
+            return ['ok' => false, 'error' => $yearError];
+        }
+
         try {
             // Resolving a NEEDS REVIEW item always inserts fresh (the
             // ambiguous match was never filed before — the catch below
@@ -534,6 +559,13 @@ function bulk_hge_review_approve(PDO $pdo, int $itemId, int $graduateId, int $us
             $pdo->rollBack();
 
             return ['ok' => false, 'error' => 'THIS APPLICATION IS ALREADY APPROVED. DISMISS THIS ITEM INSTEAD.'];
+        }
+
+        $yearError = bulk_hge_review_date_error($pdo, $graduateId, (string) $item['application_date']);
+        if ($yearError !== null) {
+            $pdo->rollBack();
+
+            return ['ok' => false, 'error' => $yearError];
         }
 
         $pdo->prepare(

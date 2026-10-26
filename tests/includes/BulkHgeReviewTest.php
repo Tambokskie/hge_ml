@@ -30,7 +30,7 @@ class BulkHgeReviewTest extends TestCase
         $pdo = TestDb::pdo();
         $pdo->prepare(
             "INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, course, latin_honor, graduation_year)
-             VALUES (?, ?, ?, 'BSA', 'CUM LAUDE', 2025)"
+             VALUES (?, ?, ?, 'BSA', 'CUM LAUDE', 2020)"
         )->execute([$uploadId, $schoolId, $name]);
 
         return (int) $pdo->lastInsertId();
@@ -84,7 +84,7 @@ class BulkHgeReviewTest extends TestCase
         $this->assertSame('AMBIGUOUS', $lopez['reason_label']);
         $this->assertSame('file.xls', $lopez['source_filename']);
         $this->assertSame(
-            [['LOPEZ, MARK T.', 'ABC UNIVERSITY-MAIN', '2025', null], ['LOPEZ, MARK T.', 'XYZ COLLEGE-MAIN', '2025', null]],
+            [['LOPEZ, MARK T.', 'ABC UNIVERSITY-MAIN', '2020', null], ['LOPEZ, MARK T.', 'XYZ COLLEGE-MAIN', '2020', null]],
             array_map(static fn (array $c): array => [$c['name'], $c['school'], $c['year'], $c['applied_on']], $lopez['candidates'])
         );
     }

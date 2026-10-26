@@ -52,7 +52,7 @@ try {
         $pdo,
         $currentUser['id'] ?? null,
         'application_filed',
-        'bulk update: ' . $result['filed'] . ' filed, ' . $result['approved'] . ' approved, ' . $result['skipped'] . ' skipped (vanished), '
+        'bulk update: ' . $result['filed'] . ' filed, ' . $result['approved'] . ' approved, ' . $result['skipped'] . ' skipped (vanished), ' . $result['invalid_date'] . ' left out (date before graduation year), '
             . ($result['review']['added'] + $result['review']['updated']) . ' saved for review, from ' . $staged['filename']
     );
 } catch (\Throwable $e) {
@@ -67,6 +67,7 @@ echo json_encode([
     'filed' => $result['filed'],
     'approved' => $result['approved'],
     'skipped' => $result['skipped'],
+    'invalid_date' => $result['invalid_date'],
     'review_added' => $result['review']['added'],
     'review_updated' => $result['review']['updated'],
     'review_skipped' => $result['review']['skipped'],

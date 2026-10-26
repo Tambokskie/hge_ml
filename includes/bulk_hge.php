@@ -3,6 +3,8 @@
 // Callers must also load includes/duplicates.php (duplicate_exact_copy_key()) and
 // includes/functions.php (format_school_display_name()).
 
+require_once __DIR__ . '/graduates.php'; // application_date_year_error()
+
 const BULK_HGE_MAX_BYTES = 10485760;
 const BULK_HGE_MAX_ROWS = 50000;
 const BULK_HGE_HEADER_SCAN_ROWS = 10;
@@ -279,7 +281,7 @@ function parse_bulk_hge_rows(array $sheetRows, bool $date1904 = false): array
 function bulk_hge_load_graduate_index(PDO $pdo): array
 {
     $stmt = $pdo->query(
-        'SELECT g.id, g.graduate_name, g.school_id, g.course, g.latin_honor, g.graduation_year,
+        'SELECT g.id, g.graduate_name, g.school_id, g.course, g.latin_honor, g.graduation_year, g.graduation_date,
                 (a.id IS NOT NULL) AS applied, (a.approved_at IS NOT NULL) AS approved,
                 s.school_name, s.campus
          FROM latin_honor_graduates g
@@ -296,6 +298,7 @@ function bulk_hge_load_graduate_index(PDO $pdo): array
             'name' => $row['graduate_name'],
             'school' => format_school_display_name((string) ($row['school_name'] ?? ''), $row['campus'] ?? null),
             'year' => (string) $row['graduation_year'],
+            'grad_year' => graduate_effective_graduation_year($row['graduation_date'], (int) $row['graduation_year']),
             'tokens' => $parsed['tokens'],
             'ext' => $parsed['ext'],
             'applied' => (int) $row['applied'] === 1,
@@ -457,7 +460,8 @@ function bulk_hge_match_person(array $person, array $db): array
  * match is excluded (there's nothing left for this file's date to change).
  *
  * @param array<int, array> $people  from parse_bulk_hge_rows()
- * @return array{to_file: array, review: array, counts: array}
+ * @return array{to_file: array, review: array, counts: array, date_errors: array} date_errors are
+ *     matched rows whose date breaks the year rule; they are listed with the unreadable rows
  */
 function bulk_hge_build_preview(PDO $pdo, array $people, array $parseErrors = []): array
 {
@@ -485,6 +489,7 @@ function bulk_hge_build_preview(PDO $pdo, array $people, array $parseErrors = []
 
     $toFile = [];
     $review = [];
+    $dateErrors = [];
     $counts = [
         'people' => count($people),
         'to_file' => 0,
@@ -492,6 +497,7 @@ function bulk_hge_build_preview(PDO $pdo, array $people, array $parseErrors = []
         'review' => 0,
         'not_found' => 0,
         'invalid' => count($parseErrors),
+        'invalid_date' => 0,
     ];
 
     $reasons = [
@@ -507,8 +513,21 @@ function bulk_hge_build_preview(PDO $pdo, array $people, array $parseErrors = []
                 if ($db['rows'][$match['graduate_id']]['approved']) {
                     $counts['already_approved']++;
                 } else {
-                    $toFile[] = ['graduate_id' => $match['graduate_id'], 'date' => $person['date']];
-                    $counts['to_file']++;
+                    // The file's date is the filing and approval date: a year before the graduate's
+                    // graduation year is invalid, so the row is reported instead of filed.
+                    $yearError = application_date_year_error($db['rows'][$match['graduate_id']]['grad_year'], $person['date'], 'DATE IN THE FILE');
+                    if ($yearError !== null) {
+                        $dateErrors[] = [
+                            'row' => $person['row'],
+                            'name' => trim($person['last'] . ', ' . $person['first'], ' ,'),
+                            'message' => $yearError,
+                        ];
+                        $counts['invalid_date']++;
+                        $counts['invalid']++;
+                    } else {
+                        $toFile[] = ['graduate_id' => $match['graduate_id'], 'date' => $person['date']];
+                        $counts['to_file']++;
+                    }
                 }
                 break;
             case 'not_found':
@@ -531,7 +550,7 @@ function bulk_hge_build_preview(PDO $pdo, array $people, array $parseErrors = []
         }
     }
 
-    return ['to_file' => $toFile, 'review' => $review, 'counts' => $counts];
+    return ['to_file' => $toFile, 'review' => $review, 'counts' => $counts, 'date_errors' => $dateErrors];
 }
 
 // ---------------------------------------------------------------------------
@@ -552,7 +571,8 @@ function bulk_hge_build_preview(PDO $pdo, array $people, array $parseErrors = []
  * real FK failure, not a duplicate.
  *
  * @param array<int, array{graduate_id: int, date: string}> $pairs
- * @return array{filed: int, approved: int, skipped: int}
+ * @return array{filed: int, approved: int, skipped: int, invalid_date: int} invalid_date counts the
+ *     rows left out because their date's year is before the graduate's graduation year
  */
 function bulk_hge_insert_pairs(PDO $pdo, array $pairs, int $appliedBy): array
 {
@@ -562,10 +582,23 @@ function bulk_hge_insert_pairs(PDO $pdo, array $pairs, int $appliedBy): array
          ON DUPLICATE KEY UPDATE approved_at = VALUES(approved_at), approved_by = VALUES(approved_by)'
     );
 
+    $graduateInfo = $pdo->prepare('SELECT graduation_date, graduation_year FROM latin_honor_graduates WHERE id = :id');
+
     $filed = 0;
     $approved = 0;
     $skipped = 0;
+    $invalidDate = 0;
     foreach ($pairs as $pair) {
+        // The file's date is both the filing and the approval date, so it may not be in a year before
+        // the graduate graduated (application_date_year_error()); such a row is left out, not filed.
+        $graduateInfo->execute(['id' => (int) $pair['graduate_id']]);
+        $graduate = $graduateInfo->fetch();
+        if (is_array($graduate)
+            && application_date_year_error(graduate_effective_graduation_year($graduate['graduation_date'], (int) $graduate['graduation_year']), (string) $pair['date'], 'DATE') !== null) {
+            $invalidDate++;
+            continue;
+        }
+
         try {
             $upsert->execute([
                 'graduate_id' => (int) $pair['graduate_id'],
@@ -592,7 +625,7 @@ function bulk_hge_insert_pairs(PDO $pdo, array $pairs, int $appliedBy): array
         }
     }
 
-    return ['filed' => $filed, 'approved' => $approved, 'skipped' => $skipped];
+    return ['filed' => $filed, 'approved' => $approved, 'skipped' => $skipped, 'invalid_date' => $invalidDate];
 }
 
 /**
@@ -619,7 +652,7 @@ function bulk_hge_apply(PDO $pdo, array $pairs, int $appliedBy): array
         return ['ok' => false, 'error' => 'THE APPLICATIONS COULD NOT BE FILED. NOTHING WAS CHANGED. PLEASE TRY AGAIN.'];
     }
 
-    return ['ok' => true, 'filed' => $counts['filed'], 'approved' => $counts['approved'], 'skipped' => $counts['skipped']];
+    return ['ok' => true, 'filed' => $counts['filed'], 'approved' => $counts['approved'], 'skipped' => $counts['skipped'], 'invalid_date' => $counts['invalid_date']];
 }
 
 // ---------------------------------------------------------------------------

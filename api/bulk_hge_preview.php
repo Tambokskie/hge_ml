@@ -46,6 +46,9 @@ try {
 
     $pdo = get_pdo();
     $preview = bulk_hge_build_preview($pdo, $parsed['people'], $parsed['errors']);
+    // Rows whose date is in a year before the graduate's graduation year are reported with the
+    // unreadable rows (the review file lists them too) and are never filed.
+    $parsed['errors'] = array_merge($parsed['errors'], $preview['date_errors']);
 
     // Uncertain applicants an administrator already filed or dismissed (or whose
     // records are all filed for that date) are never raised again, so they are

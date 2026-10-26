@@ -287,7 +287,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (invalid.length > 0) {
             html += '<div class="mt-6">' +
-                '<h3 class="text-sm font-bold text-gray-800 dark:text-gray-100">UNREADABLE ROWS (' + formatCount(data.counts.invalid) + ')</h3>' +
+                '<h3 class="text-sm font-bold text-gray-800 dark:text-gray-100">INVALID ROWS (' + formatCount(data.counts.invalid) + ')</h3>' +
                 '<p class="mt-1 text-xs text-gray-600 dark:text-gray-400">THESE ROWS WERE SKIPPED. FIX THEM IN YOUR FILE AND UPLOAD AGAIN.</p>' +
                 '<div class="mt-2 max-h-72 overflow-auto rounded-xl border border-gray-200 dark:border-white/10">' +
                 '<table class="min-w-full text-xs"><thead class="sticky top-0 bg-gray-50 dark:bg-surface-800"><tr>' +
@@ -321,7 +321,7 @@ document.addEventListener('DOMContentLoaded', function () {
             bulkTile(counts.already_approved, 'ALREADY APPROVED', 'SKIPPED, LEFT UNCHANGED', 'text-gray-600 dark:text-gray-300') +
             bulkTile(counts.review, 'NEEDS REVIEW', 'NOT FILED. KEPT FOR YOU TO ACT ON', 'text-yellow-600 dark:text-yellow-400') +
             bulkTile(counts.not_found, 'NOT FOUND', 'NO LATIN HONOR RECORD', 'text-gray-600 dark:text-gray-300') +
-            bulkTile(counts.invalid, 'UNREADABLE ROWS', 'MISSING NAME OR BAD DATE', 'text-csc-red-600 dark:text-csc-red-400') +
+            bulkTile(counts.invalid, 'INVALID ROWS', 'BAD NAME OR DATE, OR DATE BEFORE GRADUATION', 'text-csc-red-600 dark:text-csc-red-400') +
             '</div>' +
             '<div class="mt-5 flex flex-wrap items-center gap-3">';
 
@@ -390,7 +390,7 @@ document.addEventListener('DOMContentLoaded', function () {
             subtitle: filing ? 'Each matched graduate is marked as applied using the date in your file.' : 'Nothing is filed. You decide each one in the NEEDS REVIEW list.',
             bodyHtml: '<p>' + (filing ? formatCount(data.counts.to_file) + ' APPLICATION(S) WILL BE RECORDED. GRADUATES THAT ARE ALREADY FILED ARE NOT CHANGED.' : 'NO APPLICATIONS WILL BE FILED FROM THIS FILE.') +
                 (data.counts.review > 0 ? ' THE ' + formatCount(data.counts.review) + ' UNCERTAIN APPLICANT(S) ARE NOT FILED; THEY ARE SAVED IN THE NEEDS REVIEW LIST FOR YOU TO ACT ON.' : '') +
-                (data.counts.invalid > 0 ? ' THE ' + formatCount(data.counts.invalid) + ' UNREADABLE ROW(S) ARE SKIPPED.' : '') + '</p>',
+                (data.counts.invalid > 0 ? ' THE ' + formatCount(data.counts.invalid) + ' INVALID ROW(S) ARE SKIPPED.' : '') + '</p>',
             buttons: [
                 { label: 'CANCEL', className: MODAL_BTN.secondary },
                 {
@@ -416,7 +416,8 @@ document.addEventListener('DOMContentLoaded', function () {
                                     bulkReset();
                                     bulkResult.innerHTML = '<p class="text-sm text-gray-700 dark:text-gray-300"><strong>' + formatCount(result.filed) + '</strong> APPLICATION(S) FILED' +
                                         (result.approved > 0 ? ', <strong>' + formatCount(result.approved) + '</strong> ALREADY-FILED APPLICATION(S) APPROVED' : '') +
-                                        (result.skipped > 0 ? ', ' + formatCount(result.skipped) + ' SKIPPED BECAUSE THE RECORD NO LONGER EXISTS' : '') + '.' +
+                                        (result.skipped > 0 ? ', ' + formatCount(result.skipped) + ' SKIPPED BECAUSE THE RECORD NO LONGER EXISTS' : '') +
+                                        (result.invalid_date > 0 ? ', ' + formatCount(result.invalid_date) + ' LEFT OUT BECAUSE THE DATE IS IN A YEAR BEFORE THE APPLICANT GRADUATED' : '') + '.' +
                                         (result.review_added + result.review_updated > 0 ? ' <strong>' + formatCount(result.review_added + result.review_updated) + '</strong> APPLICANT(S) WERE SAVED IN THE NEEDS REVIEW LIST BELOW.' : '') + '</p>';
                                     bulkResult.classList.remove('hidden');
                                     var savedForReview = result.review_added + result.review_updated > 0;

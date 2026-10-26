@@ -97,6 +97,7 @@ $sections = [
                 ],
                 'notes' => [
                     'An application can be recorded only once for each graduate, so check the name and date before you confirm.',
+                    'The date of application and the date of approval cannot be in a year before the year the graduate graduated. A date like that is refused with an "invalid" message and nothing is saved, so enter a date in the graduation year or later. The bulk update leaves out any row whose date breaks this rule and tells you how many.',
                 ],
             ],
             [
@@ -205,7 +206,7 @@ $sections = [
             'The date in the file is used as the approval date. An applicant with no application yet is filed and approved on that date; one whose application is still processing is approved on that date (the original filing date is kept). Choosing [[FILE FOR THIS RECORD]] under [[NEEDS REVIEW]] also files and approves on the file\'s date. If the saved record is already filed but not yet approved, the button reads [[APPROVE THIS RECORD]] and approves it on the file\'s date without changing its filing date.',
             'Applicants under [[NEEDS REVIEW]] stay on the list until you act on them. One that already has an application recorded for that date closes by itself.',
             'Because the other columns are ignored, a raw export is not checked for spoiled or cancelled rows, or for a different honor. When a person appears on two rows, the earlier date is used. Look over the preview before you confirm, and check unusual applicants in Look-Up afterwards.',
-            '[[DOWNLOAD REVIEW FILE]] saves the uncertain and unreadable rows so you can fix them in your spreadsheet.',
+            '[[DOWNLOAD REVIEW FILE]] saves the uncertain and invalid rows so you can fix them in your spreadsheet. A row whose date is in a year before the applicant graduated is listed as invalid in the preview, with the reason, and is not filed.',
         ],
     ],
     [
