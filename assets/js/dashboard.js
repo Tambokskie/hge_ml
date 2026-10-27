@@ -44,6 +44,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // APPLICATION FILING OVERVIEW card — rendered by the shared
     // initFilingDonut() in utils.js, scoped to the single selected year.
     dashboardFilingDonut = initFilingDonut();
+    initHoverTooltips();
 });
 
 document.addEventListener('DOMContentLoaded', function () {

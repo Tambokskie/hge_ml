@@ -69,7 +69,7 @@ $totalOnRecord = $yearGraduates + $filedYearOtherApplied;
 $filingRate = $totalOnRecord > 0 ? round($totalApplied / $totalOnRecord * 100, 1) : 0.0;
 // Shown as a tooltip when the mouse is over a figure (assets/js/utils.js builds the same text on a year switch).
 $splitNote = static function (int $total, int $other, int $year): string {
-    return number_format($total - $other) . ' from ' . $year . ' graduates, ' . number_format($other) . ' from other years';
+    return number_format($total - $other) . ' from ' . $year . ' graduates, ' . number_format($other) . ' from other years submitted this ' . $year;
 };
 
 // Sunburst: the inner ring is ON RECORD with the RECEIVED applications as its arc; the outer ring
@@ -277,23 +277,23 @@ include __DIR__ . '/../includes/sidebar.php';
                             <div id="filing-donut-legend" class="space-y-3 text-sm">
                                 <div class="flex items-center justify-between gap-3 motion-safe:animate-fade-in-up" style="animation-delay: 250ms">
                                     <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400"><span class="h-2.5 w-2.5 rounded-full bg-gray-400 shrink-0"></span>ON RECORD</span>
-                                    <span id="filing-onrecord-details" title="<?= e(number_format($yearGraduates) . ' from ' . (int) $dashboardDefaultYear . ' graduates, ' . number_format($filedYearOtherApplied) . ' from other years submitted this ' . (int) $dashboardDefaultYear) ?>" class="text-gray-700 dark:text-gray-300 text-right cursor-help"><span id="filing-onrecord-count"><?= number_format($totalOnRecord) ?></span> (<span id="filing-onrecord-percent">100%</span>)</span>
+                                    <span id="filing-onrecord-details" data-tooltip="<?= e(number_format($yearGraduates) . ' from ' . (int) $dashboardDefaultYear . ' graduates, ' . number_format($filedYearOtherApplied) . ' from other years submitted this ' . (int) $dashboardDefaultYear) ?>" class="text-gray-700 dark:text-gray-300 text-right cursor-help"><span id="filing-onrecord-count"><?= number_format($totalOnRecord) ?></span> (<span id="filing-onrecord-percent">100%</span>)</span>
                                 </div>
                                 <div class="flex items-start justify-between gap-3 motion-safe:animate-fade-in-up" style="animation-delay: 340ms">
                                     <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400"><span class="h-2.5 w-2.5 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300 shrink-0"></span>APPLICATION RECEIVED</span>
-                                    <span id="filing-applied-details" title="<?= e($splitNote($filedYearApplied, $filedYearOtherApplied, (int) $dashboardDefaultYear)) ?>" class="flex flex-col items-end text-right cursor-help">
+                                    <span id="filing-applied-details" data-tooltip="<?= e($splitNote($filedYearApplied, $filedYearOtherApplied, (int) $dashboardDefaultYear)) ?>" class="flex flex-col items-end text-right cursor-help">
                                         <span class="text-gray-700 dark:text-gray-300"><span id="filing-applied-count"><?= number_format($totalApplied) ?></span> (<span id="filing-applied-percent"><?= e((string) $filingRate) ?>%</span>)</span>
                                     </span>
                                 </div>
                                 <div class="flex items-start justify-between gap-3 pl-5 motion-safe:animate-fade-in-up" style="animation-delay: 430ms">
                                     <span class="flex items-center gap-2 text-gray-500 dark:text-gray-500"><span class="h-2 w-2 rounded-full bg-orange-500 shrink-0"></span>PROCESSING</span>
-                                    <span id="filing-processing-details" title="<?= e($splitNote($filedYearProcessing, $filedYearOtherProcessing, (int) $dashboardDefaultYear)) ?>" class="flex flex-col items-end text-right cursor-help">
+                                    <span id="filing-processing-details" data-tooltip="<?= e($splitNote($filedYearProcessing, $filedYearOtherProcessing, (int) $dashboardDefaultYear)) ?>" class="flex flex-col items-end text-right cursor-help">
                                         <span class="text-gray-700 dark:text-gray-300"><span id="filing-processing-count"><?= number_format($totalProcessing) ?></span> (<span id="filing-processing-percent"><?= e((string) $processingPercent) ?>%</span>)</span>
                                     </span>
                                 </div>
                                 <div class="flex items-start justify-between gap-3 pl-5 motion-safe:animate-fade-in-up" style="animation-delay: 520ms">
                                     <span class="flex items-center gap-2 text-gray-500 dark:text-gray-500"><span class="h-2 w-2 rounded-full bg-emerald-500 shrink-0"></span>APPROVED</span>
-                                    <span id="filing-approved-details" title="<?= e($splitNote($filedYearApproved, $filedYearOtherApproved, (int) $dashboardDefaultYear)) ?>" class="flex flex-col items-end text-right cursor-help">
+                                    <span id="filing-approved-details" data-tooltip="<?= e($splitNote($filedYearApproved, $filedYearOtherApproved, (int) $dashboardDefaultYear)) ?>" class="flex flex-col items-end text-right cursor-help">
                                         <span class="text-gray-700 dark:text-gray-300"><span id="filing-approved-count"><?= number_format($totalApproved) ?></span> (<span id="filing-approved-percent"><?= e((string) $approvedPercent) ?>%</span>)</span>
                                     </span>
                                 </div>

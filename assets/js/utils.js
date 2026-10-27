@@ -731,6 +731,62 @@ function updateTierBars(tierEls, breakdown, totalOnRecord) {
     });
 }
 
+// Fading hover tooltip for every [data-tooltip] element: one shared bubble that follows the element it
+// is over (a native `title` bubble cannot be animated). Safe to call more than once.
+function initHoverTooltips() {
+    if (window.__hgeTooltipReady) {
+        return;
+    }
+    window.__hgeTooltipReady = true;
+
+    var bubble = document.createElement('div');
+    bubble.className = 'hge-tooltip';
+    bubble.setAttribute('role', 'tooltip');
+    document.body.appendChild(bubble);
+    var current = null;
+
+    function place(target) {
+        var rect = target.getBoundingClientRect();
+        var width = bubble.offsetWidth;
+        var height = bubble.offsetHeight;
+        var left = Math.min(Math.max(8, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - 8);
+        var top = rect.top - height - 8;
+        if (top < 8) {
+            top = rect.bottom + 8;
+        }
+        bubble.style.left = left + 'px';
+        bubble.style.top = top + 'px';
+    }
+
+    function hide() {
+        current = null;
+        bubble.classList.remove('is-visible');
+    }
+
+    document.addEventListener('mouseover', function (event) {
+        var target = event.target.closest ? event.target.closest('[data-tooltip]') : null;
+        if (!target || target === current) {
+            return;
+        }
+        var text = target.getAttribute('data-tooltip');
+        if (!text) {
+            hide();
+            return;
+        }
+        current = target;
+        bubble.textContent = text;
+        place(target);
+        bubble.classList.add('is-visible');
+    });
+    document.addEventListener('mouseout', function (event) {
+        var target = event.target.closest ? event.target.closest('[data-tooltip]') : null;
+        if (target && target === current && !(event.relatedTarget && target.contains(event.relatedTarget))) {
+            hide();
+        }
+    });
+    window.addEventListener('scroll', hide, true);
+}
+
 // APPLICATION FILING OVERVIEW donut for admin/dashboard.php (single-year,
 // slicer-driven). The LATIN HONOR DISTRIBUTION tier bars live inside this
 // same card (merged with the year-selected donut), so update() also
@@ -909,20 +965,20 @@ function initFilingDonut() {
                 var otherApproved = report.filed_year_other_approved || 0;
                 var splitNote = function (total, other) {
                     return formatCount(total - other) + ' from ' + report.year + ' graduates, '
-                        + formatCount(other) + ' from other years';
+                        + formatCount(other) + ' from other years submitted this ' + report.year;
                 };
                 if (detailEls.onRecord) {
-                    detailEls.onRecord.title = formatCount(yearGraduates) + ' from ' + report.year + ' graduates, '
-                        + formatCount(otherApplied) + ' from other years submitted this ' + report.year;
+                    detailEls.onRecord.setAttribute('data-tooltip', formatCount(yearGraduates) + ' from ' + report.year + ' graduates, '
+                        + formatCount(otherApplied) + ' from other years submitted this ' + report.year);
                 }
                 if (detailEls.applied) {
-                    detailEls.applied.title = splitNote(received, otherApplied);
+                    detailEls.applied.setAttribute('data-tooltip', splitNote(received, otherApplied));
                 }
                 if (detailEls.processing) {
-                    detailEls.processing.title = splitNote(totalProcessing, otherApplied - otherApproved);
+                    detailEls.processing.setAttribute('data-tooltip', splitNote(totalProcessing, otherApplied - otherApproved));
                 }
                 if (detailEls.approved) {
-                    detailEls.approved.title = splitNote(totalApproved, otherApproved);
+                    detailEls.approved.setAttribute('data-tooltip', splitNote(totalApproved, otherApproved));
                 }
             }
         }
