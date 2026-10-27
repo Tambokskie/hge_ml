@@ -259,4 +259,46 @@ class ReportsTest extends TestCase
         );
     }
 
+    public function testFiledInYearFigureSplitsIntoThisYearsGraduatesAndOtherGraduationYears(): void
+    {
+        $pdo = TestDb::pdo();
+        $pdo->exec(
+            "INSERT INTO latin_honor_graduates (upload_id, school_id, graduate_name, latin_honor, graduation_year)
+             VALUES (1, 1, 'GRAD 2026 A', 'CUM LAUDE', 2026),
+                    (1, 1, 'GRAD 2026 B', 'CUM LAUDE', 2026),
+                    (1, 1, 'GRAD 2025 A', 'CUM LAUDE', 2025),
+                    (1, 1, 'GRAD 2025 B', 'CUM LAUDE', 2025),
+                    (1, 1, 'GRAD 2025 C', 'CUM LAUDE', 2025),
+                    (2, 2, 'GRAD 2024', 'CUM LAUDE', 2024)"
+        );
+        $pdo->exec(
+            "INSERT INTO graduate_applications (graduate_id, applied_by, application_date, approved_at)
+             VALUES (1, 1, '2026-02-01', '2026-02-02'),
+                    (2, 1, '2026-03-01', NULL),
+                    (3, 1, '2026-04-01', '2026-04-05'),
+                    (4, 1, '2026-05-01', NULL),
+                    (5, 1, '2025-11-01', '2025-11-02'),
+                    (6, 1, '2026-06-01', NULL)"
+        );
+
+        $filedIn2026 = get_applied_breakdown_by_filed_year($pdo, 2026);
+        $graduatesOf2026 = get_application_filing_report($pdo, 2026);
+
+        // 5 applications were filed in 2026, but only 2 belong to 2026's graduates: the other 3 are
+        // graduates of 2025 and 2024, which is why the "filed in" note can exceed the main figure.
+        $this->assertSame(5, $filedIn2026['total_applied']);
+        $this->assertSame(2, $graduatesOf2026['total_applied']);
+        $this->assertSame(3, $filedIn2026['other_years_applied']);
+        $this->assertSame(2, $filedIn2026['total_approved']);
+        $this->assertSame(1, $filedIn2026['other_years_approved']);
+        $this->assertSame(2, $filedIn2026['other_years_processing']);
+        $this->assertSame(3, $filedIn2026['total_processing']);
+        // here every 2026 graduate filed in 2026, so the two scopes differ by exactly the other years
+        $this->assertSame($filedIn2026['total_applied'], $graduatesOf2026['total_applied'] + $filedIn2026['other_years_applied']);
+
+        $none = get_applied_breakdown_by_filed_year($pdo, 1999);
+        $this->assertSame(0, $none['total_applied']);
+        $this->assertSame(0, $none['other_years_applied']);
+        $this->assertSame(0, $none['other_years_processing']);
+    }
 }

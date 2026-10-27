@@ -903,14 +903,22 @@ function initFilingDonut() {
                 var filedYearApplied = report.filed_year_applied || 0;
                 var filedYearApproved = report.filed_year_approved || 0;
                 var filedYearProcessing = filedYearApplied - filedYearApproved;
+                var otherApplied = report.filed_year_other_applied || 0;
+                var otherApproved = report.filed_year_other_approved || 0;
+                // The note counts every application filed that year, including graduates of other
+                // years, so say how many of them those are (admin/dashboard.php renders the same text).
+                var filedNote = function (total, other) {
+                    return '(' + formatCount(total) + ' filed in ' + report.year
+                        + (other > 0 ? ', ' + formatCount(other) + ' from other graduation years' : '') + ')';
+                };
                 if (subnoteEls.applied) {
-                    subnoteEls.applied.textContent = '(' + formatCount(filedYearApplied) + ' filed in ' + report.year + ')';
+                    subnoteEls.applied.textContent = filedNote(filedYearApplied, otherApplied);
                 }
                 if (subnoteEls.processing) {
-                    subnoteEls.processing.textContent = '(' + formatCount(filedYearProcessing) + ' filed in ' + report.year + ')';
+                    subnoteEls.processing.textContent = filedNote(filedYearProcessing, otherApplied - otherApproved);
                 }
                 if (subnoteEls.approved) {
-                    subnoteEls.approved.textContent = '(' + formatCount(filedYearApproved) + ' filed in ' + report.year + ')';
+                    subnoteEls.approved.textContent = filedNote(filedYearApproved, otherApproved);
                 }
             }
         }

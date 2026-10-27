@@ -84,24 +84,38 @@ function get_application_filing_report(PDO $pdo, int $fromYear, ?int $toYear = n
  * alongside these as a "(N are from <year>)" annotation rather than being
  * replaced, since on_record and the per-school table are only meaningful
  * scoped by graduation_year.
+ *
+ * The two scopes are different groups of people, so the filed-year figure can be
+ * larger than the graduation-year one (an applicant who graduated in an earlier
+ * year files this year). `other_years_*` is the part of the filed-year figure that
+ * belongs to graduates of a different year, so the dashboard can show that the
+ * numbers reconcile: filed in year = graduates of that year + other_years.
  */
 function get_applied_breakdown_by_filed_year(PDO $pdo, int $year): array
 {
     $stmt = $pdo->prepare(
-        'SELECT COUNT(*) AS applied, COUNT(approved_at) AS approved
-         FROM graduate_applications
-         WHERE YEAR(application_date) = :year'
+        'SELECT COUNT(*) AS applied, COUNT(a.approved_at) AS approved,
+                COALESCE(SUM(g.graduation_year <> :year_other), 0) AS other_applied,
+                COALESCE(SUM(g.graduation_year <> :year_other_approved AND a.approved_at IS NOT NULL), 0) AS other_approved
+         FROM graduate_applications a
+         JOIN latin_honor_graduates g ON g.id = a.graduate_id
+         WHERE YEAR(a.application_date) = :year'
     );
-    $stmt->execute(['year' => $year]);
+    $stmt->execute(['year' => $year, 'year_other' => $year, 'year_other_approved' => $year]);
     $row = $stmt->fetch();
 
     $applied = (int) $row['applied'];
     $approved = (int) $row['approved'];
+    $otherApplied = (int) $row['other_applied'];
+    $otherApproved = (int) $row['other_approved'];
 
     return [
         'total_applied' => $applied,
         'total_approved' => $approved,
         'total_processing' => $applied - $approved,
+        'other_years_applied' => $otherApplied,
+        'other_years_approved' => $otherApproved,
+        'other_years_processing' => $otherApplied - $otherApproved,
     ];
 }
 

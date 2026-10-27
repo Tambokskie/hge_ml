@@ -50,6 +50,8 @@ try {
             'filing_rate' => $filingReport['filing_rate'],
             'filed_year_applied' => $filedYearBreakdown['total_applied'],
             'filed_year_approved' => $filedYearBreakdown['total_approved'],
+            'filed_year_other_applied' => $filedYearBreakdown['other_years_applied'],
+            'filed_year_other_approved' => $filedYearBreakdown['other_years_approved'],
             'year' => $year,
         ];
         $response['honor_breakdown'] = get_honor_tier_breakdown_for_year($pdo, $year);

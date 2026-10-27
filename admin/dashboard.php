@@ -73,6 +73,12 @@ $filingRate = $filingReport['filing_rate'];
 $filedYearApplied = $filedYearBreakdown['total_applied'];
 $filedYearApproved = $filedYearBreakdown['total_approved'];
 $filedYearProcessing = $filedYearBreakdown['total_processing'];
+$filedYearOtherApplied = $filedYearBreakdown['other_years_applied'];
+$filedYearOtherApproved = $filedYearBreakdown['other_years_approved'];
+$filedYearOtherProcessing = $filedYearBreakdown['other_years_processing'];
+// Why the "filed in <year>" note can exceed the main figure: it counts everyone whose application was
+// filed that year, including graduates of other years (the main figure only counts that year's graduates).
+$filedYearNoteTitle = 'THE FIGURE ABOVE COUNTS ONLY GRADUATES OF THE SELECTED YEAR. THIS NOTE COUNTS EVERY APPLICATION FILED IN THAT YEAR, INCLUDING GRADUATES OF OTHER YEARS.';
 
 $appliedFraction = $totalOnRecord > 0 ? $totalApplied / $totalOnRecord : 0;
 $donutAppliedLength = $donutInnerCircumference * $appliedFraction;
@@ -278,24 +284,24 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <span class="text-gray-700 dark:text-gray-300 text-right"><span id="filing-onrecord-count"><?= number_format($filingReport['total_on_record']) ?></span> (<span id="filing-onrecord-percent">100%</span>)</span>
                                 </div>
                                 <div class="flex items-start justify-between gap-3 motion-safe:animate-fade-in-up" style="animation-delay: 340ms">
-                                    <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400"><span class="h-2.5 w-2.5 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300 shrink-0"></span>APPLICATION RECIEVED</span>
+                                    <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400"><span class="h-2.5 w-2.5 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300 shrink-0"></span>APPLICATION RECEIVED</span>
                                     <span class="flex flex-col items-end text-right">
                                         <span class="text-gray-700 dark:text-gray-300"><span id="filing-applied-count"><?= number_format($totalApplied) ?></span> (<span id="filing-applied-percent"><?= e((string) $filingRate) ?>%</span>)</span>
-                                        <span id="filing-applied-subnote" class="text-xs text-gray-500 dark:text-gray-500">(<?= number_format($filedYearApplied) ?> filed in <?= (int) $dashboardDefaultYear ?>)</span>
+                                        <span id="filing-applied-subnote" title="<?= e($filedYearNoteTitle) ?>" class="text-xs text-gray-500 dark:text-gray-500">(<?= number_format($filedYearApplied) ?> filed in <?= (int) $dashboardDefaultYear ?><?= $filedYearOtherApplied > 0 ? ', ' . number_format($filedYearOtherApplied) . ' from other graduation years' : '' ?>)</span>
                                     </span>
                                 </div>
                                 <div class="flex items-start justify-between gap-3 pl-5 motion-safe:animate-fade-in-up" style="animation-delay: 430ms">
                                     <span class="flex items-center gap-2 text-gray-500 dark:text-gray-500"><span class="h-2 w-2 rounded-full bg-orange-500 shrink-0"></span>PROCESSING</span>
                                     <span class="flex flex-col items-end text-right">
                                         <span class="text-gray-700 dark:text-gray-300"><span id="filing-processing-count"><?= number_format($totalProcessing) ?></span> (<span id="filing-processing-percent"><?= e((string) $processingPercent) ?>%</span>)</span>
-                                        <span id="filing-processing-subnote" class="text-xs text-gray-500 dark:text-gray-500">(<?= number_format($filedYearProcessing) ?> filed in <?= (int) $dashboardDefaultYear ?>)</span>
+                                        <span id="filing-processing-subnote" title="<?= e($filedYearNoteTitle) ?>" class="text-xs text-gray-500 dark:text-gray-500">(<?= number_format($filedYearProcessing) ?> filed in <?= (int) $dashboardDefaultYear ?><?= $filedYearOtherProcessing > 0 ? ', ' . number_format($filedYearOtherProcessing) . ' from other graduation years' : '' ?>)</span>
                                     </span>
                                 </div>
                                 <div class="flex items-start justify-between gap-3 pl-5 motion-safe:animate-fade-in-up" style="animation-delay: 520ms">
                                     <span class="flex items-center gap-2 text-gray-500 dark:text-gray-500"><span class="h-2 w-2 rounded-full bg-emerald-500 shrink-0"></span>APPROVED</span>
                                     <span class="flex flex-col items-end text-right">
                                         <span class="text-gray-700 dark:text-gray-300"><span id="filing-approved-count"><?= number_format($totalApproved) ?></span> (<span id="filing-approved-percent"><?= e((string) $approvedPercent) ?>%</span>)</span>
-                                        <span id="filing-approved-subnote" class="text-xs text-gray-500 dark:text-gray-500">(<?= number_format($filedYearApproved) ?> filed in <?= (int) $dashboardDefaultYear ?>)</span>
+                                        <span id="filing-approved-subnote" title="<?= e($filedYearNoteTitle) ?>" class="text-xs text-gray-500 dark:text-gray-500">(<?= number_format($filedYearApproved) ?> filed in <?= (int) $dashboardDefaultYear ?><?= $filedYearOtherApproved > 0 ? ', ' . number_format($filedYearOtherApproved) . ' from other graduation years' : '' ?>)</span>
                                     </span>
                                 </div>
                                 <div class="flex items-center justify-between gap-3 motion-safe:animate-fade-in-up" style="animation-delay: 610ms">
