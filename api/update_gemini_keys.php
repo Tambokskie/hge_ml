@@ -50,6 +50,28 @@ for ($slot = 1; $slot <= AI_KEY_SLOT_COUNT; $slot++) {
     $providers[$slot] = $provider;
 }
 
+// Each slot's expiry date: sent as YYYY-MM-DD, or blank to clear it; not sent = leave it as it is.
+$expiries = [];
+for ($slot = 1; $slot <= AI_KEY_SLOT_COUNT; $slot++) {
+    $field = ai_key_slot($slot)['expiry_setting'];
+    if (!isset($_POST[$field])) {
+        continue;
+    }
+    $value = trim((string) $_POST[$field]);
+    if ($value !== '' && parse_ai_key_expiry($value) === null) {
+        echo json_encode(['status' => 'error', 'message' => 'KEY ' . $slot . ': ENTER A REAL EXPIRATION DATE, OR LEAVE IT BLANK.']);
+        exit;
+    }
+    $expiries[$slot] = $value;
+}
+
+$changedExpiries = [];
+foreach ($expiries as $slot => $value) {
+    if ($value !== (resolve_ai_slot_expiry($pdo, $slot) ?? '')) {
+        $changedExpiries[$slot] = $value;
+    }
+}
+
 $changedProviders = [];
 foreach ($providers as $slot => $provider) {
     if ($provider !== resolve_ai_slot_provider($pdo, $slot)) {
@@ -57,8 +79,8 @@ foreach ($providers as $slot => $provider) {
     }
 }
 
-if (array_filter($keys) === [] && $changedProviders === []) {
-    echo json_encode(['status' => 'error', 'message' => 'ENTER AT LEAST ONE API KEY OR CHANGE A PROVIDER TO SAVE. LEAVE A KEY FIELD BLANK TO KEEP ITS CURRENT VALUE.']);
+if (array_filter($keys) === [] && $changedProviders === [] && $changedExpiries === []) {
+    echo json_encode(['status' => 'error', 'message' => 'ENTER AT LEAST ONE API KEY OR CHANGE A PROVIDER OR EXPIRATION DATE TO SAVE. LEAVE A KEY FIELD BLANK TO KEEP ITS CURRENT VALUE.']);
     exit;
 }
 
@@ -75,6 +97,17 @@ try {
     foreach ($changedProviders as $slot => $provider) {
         set_app_setting($pdo, ai_key_slot($slot)['provider_setting'], $provider, (int) $verifiedUser['id']);
         $updated[] = 'SLOT ' . $slot . ' PROVIDER: ' . mb_strtoupper($provider);
+    }
+
+    foreach ($changedExpiries as $slot => $value) {
+        $setting = ai_key_slot($slot)['expiry_setting'];
+        if ($value === '') {
+            delete_app_setting($pdo, $setting);
+            $updated[] = 'SLOT ' . $slot . ' EXPIRATION DATE: CLEARED';
+        } else {
+            set_app_setting($pdo, $setting, $value, (int) $verifiedUser['id']);
+            $updated[] = 'SLOT ' . $slot . ' EXPIRATION DATE: ' . $value;
+        }
     }
 
     log_activity($pdo, (int) $verifiedUser['id'], 'ai_settings_updated', implode(', ', $updated) . ' UPDATED');

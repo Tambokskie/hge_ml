@@ -198,4 +198,68 @@ class AppSettingsTest extends TestCase
         $this->assertSame(['claude', 'gemini'], array_column($segments, 'provider'));
         $this->assertSame(['c2', 'c5'], $segments[0]['keys']);
     }
+    public function testAnExpiryDateMustBeARealCalendarDate(): void
+    {
+        $this->assertSame('2026-12-31', parse_ai_key_expiry('2026-12-31'));
+        $this->assertSame('2028-02-29', parse_ai_key_expiry(' 2028-02-29 '));
+        $this->assertNull(parse_ai_key_expiry('2027-02-29'));
+        $this->assertNull(parse_ai_key_expiry('2026-13-01'));
+        $this->assertNull(parse_ai_key_expiry('12/31/2026'));
+        $this->assertNull(parse_ai_key_expiry(''));
+    }
+
+    public function testExpiryStateIsExpiredOnlyAfterTheDateAndWarnsAWeekAhead(): void
+    {
+        $this->assertSame(['state' => 'none', 'days_left' => null], ai_key_expiry_state(null, '2026-10-26'));
+        $this->assertSame(['state' => 'none', 'days_left' => null], ai_key_expiry_state('', '2026-10-26'));
+        $this->assertSame(['state' => 'ok', 'days_left' => 8], ai_key_expiry_state('2026-11-03', '2026-10-26'));
+        $this->assertSame(['state' => 'soon', 'days_left' => 7], ai_key_expiry_state('2026-11-02', '2026-10-26'));
+        // the key still works on its expiry date
+        $this->assertSame(['state' => 'soon', 'days_left' => 0], ai_key_expiry_state('2026-10-26', '2026-10-26'));
+        $this->assertSame(['state' => 'expired', 'days_left' => -1], ai_key_expiry_state('2026-10-25', '2026-10-26'));
+    }
+
+    public function testAKeyPastItsExpiryDateIsLeftOutOfExtractionButStillShownInSettings(): void
+    {
+        $pdo = TestDb::pdo();
+        set_app_setting($pdo, 'gemini_api_key', 'G1', 1);
+        set_app_setting($pdo, 'gemini_api_key_2', 'G2', 1);
+        set_app_setting($pdo, 'ai_api_key_5', 'C5', 1);
+        set_app_setting($pdo, 'ai_key_expiry_1', '2026-10-01', 1);   // passed
+        set_app_setting($pdo, 'ai_key_expiry_5', '2026-10-26', 1);   // last day: still used
+
+        $slots = resolve_ai_key_slots($pdo, '2026-10-26');
+
+        $this->assertSame([2, 5], array_column($slots, 'slot'));
+        $this->assertSame(['G2'], array_values(array_diff(array_column($slots, 'key'), ['C5'])));
+
+        $expired = ai_slot_display_status($pdo, 1);
+        $this->assertTrue($expired['configured']);
+        $this->assertSame('2026-10-01', $expired['expiry']);
+        $this->assertSame('expired', $expired['expiry_state']);
+        $this->assertSame('none', ai_slot_display_status($pdo, 2)['expiry_state']);
+    }
+
+    public function testClearingAnExpiryDateBringsTheKeyBack(): void
+    {
+        $pdo = TestDb::pdo();
+        set_app_setting($pdo, 'gemini_api_key', 'G1', 1);
+        set_app_setting($pdo, 'ai_key_expiry_1', '2020-01-01', 1);
+        $this->assertSame([], resolve_ai_key_slots($pdo, '2026-10-26'));
+
+        delete_app_setting($pdo, 'ai_key_expiry_1');
+
+        $this->assertSame([1], array_column(resolve_ai_key_slots($pdo, '2026-10-26'), 'slot'));
+        $this->assertNull(ai_slot_display_status($pdo, 1)['expiry']);
+    }
+
+    public function testAMalformedStoredExpiryIsIgnoredRatherThanDisablingTheKey(): void
+    {
+        $pdo = TestDb::pdo();
+        set_app_setting($pdo, 'gemini_api_key', 'G1', 1);
+        set_app_setting($pdo, 'ai_key_expiry_1', 'not a date', 1);
+
+        $this->assertSame([1], array_column(resolve_ai_key_slots($pdo, '2026-10-26'), 'slot'));
+        $this->assertSame('none', ai_slot_display_status($pdo, 1)['expiry_state']);
+    }
 }

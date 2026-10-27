@@ -157,37 +157,72 @@ document.addEventListener('DOMContentLoaded', function () {
         var providers = config.aiProviders || { gemini: 'GEMINI', claude: 'CLAUDE' };
         var slotLabels = ['KEY 1', 'KEY 2 (FALLBACK)', 'KEY 3 (FALLBACK)', 'KEY 4 (FALLBACK)', 'KEY 5 (FALLBACK)'];
 
-        // One row per slot: which service the key belongs to, then the key itself.
+        function expiryBadgeHtml(slot) {
+            var tone = {
+                expired: 'bg-red-500/10 text-red-700 dark:text-red-400',
+                soon: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
+                ok: 'bg-green-500/10 text-green-700 dark:text-green-400',
+            }[slot.expiry_state];
+            if (!tone) {
+                return '';
+            }
+            var text = slot.expiry_state === 'expired'
+                ? 'EXPIRED — NOT USED'
+                : (slot.days_left === 0 ? 'EXPIRES TODAY' : 'EXPIRES IN ' + slot.days_left + ' DAY(S)');
+            return '<span class="inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ' + tone + '">' + escapeHtml(text) + '</span>';
+        }
+
+        // One compact row per slot — KEY | CONNECTED TO | API KEY | EXPIRES ON — so all five fit in the
+        // modal without scrolling. Below the md breakpoint each row stacks, with small captions that
+        // replace the column headings.
+        var controlClass = 'w-full rounded-lg bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-csc-navy-500 focus:ring-2 focus:ring-csc-navy-500/20 focus:outline-none';
+        var captionClass = 'mb-1 block text-[10px] font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300 md:hidden';
+
         function slotRowHtml(index) {
             var slot = slots[index] || {};
+            var n = index + 1;
             var providerOptions = Object.keys(providers).map(function (value) {
                 return '<option value="' + escapeHtml(value) + '"' + (slot.provider === value ? ' selected' : '') + '>' + escapeHtml(providers[value]) + '</option>';
             }).join('');
             var placeholder = slot.configured ? 'CURRENT: ' + slot.masked : 'NOT CONFIGURED';
 
-            return '<div class="grid grid-cols-1 sm:grid-cols-5 gap-3 items-start">' +
-                '<div class="sm:col-span-2">' +
-                modalField({ id: 'modal-ai-provider-' + (index + 1), label: slotLabels[index] + ' CONNECTED TO', type: 'select', optionsHtml: providerOptions }) +
+            return '<div class="grid grid-cols-1 md:grid-cols-12 gap-x-3 gap-y-2 items-start py-3 border-b border-gray-100 dark:border-white/10 last:border-b-0">' +
+                '<div class="md:col-span-2 md:pt-2">' +
+                '<p class="text-sm font-bold text-csc-navy-600 dark:text-white">KEY ' + n + '</p>' +
+                '<p class="text-[11px] text-gray-500 dark:text-gray-400">' + (n === 1 ? 'TRIED FIRST' : 'FALLBACK') + '</p>' +
                 '</div>' +
-                '<div class="sm:col-span-3">' +
-                modalField({ id: 'modal-ai-key-' + (index + 1), label: 'KEY', optional: true, type: 'password', icon: 'lock', placeholder: placeholder, note: 'Leave blank to keep the current value.' }) +
+                '<div class="md:col-span-2">' +
+                '<label class="' + captionClass + '" for="modal-ai-provider-' + n + '">CONNECTED TO</label>' +
+                '<select id="modal-ai-provider-' + n + '" class="' + controlClass + '">' + providerOptions + '</select>' +
+                '</div>' +
+                '<div class="md:col-span-5">' +
+                '<label class="' + captionClass + '" for="modal-ai-key-' + n + '">API KEY</label>' +
+                '<input id="modal-ai-key-' + n + '" type="password" autocomplete="off" placeholder="' + escapeHtml(placeholder) + '" class="' + controlClass + '">' +
+                '</div>' +
+                '<div class="md:col-span-3">' +
+                '<label class="' + captionClass + '" for="modal-ai-expiry-' + n + '">EXPIRES ON</label>' +
+                '<input id="modal-ai-expiry-' + n + '" type="date" value="' + escapeHtml(slot.expiry || '') + '" class="' + controlClass + '">' +
+                (slot.expiry_state && slot.expiry_state !== 'none' ? '<div class="mt-1">' + expiryBadgeHtml(slot) + '</div>' : '') +
                 '</div>' +
                 '</div>';
         }
-
         var rowsHtml = '';
         for (var i = 0; i < 5; i++) {
             rowsHtml += slotRowHtml(i);
         }
 
         var bodyHtml =
-            '<div class="space-y-4">' +
-            '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">CHOOSE WHICH SERVICE EACH API KEY BELONGS TO (GEMINI OR CLAUDE). KEYS ARE TRIED IN ORDER, KEY 1 FIRST; WHEN ONE CANNOT READ A LIST (QUOTA USED UP, SERVICE DOWN), THE NEXT ONE IS USED. THE SAVED VALUES TAKE EFFECT IMMEDIATELY — NO SERVER RESTART NEEDED.</p>' +
-            rowsHtml +
+            '<div class="space-y-3">' +
+            '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-xs text-gray-700 dark:text-gray-300">CHOOSE WHICH SERVICE EACH API KEY BELONGS TO (GEMINI OR CLAUDE). KEYS ARE TRIED IN ORDER, KEY 1 FIRST; WHEN ONE CANNOT READ A LIST (QUOTA USED UP, SERVICE DOWN), THE NEXT ONE IS USED. A KEY WHOSE EXPIRATION DATE HAS PASSED IS SKIPPED. THE SAVED VALUES TAKE EFFECT IMMEDIATELY — NO SERVER RESTART NEEDED.</p>' +
+            '<div class="hidden md:grid grid-cols-12 gap-x-3 px-0 text-[10px] font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">' +
+            '<span class="col-span-2">KEY</span><span class="col-span-2">CONNECTED TO</span><span class="col-span-5">API KEY</span><span class="col-span-3">EXPIRES ON</span></div>' +
+            '<div>' + rowsHtml + '</div>' +
+            '<p class="text-xs text-gray-500 dark:text-gray-400">LEAVE A KEY BLANK TO KEEP ITS CURRENT VALUE. CLEAR A DATE TO REMOVE IT.</p>' +
             '</div>';
         showModal({
             icon: modalHeaderIcon('lock'),
             title: 'AI EXTRACTION SETTINGS',
+            widthClass: 'max-w-4xl',
             subtitle: 'Identity confirmed. Leave a key blank to keep its current value.',
             bodyHtml: bodyHtml,
             buttons: [
@@ -216,6 +251,11 @@ document.addEventListener('DOMContentLoaded', function () {
                             ai_provider_3: document.getElementById('modal-ai-provider-3').value,
                             ai_provider_4: document.getElementById('modal-ai-provider-4').value,
                             ai_provider_5: document.getElementById('modal-ai-provider-5').value,
+                            ai_key_expiry_1: document.getElementById('modal-ai-expiry-1').value,
+                            ai_key_expiry_2: document.getElementById('modal-ai-expiry-2').value,
+                            ai_key_expiry_3: document.getElementById('modal-ai-expiry-3').value,
+                            ai_key_expiry_4: document.getElementById('modal-ai-expiry-4').value,
+                            ai_key_expiry_5: document.getElementById('modal-ai-expiry-5').value,
                         })
                             .then(function (data) {
                                 if (data.status === 'success') {

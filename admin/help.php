@@ -256,7 +256,7 @@ $sections = [
                 'title' => 'Admin tools',
                 'steps' => [
                     'Click [[ADMIN]]. [[CREATE DB BACKUP]] downloads a full copy of the database as a .sql file.',
-                    '[[AI EXTRACTION SETTINGS]] lets you view or change the five API keys used for AI reading. For each key choose the service it belongs to, Gemini or Claude, and paste the key (leave a key blank to keep the current one). Keys connected to Claude are tried first, then the Gemini ones, each group in key order: when one cannot read a list, for example because its quota or credit is used up or it does not answer in time, the next one takes over.',
+                    '[[AI EXTRACTION SETTINGS]] lets you view or change the five API keys used for AI reading. For each key choose the service it belongs to, Gemini or Claude, and paste the key (leave a key blank to keep the current one). You can also enter the date each key expires: a key past its date is skipped, and the Admin page warns you a week before. Keys connected to Claude are tried first, then the Gemini ones, each group in key order: when one cannot read a list, for example because its quota or credit is used up or it does not answer in time, the next one takes over.',
                     'Both ask you to type your username and password again before they continue.',
                 ],
             ],

@@ -25,6 +25,11 @@ function set_app_setting(PDO $pdo, string $key, string $value, int $updatedBy): 
     $stmt->execute(['key' => $key, 'value' => $value, 'updated_by' => $updatedBy]);
 }
 
+function delete_app_setting(PDO $pdo, string $key): void
+{
+    $pdo->prepare('DELETE FROM app_settings WHERE setting_key = :key')->execute(['key' => $key]);
+}
+
 /** The services an extraction API key can be connected to (value => label shown in the settings modal). */
 const AI_PROVIDERS = ['gemini' => 'GEMINI', 'claude' => 'CLAUDE'];
 
@@ -36,7 +41,7 @@ const AI_KEY_SLOT_COUNT = 5;
  * The key settings of slots 1-4 keep their original `gemini_api_key*` names so keys saved
  * before the provider choice existed keep working untouched.
  *
- * @return array{key_setting: string, provider_setting: string, env_key: string, default_provider: string}
+ * @return array{key_setting: string, provider_setting: string, expiry_setting: string, env_key: string, default_provider: string}
  */
 function ai_key_slot(int $slot): array
 {
@@ -49,6 +54,7 @@ function ai_key_slot(int $slot): array
     return [
         'key_setting' => $keySettings[$slot],
         'provider_setting' => 'ai_provider_' . $slot,
+        'expiry_setting' => 'ai_key_expiry_' . $slot,
         'env_key' => $envKeys[$slot],
         'default_provider' => $defaultProvider,
     ];
@@ -72,17 +78,61 @@ function resolve_ai_slot_key(PDO $pdo, int $slot): string
 }
 
 /**
+ * Pure. A real calendar date typed as YYYY-MM-DD, or null when the text is not one.
+ */
+function parse_ai_key_expiry(string $value): ?string
+{
+    $value = trim($value);
+    $date = \DateTime::createFromFormat('!Y-m-d', $value);
+    if ($date === false || $date->format('Y-m-d') !== $value) {
+        return null;
+    }
+
+    return $value;
+}
+
+/**
+ * Pure. Where a key stands against its expiry date: 'none' (no date saved), 'ok', 'soon' (expires within
+ * $warnDays days, today included) or 'expired' (the date has passed; the key works through its expiry date).
+ *
+ * @return array{state: string, days_left: ?int}
+ */
+function ai_key_expiry_state(?string $expiry, string $today, int $warnDays = 7): array
+{
+    if ($expiry === null || $expiry === '') {
+        return ['state' => 'none', 'days_left' => null];
+    }
+
+    $daysLeft = (int) (new \DateTime($today))->diff(new \DateTime($expiry))->format('%r%a');
+    if ($daysLeft < 0) {
+        return ['state' => 'expired', 'days_left' => $daysLeft];
+    }
+
+    return ['state' => $daysLeft <= $warnDays ? 'soon' : 'ok', 'days_left' => $daysLeft];
+}
+
+/** A slot's saved expiry date, or null when none is saved. */
+function resolve_ai_slot_expiry(PDO $pdo, int $slot): ?string
+{
+    $saved = get_app_setting($pdo, ai_key_slot($slot)['expiry_setting']);
+
+    return ($saved !== null && parse_ai_key_expiry($saved) !== null) ? $saved : null;
+}
+
+/**
  * Every configured extraction key in slot order, each with the provider it is connected to.
- * Empty slots are left out.
+ * Empty slots are left out, and so are keys whose saved expiry date has passed (they would only be
+ * rejected, costing time before the next key is tried; Settings shows them as EXPIRED).
  *
  * @return array<int, array{slot: int, provider: string, key: string}>
  */
-function resolve_ai_key_slots(PDO $pdo): array
+function resolve_ai_key_slots(PDO $pdo, ?string $today = null): array
 {
+    $today = $today ?? date('Y-m-d');
     $slots = [];
     for ($slot = 1; $slot <= AI_KEY_SLOT_COUNT; $slot++) {
         $key = resolve_ai_slot_key($pdo, $slot);
-        if ($key !== '') {
+        if ($key !== '' && ai_key_expiry_state(resolve_ai_slot_expiry($pdo, $slot), $today)['state'] !== 'expired') {
             $slots[] = ['slot' => $slot, 'provider' => resolve_ai_slot_provider($pdo, $slot), 'key' => $key];
         }
     }
@@ -181,13 +231,17 @@ function gemini_key_display_status(PDO $pdo, string $settingKey, string $envValu
 /**
  * Masked status of one API-key slot plus the provider it is connected to, for the settings modal.
  *
- * @return array{configured: bool, masked: ?string, provider: string}
+ * @return array{configured: bool, masked: ?string, provider: string, expiry: ?string, expiry_state: string, days_left: ?int}
  */
 function ai_slot_display_status(PDO $pdo, int $slot): array
 {
     $info = ai_key_slot($slot);
     $status = gemini_key_display_status($pdo, $info['key_setting'], defined($info['env_key']) ? (string) constant($info['env_key']) : '');
     $status['provider'] = resolve_ai_slot_provider($pdo, $slot);
+    $status['expiry'] = resolve_ai_slot_expiry($pdo, $slot);
+    $expiryState = ai_key_expiry_state($status['expiry'], date('Y-m-d'));
+    $status['expiry_state'] = $expiryState['state'];
+    $status['days_left'] = $expiryState['days_left'];
 
     return $status;
 }

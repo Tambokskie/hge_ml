@@ -59,6 +59,16 @@ include __DIR__ . '/../includes/sidebar.php';
                     <h2 class="text-base font-bold text-csc-navy-600 dark:text-white">AI EXTRACTION SETTINGS</h2>
                 </div>
                 <p class="text-sm text-gray-600 dark:text-gray-400 mb-5 flex-1">VIEW OR CHANGE THE API KEYS USED FOR AI EXTRACTION OF UPLOADED LISTS (GEMINI OR CLAUDE), INCLUDING THE FALLBACK KEYS. YOU MUST CONFIRM YOUR USERNAME AND PASSWORD FIRST.</p>
+                <?php foreach ($aiKeySlots as $aiIndex => $aiSlotStatus) : ?>
+                    <?php if ($aiSlotStatus['configured'] && in_array($aiSlotStatus['expiry_state'], ['expired', 'soon'], true)) : ?>
+                        <p class="mb-3 rounded-lg px-3 py-2 text-sm font-semibold <?= $aiSlotStatus['expiry_state'] === 'expired' ? 'bg-red-500/10 text-red-700 dark:text-red-400' : 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400' ?>">
+                            KEY <?= (int) ($aiIndex + 1) ?> (<?= e(AI_PROVIDERS[$aiSlotStatus['provider']] ?? '') ?>):
+                            <?= $aiSlotStatus['expiry_state'] === 'expired'
+                                ? 'EXPIRED ON ' . e($aiSlotStatus['expiry']) . ' — NOT USED FOR EXTRACTION'
+                                : ($aiSlotStatus['days_left'] === 0 ? 'EXPIRES TODAY' : 'EXPIRES IN ' . (int) $aiSlotStatus['days_left'] . ' DAY(S), ON ' . e($aiSlotStatus['expiry'])) ?>
+                        </p>
+                    <?php endif; ?>
+                <?php endforeach; ?>
                 <div>
                     <button type="button" id="configure-ai-settings-btn" class="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-white/15 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium px-4 py-2.5 transition-colors">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
