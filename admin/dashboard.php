@@ -31,32 +31,14 @@ $dashboardDefaultApplied = get_applied_count_by_year($pdo, $dashboardDefaultYear
 // other cards above.
 $trendMonthly = get_filing_trend_monthly($pdo, $dashboardDefaultYear, $dashboardDefaultYear);
 
-// APPLICATION FILING OVERVIEW card: a two-ring sunburst, tied to the same
-// slicer as the two cards above. The inner ring is ON RECORD (always
-// graduation-year scoped) split into APPLIED vs. NOT YET APPLIED; the outer
-// ring only spans the inner ring's APPLIED arc (never the NOT YET APPLIED
-// remainder) and subdivides it into PROCESSING (filed, not yet approved) vs.
-// APPROVED — approved is applied's own subset, see
-// includes/reports.php:get_application_filing_report().
-//
-// The ring's own math (APPLIED/PROCESSING/APPROVED/NOT YET APPLIED and every
-// percentage/arc-length derived from them) MUST share the inner ring's
-// graduation-year scope — on_record only has a coherent meaning as "graduates
-// of year Y", so dividing it by a figure scoped to a *different* population
-// (e.g. applications FILED in year Y, regardless of the applicant's own
-// graduation_year) produces numbers that don't reconcile: NOT YET APPLIED
-// stops being "count of year-Y graduates with no application on file", and
-// filing_rate stops being a real percentage of the on_record population.
-// (Historical bug: this card used to divide the filed-year-scoped totals
-// here, which let NOT YET APPLIED overcount — e.g. a year-Y graduate who
-// filed in year Y+1 was invisible to the filed-year numerator but still
-// subtracted out of on_record as if still unapplied.)
-//
-// The year an application was actually FILED (application_date) is a
-// different, still useful, dimension — it's what the "HGE APPLICATIONS
-// RECEIVED" stat card above and includes/functions.php:get_applied_count_by_year()
-// show — so it's kept as $filedYear* purely to annotate the main figures with
-// a "(N filed in <year>)" subnote, never fed into the ring's own math.
+// APPLICATION FILING OVERVIEW card. Two different things are shown, each with its own scope:
+//  - ON RECORD is the selected year's graduates (graduation_year = Y) plus the graduates of other years
+//    whose application was received in Y, so received + NOT YET APPLIED = ON RECORD.
+//  - APPLICATION RECEIVED / PROCESSING / APPROVED (their % are shares of ON RECORD) and the sunburst's applied arc and outer ring describe every application
+//    RECEIVED in the selected year (YEAR(application_date) = Y), whatever year the applicant
+//    graduated. This is the same figure as the "HGE APPLICATIONS RECEIVED" and "APPROVED HGE"
+//    stat cards above, and each one is split into "from Y graduates" and "from other years"
+//    (includes/reports.php:get_applied_breakdown_by_filed_year()).
 $filingReport = get_application_filing_report($pdo, $dashboardDefaultYear);
 $filedYearBreakdown = get_applied_breakdown_by_filed_year($pdo, $dashboardDefaultYear);
 $donutInnerRadius = 34;
@@ -65,26 +47,40 @@ $donutOuterRadius = 52;
 $donutOuterCircumference = 2 * M_PI * $donutOuterRadius;
 
 $totalOnRecord = $filingReport['total_on_record'];
-$totalApplied = $filingReport['total_applied'];
-$totalApproved = $filingReport['total_approved'];
-$totalProcessing = $totalApplied - $totalApproved;
-$filingRate = $filingReport['filing_rate'];
 
-$filedYearApplied = $filedYearBreakdown['total_applied'];
-$filedYearApproved = $filedYearBreakdown['total_approved'];
-$filedYearProcessing = $filedYearBreakdown['total_processing'];
+// Everything RECEIVED in the selected year, with its split into this year's graduates and other years.
+$totalApplied = $filedYearBreakdown['total_applied'];
+$totalApproved = $filedYearBreakdown['total_approved'];
+$totalProcessing = $filedYearBreakdown['total_processing'];
+$filedYearApplied = $totalApplied;
+$filedYearApproved = $totalApproved;
+$filedYearProcessing = $totalProcessing;
 $filedYearOtherApplied = $filedYearBreakdown['other_years_applied'];
 $filedYearOtherApproved = $filedYearBreakdown['other_years_approved'];
 $filedYearOtherProcessing = $filedYearBreakdown['other_years_processing'];
-// Why the "filed in <year>" note can exceed the main figure: it counts everyone whose application was
-// filed that year, including graduates of other years (the main figure only counts that year's graduates).
-$filedYearNoteTitle = 'THE FIGURE ABOVE COUNTS ONLY GRADUATES OF THE SELECTED YEAR. THIS NOTE COUNTS EVERY APPLICATION FILED IN THAT YEAR, INCLUDING GRADUATES OF OTHER YEARS.';
+// ON RECORD = the selected year's graduates PLUS the graduates of other years whose application was
+// received this year, so it covers every RECEIVED application and NOT YET APPLIED (received + not yet
+// applied = on record). $yearGraduates stays the selected year's own graduates (the tier bars, the
+// RECORD FOR THE YEAR SELECTED card).
+$yearGraduates = $totalOnRecord;
+$totalOnRecord = $yearGraduates + $filedYearOtherApplied;
+// Share of ON RECORD that the received applications amount to (the centre of the ring). Received can
+// include other years' graduates, so it is not the per-school filing rate.
+$filingRate = $totalOnRecord > 0 ? round($totalApplied / $totalOnRecord * 100, 1) : 0.0;
+// Shown as a tooltip when the mouse is over a figure (assets/js/utils.js builds the same text on a year switch).
+$splitNote = static function (int $total, int $other, int $year): string {
+    return number_format($total - $other) . ' from ' . $year . ' graduates, ' . number_format($other) . ' from other years';
+};
 
-$appliedFraction = $totalOnRecord > 0 ? $totalApplied / $totalOnRecord : 0;
+// Sunburst: the inner ring is ON RECORD with the RECEIVED applications as its arc; the outer ring
+// sits over that arc and splits it into PROCESSING and APPROVED. Received can exceed ON RECORD
+// (applicants of earlier years), so the rings are scaled to whichever is larger.
+$ringBase = max($totalOnRecord, $totalApplied);
+$appliedFraction = $ringBase > 0 ? $totalApplied / $ringBase : 0;
 $donutAppliedLength = $donutInnerCircumference * $appliedFraction;
 
-$processingFraction = $totalOnRecord > 0 ? $totalProcessing / $totalOnRecord : 0;
-$approvedFraction = $totalOnRecord > 0 ? $totalApproved / $totalOnRecord : 0;
+$processingFraction = $ringBase > 0 ? $totalProcessing / $ringBase : 0;
+$approvedFraction = $ringBase > 0 ? $totalApproved / $ringBase : 0;
 // Each outer-ring arc is drawn with a real (start, span) stroke-dasharray/
 // offset pair rather than the inner ring's single-dash trick above (which
 // only works for an arc starting at the top) — processing starts at 0,
@@ -281,27 +277,24 @@ include __DIR__ . '/../includes/sidebar.php';
                             <div id="filing-donut-legend" class="space-y-3 text-sm">
                                 <div class="flex items-center justify-between gap-3 motion-safe:animate-fade-in-up" style="animation-delay: 250ms">
                                     <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400"><span class="h-2.5 w-2.5 rounded-full bg-gray-400 shrink-0"></span>ON RECORD</span>
-                                    <span class="text-gray-700 dark:text-gray-300 text-right"><span id="filing-onrecord-count"><?= number_format($filingReport['total_on_record']) ?></span> (<span id="filing-onrecord-percent">100%</span>)</span>
+                                    <span id="filing-onrecord-details" title="<?= e(number_format($yearGraduates) . ' from ' . (int) $dashboardDefaultYear . ' graduates, ' . number_format($filedYearOtherApplied) . ' from other years submitted this ' . (int) $dashboardDefaultYear) ?>" class="text-gray-700 dark:text-gray-300 text-right cursor-help"><span id="filing-onrecord-count"><?= number_format($totalOnRecord) ?></span> (<span id="filing-onrecord-percent">100%</span>)</span>
                                 </div>
                                 <div class="flex items-start justify-between gap-3 motion-safe:animate-fade-in-up" style="animation-delay: 340ms">
                                     <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400"><span class="h-2.5 w-2.5 rounded-full bg-csc-navy-600 dark:bg-csc-navy-300 shrink-0"></span>APPLICATION RECEIVED</span>
-                                    <span class="flex flex-col items-end text-right">
+                                    <span id="filing-applied-details" title="<?= e($splitNote($filedYearApplied, $filedYearOtherApplied, (int) $dashboardDefaultYear)) ?>" class="flex flex-col items-end text-right cursor-help">
                                         <span class="text-gray-700 dark:text-gray-300"><span id="filing-applied-count"><?= number_format($totalApplied) ?></span> (<span id="filing-applied-percent"><?= e((string) $filingRate) ?>%</span>)</span>
-                                        <span id="filing-applied-subnote" title="<?= e($filedYearNoteTitle) ?>" class="text-xs text-gray-500 dark:text-gray-500">(<?= number_format($filedYearApplied) ?> filed in <?= (int) $dashboardDefaultYear ?><?= $filedYearOtherApplied > 0 ? ', ' . number_format($filedYearOtherApplied) . ' from other graduation years' : '' ?>)</span>
                                     </span>
                                 </div>
                                 <div class="flex items-start justify-between gap-3 pl-5 motion-safe:animate-fade-in-up" style="animation-delay: 430ms">
                                     <span class="flex items-center gap-2 text-gray-500 dark:text-gray-500"><span class="h-2 w-2 rounded-full bg-orange-500 shrink-0"></span>PROCESSING</span>
-                                    <span class="flex flex-col items-end text-right">
+                                    <span id="filing-processing-details" title="<?= e($splitNote($filedYearProcessing, $filedYearOtherProcessing, (int) $dashboardDefaultYear)) ?>" class="flex flex-col items-end text-right cursor-help">
                                         <span class="text-gray-700 dark:text-gray-300"><span id="filing-processing-count"><?= number_format($totalProcessing) ?></span> (<span id="filing-processing-percent"><?= e((string) $processingPercent) ?>%</span>)</span>
-                                        <span id="filing-processing-subnote" title="<?= e($filedYearNoteTitle) ?>" class="text-xs text-gray-500 dark:text-gray-500">(<?= number_format($filedYearProcessing) ?> filed in <?= (int) $dashboardDefaultYear ?><?= $filedYearOtherProcessing > 0 ? ', ' . number_format($filedYearOtherProcessing) . ' from other graduation years' : '' ?>)</span>
                                     </span>
                                 </div>
                                 <div class="flex items-start justify-between gap-3 pl-5 motion-safe:animate-fade-in-up" style="animation-delay: 520ms">
                                     <span class="flex items-center gap-2 text-gray-500 dark:text-gray-500"><span class="h-2 w-2 rounded-full bg-emerald-500 shrink-0"></span>APPROVED</span>
-                                    <span class="flex flex-col items-end text-right">
+                                    <span id="filing-approved-details" title="<?= e($splitNote($filedYearApproved, $filedYearOtherApproved, (int) $dashboardDefaultYear)) ?>" class="flex flex-col items-end text-right cursor-help">
                                         <span class="text-gray-700 dark:text-gray-300"><span id="filing-approved-count"><?= number_format($totalApproved) ?></span> (<span id="filing-approved-percent"><?= e((string) $approvedPercent) ?>%</span>)</span>
-                                        <span id="filing-approved-subnote" title="<?= e($filedYearNoteTitle) ?>" class="text-xs text-gray-500 dark:text-gray-500">(<?= number_format($filedYearApproved) ?> filed in <?= (int) $dashboardDefaultYear ?><?= $filedYearOtherApproved > 0 ? ', ' . number_format($filedYearOtherApproved) . ' from other graduation years' : '' ?>)</span>
                                     </span>
                                 </div>
                                 <div class="flex items-center justify-between gap-3 motion-safe:animate-fade-in-up" style="animation-delay: 610ms">

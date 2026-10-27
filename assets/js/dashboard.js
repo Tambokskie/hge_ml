@@ -323,7 +323,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     // number is already in that response.
                     if (approvedNumber && data.filing_report) {
                         var previousApproved = parseInt(String(approvedNumber.textContent).replace(/,/g, ''), 10) || 0;
-                        animateCountUp(approvedNumber, data.filing_report.total_approved, 500, null, previousApproved);
+                        animateCountUp(approvedNumber, data.filing_report.filed_year_approved, 500, null, previousApproved);
                     }
                 });
                 refreshYearCard(appliedNumber, year, '&metric=applied');

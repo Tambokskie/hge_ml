@@ -6,6 +6,7 @@ use PHPUnit\Framework\TestCase;
 use Tests\TestDb;
 
 require_once __DIR__ . '/../../includes/reports.php';
+require_once __DIR__ . '/../../includes/functions.php';
 
 class ReportsTest extends TestCase
 {
@@ -295,6 +296,13 @@ class ReportsTest extends TestCase
         $this->assertSame(3, $filedIn2026['total_processing']);
         // here every 2026 graduate filed in 2026, so the two scopes differ by exactly the other years
         $this->assertSame($filedIn2026['total_applied'], $graduatesOf2026['total_applied'] + $filedIn2026['other_years_applied']);
+
+        // HGE APPLICATIONS RECEIVED (top card) and APPLICATION RECEIVED (overview) are the same figure
+        $this->assertSame(get_applied_count_by_year($pdo, 2026), $filedIn2026['total_applied']);
+        $this->assertSame(get_applied_count_by_year($pdo, 2025), get_applied_breakdown_by_filed_year($pdo, 2025)['total_applied']);
+        // received = approved + processing, for the part from other years as well
+        $this->assertSame($filedIn2026['total_applied'], $filedIn2026['total_approved'] + $filedIn2026['total_processing']);
+        $this->assertSame($filedIn2026['other_years_applied'], $filedIn2026['other_years_approved'] + $filedIn2026['other_years_processing']);
 
         $none = get_applied_breakdown_by_filed_year($pdo, 1999);
         $this->assertSame(0, $none['total_applied']);

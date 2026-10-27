@@ -32,16 +32,12 @@ try {
         $filingReport = get_application_filing_report($pdo, $year);
         $filedYearBreakdown = get_applied_breakdown_by_filed_year($pdo, $year);
 
-        // Mirrors admin/dashboard.php's initial render: ON RECORD, APPLIED,
-        // APPROVED and the filing rate derived from them all stay
-        // graduation-year scoped (the ring's own population), since dividing
-        // on_record by a figure scoped to a *different* population (e.g.
-        // applications filed in $year regardless of the applicant's own
-        // graduation_year) produces a filing_rate/NOT-YET-APPLIED that don't
-        // reconcile with on_record. The filed-year-scoped totals ride along
-        // separately as filed_year_* purely so the donut legend's
-        // "(N filed in <year>)" annotation can also refresh on a year
-        // switch, see includes/reports.php:get_applied_breakdown_by_filed_year().
+        // Mirrors admin/dashboard.php's initial render. total_on_record, total_applied (the selected
+        // year's graduates that have an application) and filing_rate are graduation-year scoped.
+        // filed_year_* is everything RECEIVED in $year (application_date's year, any graduation
+        // year) with filed_year_other_* its part from other graduation years: that is what
+        // APPLICATION RECEIVED, PROCESSING, APPROVED and the APPROVED HGE card show, see
+        // includes/reports.php:get_applied_breakdown_by_filed_year().
         $totalOnRecord = $filingReport['total_on_record'];
         $response['filing_report'] = [
             'total_on_record' => $totalOnRecord,

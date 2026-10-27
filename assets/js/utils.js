@@ -753,17 +753,16 @@ function initFilingDonut() {
         approved: { count: document.getElementById('filing-approved-count'), percent: document.getElementById('filing-approved-percent') },
         notYetApplied: { count: document.getElementById('filing-notyetapplied-count'), percent: document.getElementById('filing-notyetapplied-percent') },
     };
-    // "(N filed in <year>)" annotations next to APPLIED/PROCESSING/APPROVED —
-    // the main legend counts are scoped by the applicant's own graduation
-    // year (matching the ON RECORD ring they're divided into), while this
-    // subnote names how many of that total were actually FILED within the
-    // selected calendar year, regardless of the applicant's graduation year
-    // (see includes/reports.php: get_application_filing_report() /
-    // get_applied_breakdown_by_filed_year()).
-    var subnoteEls = {
-        applied: document.getElementById('filing-applied-subnote'),
-        processing: document.getElementById('filing-processing-subnote'),
-        approved: document.getElementById('filing-approved-subnote'),
+    // Tooltip ("A from <year> graduates, B from other years") on the ON RECORD / APPLICATION RECEIVED / PROCESSING / APPROVED figures.
+    // Those three counts are every application RECEIVED in the selected year (application_date's
+    // year), whatever year the applicant graduated; ON RECORD, NOT YET APPLIED, the filing rate and
+    // the inner ring are the selected year's graduates (see includes/reports.php:
+    // get_application_filing_report() / get_applied_breakdown_by_filed_year()).
+    var detailEls = {
+        onRecord: document.getElementById('filing-onrecord-details'),
+        applied: document.getElementById('filing-applied-details'),
+        processing: document.getElementById('filing-processing-details'),
+        approved: document.getElementById('filing-approved-details'),
     };
 
     var tierEls = {
@@ -837,27 +836,34 @@ function initFilingDonut() {
 
     return {
         update: function (report, tierBreakdown) {
-            var totalOnRecord = report.total_on_record;
-            var totalApplied = report.total_applied;
-            // Defaults to 0 so the legend/arc math below degrades to
-            // "nothing approved yet" instead of producing NaN if a caller
-            // ever passes a report shape without total_approved.
-            var totalApproved = report.total_approved || 0;
-            var totalProcessing = totalApplied - totalApproved;
+            // ON RECORD = the selected year's graduates plus the graduates of other years whose
+            // application was received this year (admin/dashboard.php renders the same).
+            var yearGraduates = report.total_on_record;
+            var otherYearsOnRecord = report.filed_year_other_applied || 0;
+            var totalOnRecord = yearGraduates + otherYearsOnRecord;
+            // Everything RECEIVED in the selected year; zeros if a caller passes an older report shape.
+            var received = report.filed_year_applied || 0;
+            var totalApproved = report.filed_year_approved || 0;
+            var totalProcessing = received - totalApproved;
+
+            // Received can include earlier years' graduates, so it may exceed ON RECORD: scale the rings to the larger.
+            var ringBase = Math.max(totalOnRecord, received);
+            var receivedRate = totalOnRecord > 0 ? Math.round((received / totalOnRecord) * 1000) / 10 : 0;
 
             if (filingRate) {
-                animateRate(filingRate, report.filing_rate, 1000);
+                animateRate(filingRate, receivedRate, 1000);
             }
 
             if (donutAppliedArc) {
-                var appliedFraction = totalOnRecord > 0 ? totalApplied / totalOnRecord : 0;
+                var appliedFraction = ringBase > 0 ? received / ringBase : 0;
                 var appliedLength = innerCircumference * appliedFraction;
                 donutAppliedArc.setAttribute('stroke-dasharray', innerCircumference.toFixed(2));
                 donutAppliedArc.setAttribute('stroke-dashoffset', (innerCircumference - appliedLength).toFixed(2));
             }
 
-            var processingFraction = totalOnRecord > 0 ? totalProcessing / totalOnRecord : 0;
-            var approvedFraction = totalOnRecord > 0 ? totalApproved / totalOnRecord : 0;
+            // Sunburst: the outer ring sits over the applied arc and splits it into processing / approved.
+            var processingFraction = ringBase > 0 ? totalProcessing / ringBase : 0;
+            var approvedFraction = ringBase > 0 ? totalApproved / ringBase : 0;
             if (donutProcessingArc) {
                 var processingLength = outerCircumference * processingFraction;
                 donutProcessingArc.setAttribute('stroke-dasharray', processingLength.toFixed(2) + ' ' + (outerCircumference - processingLength).toFixed(2));
@@ -869,7 +875,7 @@ function initFilingDonut() {
                 donutApprovedArc.setAttribute('stroke-dashoffset', (-(processingFraction * outerCircumference)).toFixed(2));
             }
 
-            var notYetApplied = totalOnRecord - totalApplied;
+            var notYetApplied = totalOnRecord - received;
             var notYetAppliedPercent = totalOnRecord > 0 ? Math.round((notYetApplied / totalOnRecord) * 1000) / 10 : 0;
             var processingPercent = totalOnRecord > 0 ? Math.round((totalProcessing / totalOnRecord) * 1000) / 10 : 0;
             var approvedPercent = totalOnRecord > 0 ? Math.round((totalApproved / totalOnRecord) * 1000) / 10 : 0;
@@ -878,10 +884,10 @@ function initFilingDonut() {
             // "this number just changed" treatment as the tier bars above —
             // text is only ever replaced through these ids, so the fixed-width
             // label markup around them (admin/dashboard.php) never gets
-            // clobbered by a wholesale innerHTML rewrite.
+            // clobbered by a wholesale innerHTML rewrite. The percentages are shares of ON RECORD.
             [
                 { el: legendEls.onRecord, count: totalOnRecord, percent: '100%' },
-                { el: legendEls.applied, count: totalApplied, percent: report.filing_rate + '%' },
+                { el: legendEls.applied, count: received, percent: receivedRate + '%' },
                 { el: legendEls.processing, count: totalProcessing, percent: processingPercent + '%' },
                 { el: legendEls.approved, count: totalApproved, percent: approvedPercent + '%' },
                 { el: legendEls.notYetApplied, count: notYetApplied, percent: notYetAppliedPercent + '%' },
@@ -890,35 +896,33 @@ function initFilingDonut() {
                     var previousCount = parseInt(String(row.el.count.textContent).replace(/,/g, ''), 10) || 0;
                     animateCountUp(row.el.count, row.count, 800, null, previousCount);
                 }
-                if (row.el.percent) {
+                if (row.el.percent && row.percent !== null) {
                     row.el.percent.textContent = row.percent;
                 }
             });
-
             if (tierBreakdown) {
-                updateTierBars(tierEls, tierBreakdown, totalOnRecord);
+                updateTierBars(tierEls, tierBreakdown, yearGraduates);
             }
 
             if (report.year) {
-                var filedYearApplied = report.filed_year_applied || 0;
-                var filedYearApproved = report.filed_year_approved || 0;
-                var filedYearProcessing = filedYearApplied - filedYearApproved;
                 var otherApplied = report.filed_year_other_applied || 0;
                 var otherApproved = report.filed_year_other_approved || 0;
-                // The note counts every application filed that year, including graduates of other
-                // years, so say how many of them those are (admin/dashboard.php renders the same text).
-                var filedNote = function (total, other) {
-                    return '(' + formatCount(total) + ' filed in ' + report.year
-                        + (other > 0 ? ', ' + formatCount(other) + ' from other graduation years' : '') + ')';
+                var splitNote = function (total, other) {
+                    return formatCount(total - other) + ' from ' + report.year + ' graduates, '
+                        + formatCount(other) + ' from other years';
                 };
-                if (subnoteEls.applied) {
-                    subnoteEls.applied.textContent = filedNote(filedYearApplied, otherApplied);
+                if (detailEls.onRecord) {
+                    detailEls.onRecord.title = formatCount(yearGraduates) + ' from ' + report.year + ' graduates, '
+                        + formatCount(otherApplied) + ' from other years submitted this ' + report.year;
                 }
-                if (subnoteEls.processing) {
-                    subnoteEls.processing.textContent = filedNote(filedYearProcessing, otherApplied - otherApproved);
+                if (detailEls.applied) {
+                    detailEls.applied.title = splitNote(received, otherApplied);
                 }
-                if (subnoteEls.approved) {
-                    subnoteEls.approved.textContent = filedNote(filedYearApproved, otherApproved);
+                if (detailEls.processing) {
+                    detailEls.processing.title = splitNote(totalProcessing, otherApplied - otherApproved);
+                }
+                if (detailEls.approved) {
+                    detailEls.approved.title = splitNote(totalApproved, otherApproved);
                 }
             }
         }

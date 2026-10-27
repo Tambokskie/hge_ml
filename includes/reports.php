@@ -70,26 +70,19 @@ function get_application_filing_report(PDO $pdo, int $fromYear, ?int $toYear = n
 }
 
 /**
- * Dashboard-only sibling of get_application_filing_report() above: applied/
- * approved/processing counted by the year an application was actually FILED
- * (application_date), not by the applicant's own graduation_year. This is
- * what admin/dashboard.php's "HGE APPLICATIONS RECEIVED" stat card and the
- * APPLICATION FILING OVERVIEW donut's main figures show (an applicant who
- * graduated in an earlier year but files this year still counts as
- * "received" this year) — includes/functions.php:get_applied_count_by_year()
- * already computes the same total_applied figure alone; this adds the
- * approved/processing split on the same application_date-year dimension so
- * the donut's arcs and legend can share one consistent scope. The
- * graduation-year-scoped get_application_filing_report() figures are shown
- * alongside these as a "(N are from <year>)" annotation rather than being
- * replaced, since on_record and the per-school table are only meaningful
- * scoped by graduation_year.
+ * Applications RECEIVED in a calendar year: every graduate_applications row whose application_date
+ * falls in $year, whatever year the applicant graduated. This is the definition behind the
+ * dashboard's "HGE APPLICATIONS RECEIVED" card, the filing overview's "APPLICATION RECEIVED" line
+ * (the same number), "APPROVED HGE" and the PROCESSING / APPROVED lines: approved = those of the
+ * received applications that have an approval date, processing = the rest.
  *
- * The two scopes are different groups of people, so the filed-year figure can be
- * larger than the graduation-year one (an applicant who graduated in an earlier
- * year files this year). `other_years_*` is the part of the filed-year figure that
- * belongs to graduates of a different year, so the dashboard can show that the
- * numbers reconcile: filed in year = graduates of that year + other_years.
+ * Each figure also comes with the part that belongs to graduates of OTHER years (`other_years_*`),
+ * so the dashboard can show received = $year's own graduates + other years, for received, approved
+ * and processing alike.
+ *
+ * Not the same population as get_application_filing_report(), which is scoped by the graduation
+ * year (ON RECORD, the filing rate and the per-school table only make sense for one graduating
+ * class).
  */
 function get_applied_breakdown_by_filed_year(PDO $pdo, int $year): array
 {
