@@ -139,6 +139,124 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     }
+
+    // TRANSFER TO ANOTHER SCHOOL: a list filed under the wrong school moves, with its saved records and
+    // its file, to any other active school (api/transfer_upload_school.php).
+    var transferBtn = document.getElementById('transfer-school-btn');
+    if (config && transferBtn) {
+        transferBtn.addEventListener('click', function () {
+            var schools = [];
+            try { schools = JSON.parse(transferBtn.dataset.schools || '[]'); } catch (e) { schools = []; }
+            var records = parseInt(transferBtn.dataset.recordCount, 10) || 0;
+            var current = transferBtn.dataset.current;
+            var year = transferBtn.dataset.year;
+
+            if (transferBtn.dataset.blocked === '1') {
+                showModal({
+                    icon: modalHeaderIcon('info'),
+                    iconClassName: 'bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300',
+                    title: 'FINISH THE REVIEW FIRST',
+                    subtitle: current,
+                    bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">THIS UPLOAD HAS A SAVED DRAFT REVIEW, WHICH BELONGS TO THE SCHOOL IT WAS STARTED UNDER. RESUME THE REVIEW AND SAVE THE RECORDS, THEN TRANSFER THE UPLOAD.</p>',
+                    buttons: [{ label: 'CLOSE', className: MODAL_BTN.secondary }],
+                });
+                return;
+            }
+
+            function optionsFor(filter) {
+                var needle = filter.trim().toUpperCase();
+                var shown = schools.filter(function (school) {
+                    return needle === '' || school.display.toUpperCase().indexOf(needle) !== -1;
+                });
+                if (shown.length === 0) {
+                    return '<option value="" disabled>NO SCHOOL MATCHES</option>';
+                }
+                return shown.map(function (school) {
+                    return '<option value="' + school.id + '">' + escapeHtml(school.display.toUpperCase()) + '</option>';
+                }).join('');
+            }
+
+            showModal({
+                icon: modalHeaderIcon('building'),
+                iconClassName: 'bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300',
+                title: 'TRANSFER TO ANOTHER SCHOOL',
+                subtitle: 'Move this upload to the school it really belongs to.',
+                bodyHtml: '<div class="space-y-4">'
+                    + modalField({ id: 'transfer-school-current', type: 'static', label: 'CURRENT SCHOOL', value: current })
+                    + modalField({ id: 'transfer-school-filter', type: 'text', label: 'FIND THE RIGHT SCHOOL', placeholder: 'Type part of the school or campus name', icon: 'search' })
+                    + modalField({ id: 'transfer-school-select', type: 'select', label: 'TRANSFER TO', required: true, attrs: ' size="6"', optionsHtml: optionsFor('') })
+                    + '<div id="transfer-school-warning" class="hidden rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200"></div>'
+                    + '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-xs text-gray-600 dark:text-gray-400">'
+                    + (records > 0 ? '<strong>' + records + '</strong> SAVED RECORD(S) MOVE WITH THE UPLOAD AND SHOW THE NEW SCHOOL. ' : '')
+                    + 'THE FILE IS RENAMED FOR THE NEW SCHOOL. THE RECORDS’ DATA AND ANY FILED APPLICATIONS STAY EXACTLY AS THEY ARE.</p>'
+                    + '</div>',
+                buttons: [
+                    { label: 'CANCEL', className: MODAL_BTN.secondary },
+                    {
+                        label: 'TRANSFER',
+                        icon: modalButtonIcon('check'),
+                        className: MODAL_BTN.primary,
+                        onClick: function (close) {
+                            var select = document.getElementById('transfer-school-select');
+                            if (!select || select.value === '') {
+                                showToast('error', 'CHOOSE THE SCHOOL TO TRANSFER THIS UPLOAD TO.');
+                                return;
+                            }
+                            close();
+                            transferBtn.disabled = true;
+
+                            var formData = new FormData();
+                            formData.set('csrf_token', config.csrfToken);
+                            formData.set('upload_id', transferBtn.dataset.uploadId);
+                            formData.set('school_id', select.value);
+
+                            fetch(config.apiBase + '/api/transfer_upload_school.php', { method: 'POST', body: formData })
+                                .then(function (response) { return response.json(); })
+                                .then(function (data) {
+                                    if (data.status === 'success') {
+                                        showToast('success', data.message);
+                                        setTimeout(function () { window.location.reload(); }, 800);
+                                    } else {
+                                        transferBtn.disabled = false;
+                                        showToast('error', data.message || 'THE UPLOAD COULD NOT BE TRANSFERRED.');
+                                    }
+                                })
+                                .catch(function () {
+                                    transferBtn.disabled = false;
+                                    showToast('error', 'THE UPLOAD COULD NOT BE TRANSFERRED. PLEASE TRY AGAIN.');
+                                });
+                        },
+                    },
+                ],
+            });
+
+            var filterInput = document.getElementById('transfer-school-filter');
+            var schoolSelect = document.getElementById('transfer-school-select');
+            var warning = document.getElementById('transfer-school-warning');
+
+            function showWarning() {
+                var chosen = schools.filter(function (school) { return String(school.id) === schoolSelect.value; })[0];
+                if (!chosen || chosen.same_year_uploads === 0) {
+                    warning.classList.add('hidden');
+                    warning.textContent = '';
+                    return;
+                }
+                warning.textContent = 'HEADS UP: ' + chosen.display.toUpperCase() + ' ALREADY HAS ' + chosen.same_year_uploads
+                    + ' UPLOAD(S) FOR SCHOOL YEAR ' + year + '. THIS FILE WILL BECOME UPLOAD #' + chosen.next_number
+                    + ' THERE AND MAY SHOW UP AS A POSSIBLE DUPLICATE. CHECK THAT IT IS NOT THE SAME LIST.';
+                warning.classList.remove('hidden');
+            }
+
+            if (filterInput && schoolSelect) {
+                filterInput.addEventListener('input', function () {
+                    schoolSelect.innerHTML = optionsFor(filterInput.value);
+                    showWarning();
+                });
+                schoolSelect.addEventListener('change', showWarning);
+                filterInput.focus();
+            }
+        });
+    }
     var btn = document.getElementById('extract-records-btn');
     var quickReextractBtn = document.getElementById('quick-reextract-btn');
     var continueBtn = document.getElementById('continue-extraction-btn');

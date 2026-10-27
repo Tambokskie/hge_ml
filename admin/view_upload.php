@@ -46,11 +46,14 @@ if ($upload !== null) {
     // Moving the upload (and its saved records) to another campus of the same school.
     $otherCampuses = [];
     $campusRecordCount = 0;
+    $transferTargets = [];
     if ($isAdmin) {
         $otherCampuses = get_other_campuses_for_upload($pdo, (int) $upload['id']);
         $campusCountStmt = $pdo->prepare('SELECT COUNT(*) FROM latin_honor_graduates WHERE upload_id = :id');
         $campusCountStmt->execute(['id' => (int) $upload['id']]);
         $campusRecordCount = (int) $campusCountStmt->fetchColumn();
+        // Transferring it to any other school (a list filed under the wrong school).
+        $transferTargets = get_transfer_targets_for_upload($pdo, (int) $upload['id']);
     }
     $fileExtension = mb_strtoupper((string) pathinfo($upload['stored_filename'], PATHINFO_EXTENSION));
     $isTemplateUpload = $fileExtension === 'XLSX';
@@ -345,6 +348,23 @@ include __DIR__ . '/../includes/sidebar.php';
                                     <span class="min-w-0 flex-1">
                                         <span class="block text-sm font-semibold text-gray-900 dark:text-white">CHANGE CAMPUS</span>
                                         <span class="block text-xs text-gray-500 dark:text-gray-500">MOVE THIS UPLOAD AND ITS RECORDS TO ANOTHER CAMPUS OF THE SAME SCHOOL.</span>
+                                    </span>
+                                    <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-navy-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                                </button>
+                                <button type="button" id="transfer-school-btn"
+                                        data-upload-id="<?= (int) $upload['id'] ?>"
+                                        data-current="<?= e(format_school_display_name($upload['school_name'], $upload['campus'])) ?>"
+                                        data-year="<?= e($upload['school_year']) ?>"
+                                        data-schools="<?= e(json_encode($transferTargets)) ?>"
+                                        data-record-count="<?= $campusRecordCount ?>"
+                                        data-blocked="<?= $status === 'draft' ? '1' : '0' ?>"
+                                        class="w-full flex items-center gap-3 py-3 group text-left">
+                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
+                                    </span>
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block text-sm font-semibold text-gray-900 dark:text-white">TRANSFER TO ANOTHER SCHOOL</span>
+                                        <span class="block text-xs text-gray-500 dark:text-gray-500">FILED UNDER THE WRONG SCHOOL? MOVE THE UPLOAD, ITS RECORDS AND ITS FILE TO THE RIGHT ONE.</span>
                                     </span>
                                     <svg class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-csc-navy-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
                                 </button>

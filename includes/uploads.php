@@ -392,6 +392,35 @@ function change_upload_campus(PDO $pdo, int $uploadId, int $newSchoolId): array
         return ['ok' => false, 'error' => 'THAT CAMPUS IS NOT AVAILABLE FOR THIS SCHOOL. CHOOSE ANOTHER ACTIVE CAMPUS OF THE SAME SCHOOL.'];
     }
 
+    $moved = move_upload_to_school($pdo, $upload, $newSchoolId);
+    if (!$moved['ok']) {
+        return $moved;
+    }
+
+    return [
+        'ok' => true,
+        'from' => format_school_display_name((string) $upload['school_name'], $upload['campus'] ?? null),
+        'to' => format_school_display_name((string) $upload['school_name'], $target['campus']),
+        'records' => $moved['records'],
+        'file' => $moved['file'],
+    ];
+}
+
+/**
+ * The move itself, shared by change_upload_campus() (another campus of the same school) and
+ * transfer_upload_to_school() (any other school); the callers decide whether the target is
+ * allowed. In ONE transaction it points the upload, its saved records and its recycle-bin
+ * records at $newSchoolId, gives the upload the next free number when the target already
+ * uses its number for that school year, and renames the stored file to carry the new school
+ * and campus (the rename is undone if anything later fails). Applications and the records'
+ * data are not touched.
+ *
+ * @param array<string, mixed> $upload as returned by get_upload_by_id()
+ * @return array{ok: true, records: int, file: ?string}|array{ok: false, error: string}
+ */
+function move_upload_to_school(PDO $pdo, array $upload, int $newSchoolId): array
+{
+    $uploadId = (int) $upload['id'];
     $fileUndo = null;
     $newFile = null;
     try {
@@ -437,19 +466,107 @@ function change_upload_campus(PDO $pdo, int $uploadId, int $newSchoolId): array
                 $pdo->rollBack();
             }
         } catch (\Throwable $rollbackError) {
-            error_log('change_upload_campus rollback failed: ' . $rollbackError->getMessage());
+            error_log('move_upload_to_school rollback failed: ' . $rollbackError->getMessage());
         }
-        error_log('change_upload_campus failed: ' . $e->getMessage());
+        error_log('move_upload_to_school failed: ' . $e->getMessage());
 
-        return ['ok' => false, 'error' => 'THE CAMPUS COULD NOT BE CHANGED. PLEASE TRY AGAIN.'];
+        return ['ok' => false, 'error' => 'THE UPLOAD COULD NOT BE MOVED. PLEASE TRY AGAIN.'];
+    }
+
+    return ['ok' => true, 'records' => $records, 'file' => $newFile];
+}
+
+/**
+ * The schools an upload can be transferred to: every ACTIVE school row except the one it
+ * is filed under, with how many uploads that school already has for the upload's school
+ * year (so the screen can warn that the file will become one more list for that year, shown
+ * as a possible duplicate) and the number the transferred upload would get.
+ *
+ * @return array<int, array{id: int, school_name: string, campus: string, display: string, same_year_uploads: int, next_number: int}>
+ */
+function get_transfer_targets_for_upload(PDO $pdo, int $uploadId): array
+{
+    $upload = get_upload_by_id($pdo, $uploadId);
+    if ($upload === null) {
+        return [];
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT s.id, s.school_name, s.campus,
+                (SELECT COUNT(*) FROM latin_honor_uploads x WHERE x.school_id = s.id AND x.school_year = :year_count) AS same_year_uploads
+         FROM schools s
+         WHERE s.status = 'active' AND s.id <> :current
+         ORDER BY s.school_name, s.campus"
+    );
+    $stmt->execute(['year_count' => $upload['school_year'], 'current' => $upload['school_id']]);
+
+    $numberStmt = $pdo->prepare('SELECT upload_number FROM latin_honor_uploads WHERE id = :id');
+    $numberStmt->execute(['id' => $uploadId]);
+    $ownNumber = (int) $numberStmt->fetchColumn();
+
+    $clashStmt = $pdo->prepare('SELECT COUNT(*) FROM latin_honor_uploads WHERE school_id = :school_id AND school_year = :school_year AND upload_number = :number');
+
+    $targets = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $existing = (int) $row['same_year_uploads'];
+        $clashStmt->execute(['school_id' => $row['id'], 'school_year' => $upload['school_year'], 'number' => $ownNumber]);
+        $targets[] = [
+            'id' => (int) $row['id'],
+            'school_name' => (string) $row['school_name'],
+            'campus' => (string) $row['campus'],
+            'display' => format_school_display_name((string) $row['school_name'], (string) $row['campus']),
+            'same_year_uploads' => $existing,
+            // the number is kept unless the target uses it for that year; then the next free one
+            'next_number' => (int) $clashStmt->fetchColumn() > 0 ? next_upload_number($pdo, (int) $row['id'], (string) $upload['school_year']) : $ownNumber,
+        ];
+    }
+
+    return $targets;
+}
+
+/**
+ * Transfers an upload and its saved records to ANY other active school, for a list that was
+ * filed under the wrong school (change_upload_campus() only reaches another campus of the same
+ * school). The data and every application stay; the school on the records changes with the
+ * upload, and the stored file is renamed for the new school (move_upload_to_school()).
+ * An upload with an unfinished saved review (status draft) is refused: the draft belongs to
+ * the school it was started under.
+ *
+ * @return array{ok: true, from: string, to: string, records: int, file: ?string, upload_number: int}|array{ok: false, error: string}
+ */
+function transfer_upload_to_school(PDO $pdo, int $uploadId, int $newSchoolId): array
+{
+    $upload = get_upload_by_id($pdo, $uploadId);
+    if ($upload === null) {
+        return ['ok' => false, 'error' => 'UPLOAD RECORD NOT FOUND.'];
+    }
+    if ($upload['extraction_status'] === 'draft') {
+        return ['ok' => false, 'error' => 'THIS UPLOAD HAS A SAVED DRAFT REVIEW. FINISH THE REVIEW (OR SAVE THE RECORDS) BEFORE TRANSFERRING IT TO ANOTHER SCHOOL.'];
+    }
+
+    $target = null;
+    foreach (get_transfer_targets_for_upload($pdo, $uploadId) as $candidate) {
+        if ($candidate['id'] === $newSchoolId) {
+            $target = $candidate;
+            break;
+        }
+    }
+    if ($target === null) {
+        return ['ok' => false, 'error' => 'THAT SCHOOL IS NOT AVAILABLE. CHOOSE ANOTHER ACTIVE SCHOOL.'];
+    }
+
+    $moved = move_upload_to_school($pdo, $upload, $newSchoolId);
+    if (!$moved['ok']) {
+        return $moved;
     }
 
     return [
         'ok' => true,
         'from' => format_school_display_name((string) $upload['school_name'], $upload['campus'] ?? null),
-        'to' => format_school_display_name((string) $upload['school_name'], $target['campus']),
-        'records' => $records,
-        'file' => $newFile,
+        'to' => $target['display'],
+        'records' => $moved['records'],
+        'file' => $moved['file'],
+        'upload_number' => $target['next_number'],
     ];
 }
 
