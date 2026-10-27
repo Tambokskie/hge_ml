@@ -48,7 +48,7 @@ class ClaudeExtractor implements ExtractorInterface
         }
 
         $this->apiKeys = array_values(array_filter($apiKeys, static fn (string $key): bool => $key !== ''));
-        $this->model = $model ?? (defined('CLAUDE_MODEL') ? CLAUDE_MODEL : 'claude-opus-5-5');
+        $this->model = $model ?? (defined('CLAUDE_MODEL') ? CLAUDE_MODEL : 'claude-sonnet-5-5');
         $this->apiUrl = $apiUrl ?? self::DEFAULT_API_URL;
     }
 

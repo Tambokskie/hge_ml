@@ -18,5 +18,5 @@ if (!defined('AI_EXTRACTION_PROVIDER_5')) {
 }
 
 if (!defined('CLAUDE_MODEL')) {
-    define('CLAUDE_MODEL', getenv('CLAUDE_MODEL') ?: 'claude-opus-5-5');
+    define('CLAUDE_MODEL', getenv('CLAUDE_MODEL') ?: 'claude-sonnet-5-5');
 }
