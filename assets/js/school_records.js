@@ -236,6 +236,36 @@ document.addEventListener('DOMContentLoaded', function () {
         performSearch(currentParams(1), true);
     });
 
+    // The Excel report asks for confirmation first, then downloads using the filters currently shown.
+    var downloadBtn = document.getElementById('school-records-download-btn');
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', function (event) {
+            event.preventDefault();
+            showModal({
+                icon: modalHeaderIcon('download'),
+                iconClassName: 'bg-csc-navy-600/10 text-csc-navy-600 dark:text-csc-navy-300',
+                title: 'DOWNLOAD SUMMARY REPORT',
+                subtitle: 'The report is saved to your computer as an Excel (.xlsx) file.',
+                bodyHtml: '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">You are about to download the Summary of School Records. Would you like to proceed?</p>',
+                buttons: [
+                    { label: 'Cancel', className: MODAL_BTN.secondary },
+                    {
+                        label: 'Download',
+                        icon: modalButtonIcon('download'),
+                        className: MODAL_BTN.primary,
+                        onClick: function (close) {
+                            close();
+                            var params = currentParams(1);
+                            delete params.page;
+                            var query = buildQueryString(params);
+                            window.location.href = config.apiBase + '/api/download_school_records_report.php' + (query ? '?' + query : '');
+                        },
+                    },
+                ],
+            });
+        });
+    }
+
     var clearFiltersBtn = document.getElementById('school-records-clear-filters-btn');
     if (clearFiltersBtn) {
         clearFiltersBtn.addEventListener('click', function () {
