@@ -530,6 +530,8 @@ function initTrendChart(config, options) {
         return d;
     }
 
+    var trendRevealObserver = null;
+
     function renderTrendChart(animate) {
         var series = trendPoints();
         if (!trendContainer || series.length === 0) {
@@ -619,22 +621,61 @@ function initTrendChart(config, options) {
 
         trendContainer.innerHTML = svg;
 
+        // Drawing a stale chart's reveal must never run after a newer render.
+        if (trendRevealObserver) {
+            trendRevealObserver.disconnect();
+            trendRevealObserver = null;
+        }
         var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (animate && !reduceMotion) {
-            trendContainer.querySelectorAll('[data-trend-line]').forEach(function (path) {
+            var DRAW_MS = 2000;
+            var lines = trendContainer.querySelectorAll('[data-trend-line]');
+            var areas = trendContainer.querySelectorAll('[data-trend-area]');
+            var dots = trendContainer.querySelectorAll('circle:not([id])');
+
+            // Start hidden: lines undrawn, shaded areas and dots transparent.
+            lines.forEach(function (path) {
                 var len = path.getTotalLength();
                 path.style.strokeDasharray = len;
                 path.style.strokeDashoffset = len;
-                path.getBoundingClientRect();
-                path.style.transition = 'stroke-dashoffset 1200ms ease-out';
-                path.style.strokeDashoffset = 0;
             });
-            trendContainer.querySelectorAll('[data-trend-area]').forEach(function (path) {
-                path.style.opacity = 0;
-                path.getBoundingClientRect();
-                path.style.transition = 'opacity 1200ms ease-out';
-                path.style.opacity = 1;
-            });
+            areas.forEach(function (path) { path.style.opacity = 0; });
+            dots.forEach(function (dot) { dot.style.opacity = 0; });
+
+            // Draws the lines left to right (areas fade in with them, each dot
+            // appears as its line reaches it).
+            var reveal = function () {
+                trendContainer.getBoundingClientRect();
+                lines.forEach(function (path) {
+                    path.style.transition = 'stroke-dashoffset ' + DRAW_MS + 'ms linear';
+                    path.style.strokeDashoffset = 0;
+                });
+                areas.forEach(function (path) {
+                    path.style.transition = 'opacity ' + DRAW_MS + 'ms ease-out';
+                    path.style.opacity = 1;
+                });
+                dots.forEach(function (dot, k) {
+                    var pointIndex = Math.floor(k / seriesList.length);
+                    var fraction = series.length > 1 ? pointIndex / (series.length - 1) : 0;
+                    dot.style.transition = 'opacity 250ms ease-out ' + Math.round(fraction * DRAW_MS) + 'ms';
+                    dot.style.opacity = 1;
+                });
+            };
+
+            // Wait until at least half of the TREND chart is on screen, so the
+            // movement is actually seen.
+            if ('IntersectionObserver' in window) {
+                trendRevealObserver = new IntersectionObserver(function (entries) {
+                    if (entries.some(function (entry) { return entry.isIntersecting; })) {
+                        trendRevealObserver.disconnect();
+                        trendRevealObserver = null;
+                        reveal();
+                    }
+                }, { threshold: 0.5 });
+                trendRevealObserver.observe(trendContainer);
+            } else {
+                reveal();
+            }
         }
 
         var hit = document.getElementById('trend-hit');
