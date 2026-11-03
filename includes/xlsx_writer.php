@@ -124,7 +124,9 @@ function xlsx_workbook_rels_xml(): string
 /**
  * Style index 0 = normal, 1 = bold, 2 = small italic gray (used for the
  * non-validated hint text next to the template's header fields), 3 = size
- * 11 / explicit black (used for the fill-in cells under GIVEN NAME).
+ * 11 / explicit black (used for the fill-in cells under GIVEN NAME), 4 = bold
+ * with a boxed border (table header), 5 = boxed cell, 6 = boxed cell with a
+ * heavier top line (first row of a school group).
  */
 function xlsx_styles_xml(): string
 {
@@ -137,13 +139,16 @@ function xlsx_styles_xml(): string
         . '<font><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/></font>'
         . '</fonts>'
         . '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>'
-        . '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+        . '<borders count="3"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right><top style="thin"><color rgb="FF000000"/></top><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border><border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right><top style="medium"><color rgb="FF000000"/></top><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border></borders>'
         . '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-        . '<cellXfs count="4">'
+        . '<cellXfs count="7">'
         . '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
         . '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
         . '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
         . '<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
+        . '<xf numFmtId="0" fontId="1" fillId="0" borderId="2" xfId="0" applyFont="1" applyBorder="1"/>'
+        . '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>'
+        . '<xf numFmtId="0" fontId="0" fillId="0" borderId="2" xfId="0" applyBorder="1"/>'
         . '</cellXfs>'
         . '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
         . '</styleSheet>';
@@ -420,35 +425,40 @@ function build_dashboard_filing_report_xlsx(array $report, int $fromYear, int $t
 }
 
 /**
- * SCHOOL RECORDS report: the school name appears once, with one line per
- * school year beneath it.
+ * SCHOOL RECORDS report: office heading and the date downloaded, then a boxed
+ * table where the school name appears once, with one line per school year
+ * beneath it and a heavier line between schools.
  *
  * @param array<int, array{school_display: string, years: array<int, array{school_year: string, records: int, last_uploaded: string}>}> $schools
  */
 function build_school_records_report_xlsx(array $schools): string
 {
     $rows = [
-        1 => [
-            1 => ['value' => 'SCHOOL', 'style' => 1],
-            2 => ['value' => 'SCHOOL YEARS (RECORDS EXTRACTED)', 'style' => 1],
-            3 => ['value' => 'RECORDS EXTRACTED', 'style' => 1],
-            4 => ['value' => 'LAST DATE UPLOADED', 'style' => 1],
+        1 => [1 => ['value' => 'CIVIL SERVICE COMMISSION', 'style' => 1]],
+        2 => [1 => ['value' => 'Regional Office VIII']],
+        3 => [1 => ['value' => date('d F Y')]],
+        5 => [
+            1 => ['value' => 'SCHOOL', 'style' => 4],
+            2 => ['value' => 'SCHOOL YEARS (RECORDS EXTRACTED)', 'style' => 4],
+            3 => ['value' => 'RECORDS EXTRACTED', 'style' => 4],
+            4 => ['value' => 'LAST DATE UPLOADED', 'style' => 4],
         ],
     ];
 
-    $rowNum = 2;
+    $rowNum = 6;
     foreach ($schools as $school) {
         foreach ($school['years'] as $i => $year) {
+            $style = $i === 0 ? 6 : 5;
             $rows[$rowNum++] = [
-                1 => ['value' => $i === 0 ? strtoupper($school['school_display']) : ''],
-                2 => ['value' => $year['school_year'], 'type' => 'n'],
-                3 => ['value' => (string) $year['records'], 'type' => 'n'],
-                4 => ['value' => strtoupper($year['last_uploaded'])],
+                1 => ['value' => $i === 0 ? strtoupper($school['school_display']) : '', 'style' => $style],
+                2 => ['value' => $year['school_year'], 'type' => 'n', 'style' => $style],
+                3 => ['value' => (string) $year['records'], 'type' => 'n', 'style' => $style],
+                4 => ['value' => strtoupper($year['last_uploaded']), 'style' => $style],
             ];
         }
     }
 
-    $sheetXml = xlsx_build_sheet_xml($rows, [1 => 44, 2 => 36, 3 => 20, 4 => 22]);
+    $sheetXml = xlsx_build_sheet_xml($rows, [1 => 48, 2 => 36, 3 => 20, 4 => 22]);
 
     return xlsx_zip_parts([
         '[Content_Types].xml' => xlsx_content_types_xml(),
