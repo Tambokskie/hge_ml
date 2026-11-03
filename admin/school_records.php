@@ -82,7 +82,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </a>
         </div>
 
-        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
+        <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow lg:sticky lg:top-20 z-10 motion-safe:animate-fade-in-up" style="animation-delay: 200ms">
             <form id="school-records-filter-form" method="get" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="mb-1.5 block text-xs font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">SCHOOL</label>
