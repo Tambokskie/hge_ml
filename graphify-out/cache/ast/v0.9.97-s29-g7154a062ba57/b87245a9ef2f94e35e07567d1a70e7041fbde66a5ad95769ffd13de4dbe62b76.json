@@ -1,0 +1,1 @@
+{"nodes": [{"id": "$graphify-root$_tools_help_screenshots_seed_php", "label": "seed.php", "file_type": "code", "source_file": "tools/help-screenshots/seed.php", "source_location": "L1"}], "edges": [], "raw_calls": [], "php_type_table": {"path": "$graphify-root$/tools/help-screenshots/seed.php", "table": {"root": "PDO", "pdo": "PDO", "d": "DateTime"}}}
