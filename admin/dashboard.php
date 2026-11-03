@@ -64,6 +64,8 @@ $filedYearOtherProcessing = $filedYearBreakdown['other_years_processing'];
 // RECORD FOR THE YEAR SELECTED card).
 $yearGraduates = $totalOnRecord;
 $totalOnRecord = $yearGraduates + $filedYearOtherApplied;
+// The RECORD FOR THE YEAR SELECTED card shows the same figure as ON RECORD.
+$dashboardDefaultYearRecords = $totalOnRecord;
 // Share of ON RECORD that the received applications amount to (the centre of the ring). Received can
 // include other years' graduates, so it is not the per-school filing rate.
 $filingRate = $totalOnRecord > 0 ? round($totalApplied / $totalOnRecord * 100, 1) : 0.0;

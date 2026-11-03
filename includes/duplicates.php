@@ -296,3 +296,233 @@ function find_staged_duplicate_groups(array $rows, array $savedByKey): array
 
     return $groups;
 }
+
+/**
+ * CONFIRMED DUPLICATE FINDINGS. When an administrator confirms, in the SAVE RECORDS duplicate prompt,
+ * that a record of the review is a duplicate of a saved one, the review record is REMOVED and what was
+ * found about it (school, course, year and date graduated, source file) is stored in
+ * graduate_duplicate_findings against the saved ORIGINAL - the first record saved for that name
+ * (duplicate_group_key()) under another upload. The original shows a "DUPLICATE FOUND (n)" badge in
+ * Look-Up (tooltip on hover, details modal on click) and is the only record a search lists; the
+ * duplicate itself is not saved. The table comes from database/add_graduate_duplicate_findings.sql on a
+ * live DB. Callers must also load includes/functions.php.
+ */
+
+/**
+ * The first saved record of every name, among the uploads other than $excludeUploadId.
+ *
+ * @return array<string, array<string, mixed>> keyed by duplicate_group_key()
+ */
+function find_original_records_by_name(PDO $pdo, int $excludeUploadId): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT g.id, g.graduate_name
+         FROM latin_honor_graduates g
+         WHERE g.upload_id <> :exclude_upload_id
+         ORDER BY g.id ASC'
+    );
+    $stmt->execute(['exclude_upload_id' => $excludeUploadId]);
+
+    $byKey = [];
+    foreach ($stmt->fetchAll() as $row) {
+        if (normalize_name_for_matching((string) $row['graduate_name']) === '') {
+            continue;
+        }
+        $key = duplicate_group_key($row);
+        if (!isset($byKey[$key])) {
+            $byKey[$key] = $row;
+        }
+    }
+
+    return $byKey;
+}
+
+/** True when the findings table exists (database/add_graduate_duplicate_findings.sql has been run). */
+function duplicate_findings_table_exists(PDO $pdo): bool
+{
+    try {
+        $pdo->query('SELECT 1 FROM graduate_duplicate_findings LIMIT 1');
+
+        return true;
+    } catch (\Throwable $e) {
+        return false;
+    }
+}
+
+/**
+ * Stores one finding per confirmed duplicate row of the review that matches a saved original, then
+ * reports which rows had none. Rows are the staged rows chosen by the administrator; the school and
+ * source file are those of the upload under review. Everything is written in one transaction.
+ *
+ * @param array<int, array<string, mixed>> $stagedRows the chosen staged rows
+ * @param array{upload_id: int, school: string, filename: string} $source the upload under review
+ * @return array{tagged: int, untagged: int, originals: int} rows with an original, rows without one,
+ *         and how many different originals were tagged
+ * @throws \Throwable when the table is missing or a write fails (nothing is stored then)
+ */
+function record_duplicate_findings(PDO $pdo, array $source, array $stagedRows, ?int $confirmedBy): array
+{
+    $originals = find_original_records_by_name($pdo, $source['upload_id']);
+
+    $insert = $pdo->prepare(
+        'INSERT INTO graduate_duplicate_findings
+            (original_graduate_id, upload_id, duplicate_name, school, course, latin_honor, graduation_year, graduation_date, source_filename, confirmed_by)
+         VALUES (:original_id, :upload_id, :name, :school, :course, :honor, :year, :date, :filename, :confirmed_by)'
+    );
+
+    $tagged = 0;
+    $untagged = 0;
+    $taggedOriginals = [];
+
+    $pdo->beginTransaction();
+    try {
+        foreach ($stagedRows as $row) {
+            $original = normalize_name_for_matching((string) ($row['graduate_name'] ?? '')) === ''
+                ? null
+                : ($originals[duplicate_group_key($row)] ?? null);
+            if ($original === null) {
+                $untagged++;
+                continue;
+            }
+            $insert->execute([
+                'original_id' => (int) $original['id'],
+                'upload_id' => $source['upload_id'],
+                'name' => (string) $row['graduate_name'],
+                'school' => $source['school'],
+                'course' => (string) ($row['course'] ?? ''),
+                'honor' => (string) ($row['latin_honor'] ?? ''),
+                'year' => ($row['graduation_year'] ?? '') !== '' ? (int) $row['graduation_year'] : null,
+                'date' => ($row['graduation_date'] ?? '') !== '' ? $row['graduation_date'] : null,
+                'filename' => $source['filename'],
+                'confirmed_by' => $confirmedBy,
+            ]);
+            $tagged++;
+            $taggedOriginals[(int) $original['id']] = true;
+        }
+        $pdo->commit();
+    } catch (\Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+
+    return ['tagged' => $tagged, 'untagged' => $untagged, 'originals' => count($taggedOriginals)];
+}
+
+/**
+ * For a Look-Up page of results: per saved record that has findings, how many and the text of the
+ * hover tooltip (the count and the latest finding). Nothing when the table does not exist yet.
+ *
+ * @param array<int, int> $graduateIds
+ * @return array<int, array{count: int, tooltip: string}> keyed by graduate id
+ */
+function get_duplicate_findings_summary(PDO $pdo, array $graduateIds): array
+{
+    $graduateIds = array_values(array_unique(array_filter(array_map('intval', $graduateIds))));
+    if ($graduateIds === []) {
+        return [];
+    }
+
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT original_graduate_id, school, course, graduation_year, graduation_date, source_filename, found_at
+             FROM graduate_duplicate_findings
+             WHERE original_graduate_id IN (' . implode(',', array_fill(0, count($graduateIds), '?')) . ')
+             ORDER BY found_at DESC, id DESC'
+        );
+        $stmt->execute($graduateIds);
+    } catch (\Throwable $e) {
+        return [];
+    }
+
+    $summary = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $id = (int) $row['original_graduate_id'];
+        if (!isset($summary[$id])) {
+            $summary[$id] = ['count' => 0, 'latest' => $row];
+        }
+        $summary[$id]['count']++;
+    }
+
+    $result = [];
+    foreach ($summary as $id => $entry) {
+        $latest = $entry['latest'];
+        $date = $latest['graduation_date'] !== null ? date('d F Y', strtotime((string) $latest['graduation_date'])) : '';
+        $parts = array_filter([
+            $latest['school'],
+            $latest['course'] !== '' ? $latest['course'] : null,
+            $latest['graduation_year'] !== null ? 'YEAR GRADUATED ' . $latest['graduation_year'] : null,
+            $date !== '' ? 'DATE GRADUATED ' . $date : null,
+        ]);
+        $result[$id] = [
+            'count' => $entry['count'],
+            'tooltip' => mb_strtoupper(
+                'DUPLICATE FOUND ' . $entry['count'] . ' TIME' . ($entry['count'] === 1 ? '' : 'S') . '. LATEST: ' . implode(' — ', $parts)
+                . ' (FROM ' . $latest['source_filename'] . '). CLICK FOR DETAILS.'
+            ),
+        ];
+    }
+
+    return $result;
+}
+
+/**
+ * What the modal shows for a saved record that has findings: the original (read live) and every
+ * duplicate found against it, newest first.
+ *
+ * @return array{name: string, original: array<string, mixed>, findings: array<int, array<string, mixed>>}|null
+ */
+function get_duplicate_finding_details(PDO $pdo, int $graduateId): ?array
+{
+    $stmt = $pdo->prepare(
+        'SELECT g.graduate_name, g.course, g.latin_honor, g.graduation_date, g.graduation_year,
+                s.school_name, s.campus, u.original_filename, u.uploaded_at
+         FROM latin_honor_graduates g
+         JOIN latin_honor_uploads u ON u.id = g.upload_id
+         LEFT JOIN schools s ON s.id = g.school_id
+         WHERE g.id = :id'
+    );
+    $stmt->execute(['id' => $graduateId]);
+    $original = $stmt->fetch();
+    if ($original === false) {
+        return null;
+    }
+
+    try {
+        $findingsStmt = $pdo->prepare(
+            'SELECT duplicate_name, school, course, latin_honor, graduation_year, graduation_date, source_filename, found_at
+             FROM graduate_duplicate_findings
+             WHERE original_graduate_id = :id
+             ORDER BY found_at DESC, id DESC'
+        );
+        $findingsStmt->execute(['id' => $graduateId]);
+        $findings = $findingsStmt->fetchAll();
+    } catch (\Throwable $e) {
+        return null;
+    }
+    if ($findings === []) {
+        return null;
+    }
+
+    return [
+        'name' => (string) $original['graduate_name'],
+        'original' => [
+            'school' => $original['school_name'] !== null ? format_school_display_name((string) $original['school_name'], $original['campus'] ?? null) : '',
+            'course' => (string) $original['course'],
+            'latin_honor' => (string) $original['latin_honor'],
+            'graduation_date' => $original['graduation_date'],
+            'graduation_year' => $original['graduation_year'],
+            'filename' => (string) $original['original_filename'],
+        ],
+        'findings' => array_map(static fn (array $row): array => [
+            'school' => (string) $row['school'],
+            'course' => (string) $row['course'],
+            'latin_honor' => (string) $row['latin_honor'],
+            'graduation_date' => $row['graduation_date'],
+            'graduation_year' => $row['graduation_year'],
+            'filename' => (string) $row['source_filename'],
+            'found_at' => (string) $row['found_at'],
+        ], $findings),
+    ];
+}

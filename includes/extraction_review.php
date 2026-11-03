@@ -204,7 +204,7 @@ function set_staged_row(int $uploadId, ?int $rowIndex, array $data): array
         'course' => trim((string) ($data['course'] ?? '')),
         'latin_honor' => (string) ($data['latin_honor'] ?? ''),
         'graduation_date' => (($data['graduation_date'] ?? '') !== '') ? $data['graduation_date'] : null,
-        'graduation_year' => (int) ($data['graduation_year'] ?? 0),
+        'graduation_year' => resolve_graduation_year(($data['graduation_date'] ?? '') !== '' ? $data['graduation_date'] : null, $data['graduation_year'] ?? 0),
         'source' => 'manual',
     ];
 
@@ -396,7 +396,8 @@ function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows
                 'course' => $row['course'] ?? '',
                 'latin_honor' => $row['latin_honor'],
                 'graduation_date' => $row['graduation_date'],
-                'graduation_year' => $row['graduation_year'],
+                // whatever put the row here (AI, text, OCR, Excel, an edit), the year follows the date
+                'graduation_year' => resolve_graduation_year($row['graduation_date'] ?? null, $row['graduation_year']),
                 'source' => $row['source'] ?? null,
             ];
 
@@ -406,8 +407,7 @@ function save_staged_records(PDO $pdo, int $uploadId, int $schoolId, array $rows
                 $keptIds[] = $rowId;
             } else {
                 $insertStmt->execute($fields + ['upload_id' => $uploadId, 'school_id' => $schoolId]);
-                $keptIds[] = (int) $pdo->lastInsertId();
-            }
+                $keptIds[] = (int) $pdo->lastInsertId();            }
         }
 
         $removedIds = array_diff($existingIds, $keptIds);

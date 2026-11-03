@@ -31,6 +31,26 @@ function format_school_display_name(string $schoolName, ?string $campus = null):
 }
 
 /**
+ * The year a graduate finished, as it must be stored in graduation_year: the year of the graduation date
+ * when there is a valid Y-m-d date, otherwise the year as given. The date is the more specific value, so a
+ * year typed beside it can never disagree with it (Look-Up's year filter and the dashboard count by
+ * graduation_year while the tables show graduation_date).
+ *
+ * @param mixed $year the year as submitted or stored (used only when there is no valid date)
+ */
+function resolve_graduation_year(?string $graduationDate, $year): int
+{
+    if ($graduationDate !== null && $graduationDate !== '') {
+        $dt = DateTime::createFromFormat('Y-m-d', $graduationDate);
+        if ($dt && $dt->format('Y-m-d') === $graduationDate) {
+            return (int) $dt->format('Y');
+        }
+    }
+
+    return (int) $year;
+}
+
+/**
  * Tailwind classes for a Latin Honor pill badge, color-coded by tier
  * (mirrored in assets/js/lookup.js's honorPillClass() for the AJAX-rendered table).
  */

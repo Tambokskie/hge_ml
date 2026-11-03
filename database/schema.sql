@@ -183,3 +183,19 @@ CREATE TABLE bulk_hge_review_items (
   UNIQUE KEY uq_person_key (person_key),
   KEY idx_status_id (status, id)
 ) ENGINE=InnoDB;
+
+CREATE TABLE graduate_duplicate_findings (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  original_graduate_id INT UNSIGNED NOT NULL,
+  upload_id INT UNSIGNED NULL,
+  duplicate_name VARCHAR(255) NOT NULL DEFAULT '',
+  school VARCHAR(255) NOT NULL DEFAULT '',
+  course VARCHAR(255) NOT NULL DEFAULT '',
+  latin_honor VARCHAR(30) NOT NULL DEFAULT '',
+  graduation_year YEAR NULL,
+  graduation_date DATE NULL,
+  source_filename VARCHAR(255) NOT NULL DEFAULT '',
+  confirmed_by INT UNSIGNED NULL,
+  found_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_original_graduate (original_graduate_id)
+) ENGINE=InnoDB;

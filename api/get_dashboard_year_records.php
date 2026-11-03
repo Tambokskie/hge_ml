@@ -39,6 +39,9 @@ try {
         // APPLICATION RECEIVED, PROCESSING, APPROVED and the APPROVED HGE card show, see
         // includes/reports.php:get_applied_breakdown_by_filed_year().
         $totalOnRecord = $filingReport['total_on_record'];
+        // The RECORD FOR THE YEAR SELECTED card = the year's graduates plus the graduates of other
+        // years whose application was received this year (same as ON RECORD on the dashboard).
+        $response['count'] = $totalOnRecord + $filedYearBreakdown['other_years_applied'];
         $response['filing_report'] = [
             'total_on_record' => $totalOnRecord,
             'total_applied' => $filingReport['total_applied'],

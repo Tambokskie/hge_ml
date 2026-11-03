@@ -62,7 +62,7 @@ $sections = [
         ],
         'tips' => [
             'To see individual graduates use [[HONOR GRAD LOOK-UP]].',
-            '[[RECORD FOR THE YEAR SELECTED]], the Latin honor split and [[SCHOOL FILING SUMMARY]] count graduates by graduation year, so their numbers can differ from the received figures, which count by the year the application was filed.',
+            '[[RECORD FOR THE YEAR SELECTED]] is the selected year\'s graduates plus the graduates of other years whose application was received that year (the same figure as on record in the filing overview). The Latin honor split and [[SCHOOL FILING SUMMARY]] count graduates by graduation year only, so their numbers can differ from it.',
             'Click a school\'s name in [[SCHOOL FILING SUMMARY]] to open its records.',
         ],
     ],
@@ -82,7 +82,8 @@ $sections = [
                     'For a long list, use the page numbers at the bottom.',
                 ],
                 'tips' => [
-                    'A yellow [[DUPLICATE]] tag next to a name means the same name appears on more than one saved record.',
+                    'A yellow [[DUPLICATE]] tag next to a name means the same name appears on more than one saved record right now. It goes away when a copy is removed.',
+                    'An orange [[DUPLICATE FOUND]] tag with a number stays on a saved record for good. It means that duplicates of this record were found during an upload, confirmed by an administrator and removed. Hover over the tag to see the latest one (school, course, year and date graduated); click it to see the original record and every duplicate that was found, newest first.',
                 ],
             ],
             [
@@ -109,7 +110,8 @@ $sections = [
                 'steps' => [
                     'Click the pencil icon to correct a record\'s name, course, honor, date or year, then save.',
                     'Click the trash icon to delete a record. You must type a reason. Deleted records are moved to the [[RECYCLE BIN]] and can be restored. A graduate who already has a filed application cannot be deleted.',
-                    'Click [[UPDATE GRADUATION DATE]] to set the date of graduation for every record of one school and year at once.',
+                    'Click [[UPDATE GRADUATION DATE]] to set the date of graduation for every record of one school and year at once. The date must fall in the year you selected, so the records stay in that year. To move a record to another year, edit it on its own.',
+                    'When you edit a record, the [[YEAR GRADUATED]] box follows the [[DATE OF GRADUATION]] automatically and cannot be typed over while a date is set. That keeps the year filter and the dashboard counts in line with the date shown in the table. Clear the date if you only know the year.',
                     'Click [[FIND DUPLICATES]] to open the duplicate records page (see "Settings" below).',
                 ],
             ],
@@ -165,7 +167,7 @@ $sections = [
                 'steps' => [
                     '[[SAVE AS DRAFT]] keeps your work so you can finish later. Open the review again and it resumes where you stopped.',
                     'When the list is right, click [[SAVE RECORDS]]. The system first checks for names that appear more than once, in your list or already saved (including at other schools).',
-                    'If duplicates are found, a window lists them. Tick the copies from this list that should go and click [[REMOVE SELECTED]], click [[SAVE ANYWAY]] if they are different people, or [[CANCEL]] to go back and look. A saved record that already has an application takes priority, so the copies in your list are pre-ticked.',
+                    'If duplicates are found, a window lists them. Tick the copies from this list that should go and click [[REMOVE SELECTED]], click [[SAVE ANYWAY]] if they are different people, or [[CANCEL]] to go back and look. A saved record that already has an application takes priority, so the copies in your list are pre-ticked. [[REMOVE SELECTED]] asks you to review and confirm first (tick the box, then [[CONFIRM & REMOVE]]). Confirming removes the copies from your list, tags the saved original with [[DUPLICATE FOUND]] and keeps the removed copy\'s school, course, year and date graduated with it. Only the original stays in the system.',
                     'Confirm the save. The records can now be found in [[HONOR GRAD LOOK-UP]].',
                 ],
                 'notes' => [
