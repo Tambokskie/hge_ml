@@ -52,7 +52,8 @@ try {
         'course' => $data['course'],
         'latin_honor' => $data['latin_honor'],
         'graduation_date' => $data['graduation_date'] !== '' ? $data['graduation_date'] : null,
-        'graduation_year' => (int) $data['graduation_year'],
+        // the year always follows the date when there is one (resolve_graduation_year())
+        'graduation_year' => resolve_graduation_year($data['graduation_date'] !== '' ? $data['graduation_date'] : null, $data['graduation_year']),
     ]);
 
     $currentUser = current_user();

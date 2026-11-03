@@ -234,6 +234,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
             ],
         });
+        linkGraduationYearToDate('modal-graduation-date', 'modal-graduation-year');
     }
 
     document.querySelectorAll('.edit-row-btn').forEach(function (btn) {
@@ -557,6 +558,85 @@ document.addEventListener('DOMContentLoaded', function () {
             stagedHtml + savedHtml + '</div>';
     }
 
+    // The human check before tagging: the ticked review records are removed, and each one that matches a saved
+    // record is stored against that ORIGINAL (api/confirm_duplicates.php), which then shows DUPLICATE FOUND.
+    function openConfirmDuplicatesModal(groups, rowIndexes, reason) {
+        var withOriginal = 0;
+        var originals = {};
+        groups.forEach(function (group) {
+            group.staged.forEach(function (row) {
+                if (rowIndexes.indexOf(String(row.row_index)) !== -1 && (group.saved || []).length > 0) {
+                    withOriginal++;
+                    originals[group.name] = true;
+                }
+            });
+        });
+        var originalCount = Object.keys(originals).length;
+        var submitting = false;
+
+        showModal({
+            icon: modalHeaderIcon('warning'),
+            iconClassName: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
+            title: 'CONFIRM THESE ARE DUPLICATES',
+            subtitle: rowIndexes.length + ' record(s) from this review will be removed.',
+            bodyHtml: '<div class="space-y-4">' +
+                '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">' +
+                (withOriginal > 0
+                    ? 'THE SAVED ORIGINAL RECORD OF <strong>' + originalCount + '</strong> NAME(S) WILL BE TAGGED <strong>DUPLICATE FOUND</strong>, AND THE SCHOOL, COURSE, YEAR GRADUATED AND DATE GRADUATED OF THE REMOVED RECORD(S) WILL BE KEPT WITH IT.'
+                    : 'NONE OF THESE HAS A SAVED ORIGINAL (THEY ARE COPIES WITHIN THIS LIST), SO THEY ARE ONLY REMOVED; NOTHING IS TAGGED.') +
+                ' A COPY CANNOT BE BROUGHT BACK FROM THE REVIEW AFTERWARDS.</p>' +
+                '<label class="flex items-start gap-2 cursor-pointer text-sm text-gray-800 dark:text-gray-200">' +
+                '<input type="checkbox" id="confirm-duplicates-checkbox" class="mt-0.5 h-4 w-4 rounded border-gray-300 dark:border-white/20 text-csc-navy-600">' +
+                '<span>I HAVE REVIEWED THESE RECORDS AND CONFIRM THEY ARE DUPLICATES OF THE SAVED RECORDS.</span></label>' +
+                '</div>',
+            buttons: [
+                {
+                    label: 'BACK',
+                    className: MODAL_BTN.secondary,
+                    onClick: function (modalClose) {
+                        modalClose();
+                        openDuplicatesModal(groups);
+                    },
+                },
+                {
+                    label: 'CONFIRM & REMOVE',
+                    icon: modalButtonIcon('check'),
+                    className: MODAL_BTN.danger,
+                    onClick: function (modalClose) {
+                        if (submitting) {
+                            return;
+                        }
+                        if (!document.getElementById('confirm-duplicates-checkbox').checked) {
+                            showToast('error', 'TICK THE BOX TO CONFIRM THAT YOU REVIEWED THESE DUPLICATES.');
+                            return;
+                        }
+                        submitting = true;
+                        postJson(config.apiBase + '/api/confirm_duplicates.php', {
+                            csrf_token: config.csrfToken,
+                            upload_id: config.uploadId,
+                            row_indexes: rowIndexes.join(','),
+                            reason: reason,
+                        })
+                            .then(function (data) {
+                                if (data.status === 'success') {
+                                    showToast('success', data.message + ' CLICK SAVE RECORDS AGAIN WHEN READY.');
+                                    modalClose();
+                                    reload();
+                                } else {
+                                    submitting = false;
+                                    showToast('error', data.message);
+                                }
+                            })
+                            .catch(function () {
+                                submitting = false;
+                                showToast('error', 'THE DUPLICATES COULD NOT BE CONFIRMED. PLEASE TRY AGAIN.');
+                            });
+                    },
+                },
+            ],
+        });
+    }
+
     // Shown by SAVE RECORDS when the same name appears more than once in this
     // review, or already exists on file for this school and year or at another school. The admin
     // removes the unwanted staged rows, saves anyway (two different people can
@@ -573,7 +653,7 @@ document.addEventListener('DOMContentLoaded', function () {
             title: 'POSSIBLE DUPLICATE NAMES FOUND',
             subtitle: groups.length + ' name(s) appear more than once or already exist on file, at this or another school. Nothing has been saved yet.',
             bodyHtml: '<div class="space-y-4">' +
-                '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">TICK THE RECORDS FROM THIS REVIEW THAT SHOULD BE REMOVED, OR SAVE ANYWAY IF THEY ARE DIFFERENT PEOPLE. A SAVED RECORD THAT ALREADY HAS AN APPLICATION PREVAILS, SO ITS DUPLICATES HERE ARE PRE-TICKED. CANCEL TO GO BACK TO THE REVIEW.</p>' +
+                '<p class="rounded-lg bg-gray-50 dark:bg-white/5 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">TICK THE RECORDS FROM THIS REVIEW THAT SHOULD BE REMOVED AS DUPLICATES (YOU WILL BE ASKED TO CONFIRM, AND THE SAVED ORIGINAL IS TAGGED DUPLICATE FOUND), OR SAVE ANYWAY IF THEY ARE DIFFERENT PEOPLE. A SAVED RECORD THAT ALREADY HAS AN APPLICATION PREVAILS, SO ITS DUPLICATES HERE ARE PRE-TICKED. CANCEL TO GO BACK TO THE REVIEW.</p>' +
                 '<div class="max-h-72 space-y-2 overflow-y-auto pr-1">' + groups.map(duplicateGroupHtml).join('') + '</div>' +
                 modalField({ id: 'modal-dup-remove-reason', label: 'REASON FOR REMOVAL', optional: true, icon: 'pen', placeholder: 'E.G. DUPLICATE ENTRIES', uppercase: true, value: 'DUPLICATE ENTRY', note: 'ONLY NEEDED WHEN REMOVING RECORDS. PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.' }) +
                 '</div>',
@@ -607,27 +687,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             showToast('error', 'PLEASE ENTER A VALID REASON FOR REMOVAL.', 'PLAIN TEXT ONLY — NOT "N/A", "-", OR OTHER SPECIAL CHARACTERS.');
                             return;
                         }
-                        submitting = true;
-                        postJson(config.apiBase + '/api/delete_graduates.php', {
-                            csrf_token: config.csrfToken,
-                            upload_id: config.uploadId,
-                            row_indexes: rowIndexes.join(','),
-                            reason: reason.trim(),
-                        })
-                            .then(function (data) {
-                                if (data.status === 'success') {
-                                    showToast('success', data.message + ' CLICK SAVE RECORDS AGAIN WHEN READY.');
-                                    modalClose();
-                                    reload();
-                                } else {
-                                    submitting = false;
-                                    showToast('error', data.message);
-                                }
-                            })
-                            .catch(function () {
-                                submitting = false;
-                                showToast('error', 'THE RECORDS COULD NOT BE REMOVED. PLEASE TRY AGAIN.');
-                            });
+                        // a person must review and confirm before anything is removed or tagged
+                        modalClose();
+                        openConfirmDuplicatesModal(groups, rowIndexes, reason.trim());
                     },
                 },
             ],

@@ -322,6 +322,33 @@ var MODAL_BTN = {
     danger: 'inline-flex items-center justify-center gap-1.5 rounded-xl bg-csc-red-600 hover:bg-csc-red-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors',
 };
 
+// Keeps a YEAR GRADUATED field in step with a DATE OF GRADUATION field inside an edit modal: while a date is
+// set, the year is that date's year and cannot be typed over (the server applies the same rule, see
+// resolve_graduation_year()); with no date the year can be typed. Call after showModal() has built the fields.
+function linkGraduationYearToDate(dateId, yearId) {
+    var dateInput = document.getElementById(dateId);
+    var yearInput = document.getElementById(yearId);
+    if (!dateInput || !yearInput) {
+        return;
+    }
+    function sync() {
+        var match = /^(\d{4})-\d{2}-\d{2}$/.exec(dateInput.value || '');
+        if (match) {
+            yearInput.value = match[1];
+            yearInput.readOnly = true;
+            yearInput.classList.add('opacity-60');
+            yearInput.title = 'THE YEAR FOLLOWS THE DATE OF GRADUATION.';
+        } else {
+            yearInput.readOnly = false;
+            yearInput.classList.remove('opacity-60');
+            yearInput.title = '';
+        }
+    }
+    dateInput.addEventListener('input', sync);
+    dateInput.addEventListener('change', sync);
+    sync();
+}
+
 // Builds one labeled form field for a modal body: `opts` supports
 // { id, label, type ('text'|'password'|'email'|'date'|'select'|'static'), value, placeholder,
 //   required, optional, icon (an ICON_PATHS key), optionsHtml (for type 'select'), attrs, note,

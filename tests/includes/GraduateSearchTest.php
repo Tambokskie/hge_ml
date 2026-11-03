@@ -379,7 +379,7 @@ class GraduateSearchTest extends TestCase
         $this->insertGraduate(1, 1, 'Old Year', 'CUM LAUDE', '2020-01-01', 2023);
         $this->insertGraduate(2, 2, 'Other School', 'CUM LAUDE', null, 2025);
 
-        $result = bulk_update_graduation_date(TestDb::pdo(), 1, 2025, '2026-06-15');
+        $result = bulk_update_graduation_date(TestDb::pdo(), 1, 2025, '2025-06-15');
 
         $this->assertSame('success', $result['status']);
         $this->assertSame(2, $result['updated']);
@@ -387,7 +387,7 @@ class GraduateSearchTest extends TestCase
         $updatedDates = TestDb::pdo()->query(
             "SELECT graduation_date FROM latin_honor_graduates WHERE school_id = 1 AND graduation_year = 2025"
         )->fetchAll(\PDO::FETCH_COLUMN);
-        $this->assertSame(['2026-06-15', '2026-06-15'], $updatedDates);
+        $this->assertSame(['2025-06-15', '2025-06-15'], $updatedDates);
 
         $untouchedDate = TestDb::pdo()->query(
             "SELECT graduation_date FROM latin_honor_graduates WHERE school_id = 1 AND graduation_year = 2023"

@@ -6,6 +6,9 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
+    // fading hover tooltip for [data-tooltip] (the DUPLICATE FOUND badge); one delegated listener covers re-rendered rows
+    initHoverTooltips();
+
     var MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
 
     function formatDisplayDate(dateStr) {
@@ -206,6 +209,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<td class="px-4 py-3">' + escapeHtml(String(row.graduate_name).toUpperCase()) +
                     (parseInt(row.is_duplicate, 10) === 1
                         ? ' <span class="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-yellow-500/15 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400" title="POSSIBLE DUPLICATE RECORD">DUPLICATE</span>'
+                        : '') +
+                    (parseInt(row.duplicate_findings, 10) > 0
+                        ? ' <button type="button" class="duplicate-upload-badge ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 dark:bg-orange-500/10 dark:text-orange-400 dark:hover:bg-orange-500/20 transition-colors cursor-pointer" data-id="' + escapeHtml(String(row.id)) + '" data-tooltip="' + escapeHtml(row.duplicate_tooltip || '') + '">DUPLICATE FOUND (' + escapeHtml(String(row.duplicate_findings)) + ')</button>'
                         : '') + '</td>' +
                 '<td class="px-4 py-3">' + courseDisplay + '</td>' +
                 '<td class="px-4 py-3">' + escapeHtml(formatSchoolDisplayName(row.school_name, row.campus).toUpperCase()) + '</td>' +
@@ -284,6 +290,62 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .catch(function () {
                 showToast('error', 'THE SEARCH COULD NOT BE COMPLETED. PLEASE TRY AGAIN.');
+            });
+    }
+
+    // "02 JUNE 2024" from a YYYY-MM-DD date; falls back to the year when the record has no full date.
+    function formatLongDate(date, year) {
+        var match = /^(\d{4})-(\d{2})-(\d{2})/.exec(date || '');
+        if (!match) {
+            return year ? String(year) : '—';
+        }
+        var months = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+        return match[3] + ' ' + months[parseInt(match[2], 10) - 1] + ' ' + match[1];
+    }
+
+    function duplicateRecordBlockHtml(label, record, boxed) {
+        var line = function (title, value) {
+            return '<p class="text-sm text-gray-700 dark:text-gray-300"><span class="text-gray-500 dark:text-gray-400">' + title + ':</span> <strong class="font-semibold text-gray-900 dark:text-white">' + escapeHtml(value) + '</strong></p>';
+        };
+        return '<div class="space-y-1.5 ' + (boxed ? 'rounded-3xl border border-gray-300 dark:border-white/20 px-5 py-4' : 'px-1') + '">' +
+            '<p class="text-[10px] font-bold tracking-wide text-csc-navy-600 dark:text-csc-navy-300">' + label + '</p>' +
+            line('ORIGINAL SCHOOL', String(record.school || '—').toUpperCase()) +
+            line('DATE GRADUATED', formatLongDate(record.graduation_date, record.graduation_year)) +
+            line('LATIN HONOR RECEIVED', String(record.latin_honor || '—').toUpperCase()) +
+            line('COURSE', record.course ? String(record.course).toUpperCase() : '—') +
+            line('SOURCE FILE', record.filename || '—') +
+            '</div>';
+    }
+
+    // The "DUPLICATE FOUND" badge sits on the saved ORIGINAL: it opens that record on top and, below it, every
+    // duplicate an administrator confirmed (and removed) during an upload, newest first, each in a rounded box.
+    function openDuplicateModal(graduateId) {
+        fetch(config.apiBase + '/api/get_duplicate_findings.php?graduate_id=' + encodeURIComponent(graduateId))
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (data.status !== 'success') {
+                    showToast('error', data.message || 'THE DUPLICATE DETAILS COULD NOT BE LOADED.');
+                    return;
+                }
+                var boxes = data.findings.map(function (finding, index) {
+                    var foundOn = String(finding.found_at || '').slice(0, 10);
+                    return duplicateRecordBlockHtml('DUPLICATE FOUND #' + (data.findings.length - index) + (foundOn ? ' — ' + formatLongDate(foundOn, '') : ''), finding, true);
+                }).join('');
+                showModal({
+                    icon: modalHeaderIcon('document'),
+                    iconClassName: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
+                    title: 'DUPLICATE FOUND',
+                    subtitle: data.findings.length + ' duplicate(s) of this record were found during an upload and removed.',
+                    bodyHtml: '<div class="max-h-[70vh] space-y-4 overflow-y-auto pr-1">' +
+                        '<p class="text-sm text-gray-700 dark:text-gray-300"><span class="text-gray-500 dark:text-gray-400">NAME:</span> <strong class="font-semibold text-gray-900 dark:text-white">' + escapeHtml(String(data.name).toUpperCase()) + '</strong></p>' +
+                        duplicateRecordBlockHtml('ORIGINAL RECORD (SAVED)', data.original, false) +
+                        boxes +
+                        '</div>',
+                    buttons: [{ label: 'CLOSE', className: MODAL_BTN.secondary }],
+                });
+            })
+            .catch(function () {
+                showToast('error', 'THE DUPLICATE DETAILS COULD NOT BE LOADED. PLEASE TRY AGAIN.');
             });
     }
 
@@ -373,6 +435,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
             ],
         });
+        linkGraduationYearToDate('modal-graduation-date', 'modal-graduation-year');
     }
 
     function openDeleteModal(defaults) {
@@ -789,6 +852,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     resultsContainer.addEventListener('click', function (event) {
+        var duplicateBadge = event.target.closest('.duplicate-upload-badge');
+        if (duplicateBadge) {
+            openDuplicateModal(duplicateBadge.dataset.id);
+            return;
+        }
+
         var viewBtn = event.target.closest('.view-graduate-btn');
         if (viewBtn) {
             openDetailsModal({

@@ -79,8 +79,13 @@ function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25
 
     $rows = $stmt->fetchAll();
     $duplicateIds = flag_duplicates_for_rows($pdo, array_column($rows, 'id'));
+    // DUPLICATE FOUND badge: duplicates an administrator confirmed (and removed) against this saved record,
+    // kept in graduate_duplicate_findings - unlike is_duplicate above it does not depend on a copy still existing
+    $findings = get_duplicate_findings_summary($pdo, array_column($rows, 'id'));
     foreach ($rows as &$row) {
         $row['is_duplicate'] = in_array((int) $row['id'], $duplicateIds, true) ? 1 : 0;
+        $row['duplicate_findings'] = $findings[(int) $row['id']]['count'] ?? 0;
+        $row['duplicate_tooltip'] = $findings[(int) $row['id']]['tooltip'] ?? '';
     }
     unset($row);
 
@@ -402,13 +407,20 @@ function get_graduation_years_for_school(PDO $pdo, int $schoolId): array
 /**
  * Bulk-fills a missing date of graduation across every honor graduate from
  * one school/year at once — the workaround for lists whose PDF never
- * carried a date column, so extraction had nothing to parse it from.
+ * carried a date column, so extraction had nothing to parse it from. The date must fall in the selected
+ * year: graduation_year keeps agreeing with graduation_date.
  */
 function bulk_update_graduation_date(PDO $pdo, int $schoolId, int $year, string $date): array
 {
     $dt = DateTime::createFromFormat('Y-m-d', $date);
     if (!$dt || $dt->format('Y-m-d') !== $date) {
         return ['status' => 'error', 'message' => 'DATE OF GRADUATION MUST BE A VALID DATE.'];
+    }
+
+    // the year column must keep agreeing with the date, so a date from another year is refused (the records
+    // would otherwise show one year and be filtered and counted under another)
+    if ((int) $dt->format('Y') !== $year) {
+        return ['status' => 'error', 'message' => 'THE DATE MUST BE IN ' . $year . ', THE YEAR YOU SELECTED. TO MOVE RECORDS TO ANOTHER YEAR, EDIT THEM INDIVIDUALLY.'];
     }
 
     $stmt = $pdo->prepare(
