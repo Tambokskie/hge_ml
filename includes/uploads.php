@@ -707,3 +707,51 @@ function upload_needs_more_extraction(array $upload): bool
 {
     return $upload['total_pages'] !== null && (int) $upload['extracted_through_page'] < (int) $upload['total_pages'];
 }
+
+/**
+ * Data for the SCHOOL RECORDS Excel report: one entry per school (campus
+ * included), each with one line per school year (records extracted and the
+ * latest upload date for that year). Follows the same school / school-year
+ * filters as search_uploads().
+ *
+ * @return array<int, array{school_display: string, years: array<int, array{school_year: string, records: int, last_uploaded: string}>}>
+ */
+function get_school_records_report_rows(PDO $pdo, array $filters): array
+{
+    $conditions = [];
+    $params = [];
+
+    if (!empty($filters['school_id'])) {
+        $conditions[] = 'u.school_id = :school_id';
+        $params['school_id'] = (int) $filters['school_id'];
+    }
+    if (!empty($filters['school_year'])) {
+        $conditions[] = 'u.school_year = :school_year';
+        $params['school_year'] = (string) $filters['school_year'];
+    }
+    $whereSql = empty($conditions) ? '' : ('WHERE ' . implode(' AND ', $conditions));
+
+    $stmt = $pdo->prepare("SELECT s.id AS school_id, s.school_name, s.campus, u.school_year,
+                                  SUM(u.records_extracted) AS records, MAX(u.uploaded_at) AS last_uploaded
+                           FROM latin_honor_uploads u
+                           JOIN schools s ON s.id = u.school_id
+                           {$whereSql}
+                           GROUP BY s.id, s.school_name, s.campus, u.school_year
+                           ORDER BY s.school_name ASC, s.campus ASC, u.school_year ASC");
+    $stmt->execute($params);
+
+    $bySchool = [];
+    foreach ($stmt->fetchAll() as $r) {
+        $id = (int) $r['school_id'];
+        if (!isset($bySchool[$id])) {
+            $bySchool[$id] = ['school_display' => format_school_display_name($r['school_name'], $r['campus']), 'years' => []];
+        }
+        $bySchool[$id]['years'][] = [
+            'school_year' => (string) $r['school_year'],
+            'records' => (int) $r['records'],
+            'last_uploaded' => date('F j, Y', strtotime($r['last_uploaded'])),
+        ];
+    }
+
+    return array_values($bySchool);
+}

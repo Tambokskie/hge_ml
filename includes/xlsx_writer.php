@@ -418,3 +418,44 @@ function build_dashboard_filing_report_xlsx(array $report, int $fromYear, int $t
         'xl/worksheets/sheet1.xml' => $sheetXml,
     ]);
 }
+
+/**
+ * SCHOOL RECORDS report: the school name appears once, with one line per
+ * school year beneath it.
+ *
+ * @param array<int, array{school_display: string, years: array<int, array{school_year: string, records: int, last_uploaded: string}>}> $schools
+ */
+function build_school_records_report_xlsx(array $schools): string
+{
+    $rows = [
+        1 => [
+            1 => ['value' => 'SCHOOL', 'style' => 1],
+            2 => ['value' => 'SCHOOL YEARS (RECORDS EXTRACTED)', 'style' => 1],
+            3 => ['value' => 'RECORDS EXTRACTED', 'style' => 1],
+            4 => ['value' => 'LAST DATE UPLOADED', 'style' => 1],
+        ],
+    ];
+
+    $rowNum = 2;
+    foreach ($schools as $school) {
+        foreach ($school['years'] as $i => $year) {
+            $rows[$rowNum++] = [
+                1 => ['value' => $i === 0 ? strtoupper($school['school_display']) : ''],
+                2 => ['value' => $year['school_year'], 'type' => 'n'],
+                3 => ['value' => (string) $year['records'], 'type' => 'n'],
+                4 => ['value' => strtoupper($year['last_uploaded'])],
+            ];
+        }
+    }
+
+    $sheetXml = xlsx_build_sheet_xml($rows, [1 => 44, 2 => 36, 3 => 20, 4 => 22]);
+
+    return xlsx_zip_parts([
+        '[Content_Types].xml' => xlsx_content_types_xml(),
+        '_rels/.rels' => xlsx_package_rels_xml(),
+        'xl/workbook.xml' => xlsx_workbook_xml('SCHOOL RECORDS'),
+        'xl/_rels/workbook.xml.rels' => xlsx_workbook_rels_xml(),
+        'xl/styles.xml' => xlsx_styles_xml(),
+        'xl/worksheets/sheet1.xml' => $sheetXml,
+    ]);
+}
