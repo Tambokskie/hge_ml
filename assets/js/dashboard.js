@@ -300,6 +300,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     appliedCardLink.href = config.apiBase + '/admin/lookup.php?applied_year=' + encodeURIComponent(year);
                 }
 
+                // PROCESSING / APPROVED lines of the filing overview follow the selected year too.
+                [['filing-processing-link', 'pending'], ['filing-approved-link', 'approved']].forEach(function (pair) {
+                    var link = document.getElementById(pair[0]);
+                    if (link) {
+                        link.href = config.apiBase + '/admin/lookup.php?status=' + pair[1] + '&applied_year=' + encodeURIComponent(year);
+                    }
+                });
+
                 yearTrack.querySelectorAll('.dashboard-year-pill').forEach(function (p) {
                     p.classList.remove.apply(p.classList, activePillClasses);
                     p.classList.add.apply(p.classList, inactivePillClasses);

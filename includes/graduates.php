@@ -4,7 +4,92 @@ require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/recycle_bin.php';
 require_once __DIR__ . '/duplicates.php';
 
-function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25): array
+/**
+ * Columns of the Look-Up table that can carry an Excel-style filter / sort (admin/lookup.php), each with the SQL
+ * expression that yields the value shown in that column. A missing value is NULL (shown as BLANKS). Dates are
+ * Y-m-d strings so every distinct date is its own entry; HGE STATUS is APPROVED / PROCESSING / NULL (not yet applied).
+ */
+function graduate_filter_columns(): array
+{
+    return [
+        'name' => "NULLIF(TRIM(g.graduate_name), '')",
+        'course' => "NULLIF(TRIM(g.course), '')",
+        'school' => "IF(s.campus IS NULL OR TRIM(s.campus) = '', s.school_name, CONCAT(s.school_name, '-', TRIM(s.campus)))",
+        'honor' => 'g.latin_honor',
+        'graduated' => "DATE_FORMAT(g.graduation_date, '%Y-%m-%d')",
+        'status' => "CASE WHEN a.approved_at IS NOT NULL THEN 'APPROVED' WHEN a.id IS NOT NULL THEN 'PROCESSING' ELSE NULL END",
+        'applied' => "DATE_FORMAT(a.application_date, '%Y-%m-%d')",
+        'approved' => "DATE_FORMAT(a.approved_at, '%Y-%m-%d')",
+    ];
+}
+
+/**
+ * Pure. Reads the column filters from their JSON form (?cf={"school":["X","Y"],"graduated":[null,"2025-07-05"]}):
+ * only known columns, each a list of strings (null = BLANKS), capped so a hand-built URL cannot ask for thousands
+ * of bound values. Anything malformed gives an empty result (no column filters).
+ *
+ * @return array<string, list<?string>>
+ */
+function parse_graduate_column_filters(?string $json): array
+{
+    if ($json === null || trim($json) === '') {
+        return [];
+    }
+
+    $decoded = json_decode($json, true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+
+    $known = graduate_filter_columns();
+    $result = [];
+    foreach ($decoded as $column => $values) {
+        if (!is_string($column) || !isset($known[$column]) || !is_array($values)) {
+            continue;
+        }
+
+        $clean = [];
+        foreach ($values as $value) {
+            if ($value === null) {
+                $clean['blank'] = null;
+            } elseif (is_string($value) && mb_strlen($value) <= 255) {
+                $clean['v:' . $value] = $value;
+            }
+            if (count($clean) >= 500) {
+                break;
+            }
+        }
+        if ($clean !== []) {
+            $result[$column] = array_values($clean);
+        }
+    }
+
+    return $result;
+}
+
+/**
+ * Pure. The header sort from the request: a known column and asc/desc, or none.
+ *
+ * @return array{0: string, 1: string}
+ */
+function parse_graduate_sort(?string $column, ?string $direction): array
+{
+    $column = (string) $column;
+    if (!isset(graduate_filter_columns()[$column])) {
+        return ['', 'asc'];
+    }
+
+    return [$column, $direction === 'desc' ? 'desc' : 'asc'];
+}
+
+/**
+ * Builds the WHERE conditions shared by the Look-Up search and the per-column value lists. $excludeColumn leaves
+ * that column's own filter out, which is how an Excel filter list works: it offers every value the OTHER filters
+ * still allow, not only the ones already ticked.
+ *
+ * @return array{0: list<string>, 1: array<string, mixed>}
+ */
+function build_graduate_search_conditions(array $filters, ?string $excludeColumn = null): array
 {
     $conditions = [];
     $params = [];
@@ -30,6 +115,9 @@ function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25
     // the main SELECT uses, so it has to be added to the count query too.
     if (($filters['status'] ?? '') === 'pending') {
         $conditions[] = 'a.id IS NOT NULL AND a.approved_at IS NULL';
+    } elseif (($filters['status'] ?? '') === 'approved') {
+        // Drill-down from the dashboard's APPROVED line: filed AND approved.
+        $conditions[] = 'a.id IS NOT NULL AND a.approved_at IS NOT NULL';
     }
 
     // Drill-down from admin/dashboard.php's "HGE APPLICATIONS RECEIVED" card:
@@ -45,10 +133,97 @@ function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25
         $params['applied_year'] = (int) $filters['applied_year'];
     }
 
+
+    $expressions = graduate_filter_columns();
+    foreach (($filters['columns'] ?? []) as $column => $values) {
+        if ($column === $excludeColumn || !isset($expressions[$column]) || !is_array($values) || $values === []) {
+            continue;
+        }
+
+        $parts = [];
+        $placeholders = [];
+        foreach ($values as $i => $value) {
+            if ($value === null) {
+                $parts[] = $expressions[$column] . ' IS NULL';
+            } else {
+                $key = 'cf_' . $column . '_' . $i;
+                $placeholders[] = ':' . $key;
+                $params[$key] = (string) $value;
+            }
+        }
+        if ($placeholders !== []) {
+            $parts[] = $expressions[$column] . ' IN (' . implode(', ', $placeholders) . ')';
+        }
+        $conditions[] = '(' . implode(' OR ', $parts) . ')';
+    }
+
+    return [$conditions, $params];
+}
+
+/**
+ * The distinct values of one Look-Up column (with how many records carry each) among the records the other
+ * filters allow, for the Excel-style filter box. $search narrows the list; at most $limit values come back
+ * (truncated = more exist). blank_count is how many records have no value (only counted without a search).
+ *
+ * @return array{values: list<array{value: string, count: int}>, blank_count: int, truncated: bool}
+ */
+function get_graduate_column_values(PDO $pdo, array $filters, string $column, string $search = '', int $limit = 200): array
+{
+    $expressions = graduate_filter_columns();
+    if (!isset($expressions[$column])) {
+        throw new InvalidArgumentException('Unknown column.');
+    }
+    $expr = $expressions[$column];
+
+    [$conditions, $params] = build_graduate_search_conditions($filters, $column);
+    $from = 'FROM latin_honor_graduates g
+             JOIN schools s ON s.id = g.school_id
+             LEFT JOIN graduate_applications a ON a.graduate_id = g.id';
+
+    $valueConditions = $conditions;
+    $valueConditions[] = $expr . ' IS NOT NULL';
+    $valueParams = $params;
+    $search = trim($search);
+    if ($search !== '') {
+        $valueConditions[] = $expr . ' LIKE :cf_search';
+        $valueParams['cf_search'] = '%' . addcslashes($search, '\\%_') . '%';
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT {$expr} AS v, COUNT(*) AS c {$from}
+         WHERE " . implode(' AND ', $valueConditions) . '
+         GROUP BY v ORDER BY v ASC LIMIT ' . ($limit + 1)
+    );
+    $stmt->execute($valueParams);
+    $rows = $stmt->fetchAll();
+
+    $truncated = count($rows) > $limit;
+    $values = [];
+    foreach (array_slice($rows, 0, $limit) as $row) {
+        $values[] = ['value' => (string) $row['v'], 'count' => (int) $row['c']];
+    }
+
+    $blankCount = 0;
+    if ($search === '') {
+        $blankConditions = $conditions;
+        $blankConditions[] = $expr . ' IS NULL';
+        $blankStmt = $pdo->prepare('SELECT COUNT(*) ' . $from . ' WHERE ' . implode(' AND ', $blankConditions));
+        $blankStmt->execute($params);
+        $blankCount = (int) $blankStmt->fetchColumn();
+    }
+
+    return ['values' => $values, 'blank_count' => $blankCount, 'truncated' => $truncated];
+}
+
+function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25): array
+{
+    [$conditions, $params] = build_graduate_search_conditions($filters);
+
     $whereSql = empty($conditions) ? '' : ('WHERE ' . implode(' AND ', $conditions));
 
     $countStmt = $pdo->prepare(
         "SELECT COUNT(*) FROM latin_honor_graduates g
+         JOIN schools s ON s.id = g.school_id
          LEFT JOIN graduate_applications a ON a.graduate_id = g.id
          {$whereSql}"
     );
@@ -56,6 +231,15 @@ function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25
     $totalRows = (int) $countStmt->fetchColumn();
 
     $pagination = paginate($totalRows, $page, $perPage);
+
+    // Optional header sort (Look-Up column menu); the name breaks ties so the order stays stable.
+    $expressions = graduate_filter_columns();
+    $sortColumn = (string) ($filters['sort'] ?? '');
+    $orderSql = 'g.graduate_name ASC';
+    if (isset($expressions[$sortColumn])) {
+        $direction = (($filters['sort_dir'] ?? 'asc') === 'desc') ? 'DESC' : 'ASC';
+        $orderSql = $expressions[$sortColumn] . ' ' . $direction . ($sortColumn === 'name' ? '' : ', g.graduate_name ASC') . ', g.id ASC';
+    }
 
     $sql = "SELECT g.id, g.graduate_name, g.course, g.latin_honor, g.graduation_date, g.graduation_year, g.source,
                    s.school_name, s.campus, u.id AS upload_id, u.original_filename, u.uploaded_at,
@@ -66,7 +250,7 @@ function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25
             JOIN latin_honor_uploads u ON u.id = g.upload_id
             LEFT JOIN graduate_applications a ON a.graduate_id = g.id
             {$whereSql}
-            ORDER BY g.graduate_name ASC
+            ORDER BY {$orderSql}
             LIMIT :limit OFFSET :offset";
 
     $stmt = $pdo->prepare($sql);
@@ -512,10 +696,16 @@ function build_search_log_details(array $filters): string
 
     if (($filters['status'] ?? '') === 'pending') {
         $parts[] = 'status=pending';
+    } elseif (($filters['status'] ?? '') === 'approved') {
+        $parts[] = 'status=approved';
     }
 
     if (!empty($filters['applied_year'])) {
         $parts[] = 'applied_year=' . (int) $filters['applied_year'];
+    }
+
+    if (!empty($filters['columns'])) {
+        $parts[] = 'column_filters=' . implode('/', array_keys($filters['columns']));
     }
 
     return implode(', ', $parts);

@@ -15,15 +15,18 @@ $years = get_distinct_graduation_years($pdo);
 $schoolId = (isset($_GET['school_id']) && (int) $_GET['school_id'] > 0) ? (int) $_GET['school_id'] : null;
 $year = (isset($_GET['year']) && (int) $_GET['year'] > 0) ? (int) $_GET['year'] : null;
 $name = trim((string) ($_GET['name'] ?? ''));
-$status = ($_GET['status'] ?? '') === 'pending' ? 'pending' : '';
+// 'approved' has no form control: it only arrives from the dashboard's APPROVED line (shown as the badge below).
+$status = in_array($_GET['status'] ?? '', ['pending', 'approved'], true) ? $_GET['status'] : '';
 // Drill-down target of admin/dashboard.php's "HGE APPLICATIONS RECEIVED" card
 // (?applied_year=<year>) — no form control for it, since it's a one-way link
 // from the dashboard rather than something searched for directly; shown as a
 // dismissible badge below instead. See includes/graduates.php:search_graduates().
 $appliedYear = (isset($_GET['applied_year']) && (int) $_GET['applied_year'] > 0) ? (int) $_GET['applied_year'] : null;
 $page = max(1, (int) ($_GET['page'] ?? 1));
+[$sortColumn, $sortDir] = parse_graduate_sort($_GET['sort'] ?? null, $_GET['dir'] ?? null);
 
-$filters = ['school_id' => $schoolId, 'graduation_year' => $year, 'name' => $name, 'status' => $status, 'applied_year' => $appliedYear];
+$filters = ['school_id' => $schoolId, 'graduation_year' => $year, 'name' => $name, 'status' => $status, 'applied_year' => $appliedYear,
+    'columns' => parse_graduate_column_filters($_GET['cf'] ?? null), 'sort' => $sortColumn, 'sort_dir' => $sortDir];
 // The year filter defaults to ALL YEARS, so a search with nothing filled in is a
 // valid search that lists everything: there is always a search to run.
 $hasFilters = true;
@@ -65,14 +68,16 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
-        <div id="lookup-applied-year-badge-slot" class="mb-4<?= $appliedYear === null ? ' hidden' : '' ?>">
+        <div id="lookup-applied-year-badge-slot" class="mb-4<?= ($appliedYear === null && $status !== 'approved') ? ' hidden' : '' ?>">
             <span id="lookup-applied-year-badge" class="inline-flex items-center gap-2 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-600/15 px-3 py-1.5 text-sm font-medium text-csc-navy-600 dark:text-csc-navy-300">
-                <span id="lookup-applied-year-badge-text">SHOWING APPLICATIONS FILED IN <?= (int) $appliedYear ?></span>
+                <span id="lookup-applied-year-badge-text"><?= $status === 'approved' ? 'SHOWING APPROVED APPLICATIONS' : 'SHOWING APPLICATIONS' ?><?= $appliedYear !== null ? ' FILED IN ' . (int) $appliedYear : '' ?></span>
                 <button type="button" id="lookup-applied-year-badge-clear" class="rounded-full p-0.5 hover:bg-csc-navy-600/20 dark:hover:bg-csc-navy-600/25" title="Clear this filter" aria-label="Clear this filter">
                     <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </span>
         </div>
+
+        <div id="lookup-column-chips" class="mb-4 flex flex-wrap items-center gap-2 hidden"></div>
 
         <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl p-4 sm:p-6 mb-6 hge-shadow lg:sticky lg:top-20 z-10 motion-safe:animate-fade-in-up">
             <form id="lookup-filter-form" method="get" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -157,14 +162,12 @@ include __DIR__ . '/../includes/sidebar.php';
                     <table class="w-full text-sm text-left">
                         <thead>
                             <tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">
-                                <th class="px-4 py-3">GRADUATE NAME</th>
-                                <th class="px-4 py-3">DEGREE/COURSE</th>
-                                <th class="px-4 py-3">SCHOOL</th>
-                                <th class="px-4 py-3">LATIN HONOR</th>
-                                <th class="px-4 py-3">DATE OF GRADUATION</th>
-                                <th class="px-4 py-3">HGE STATUS</th>
-                                <th class="px-4 py-3">DATE APPLIED</th>
-                                <th class="px-4 py-3">DATE APPROVED</th>
+                                <?php foreach ([
+                                    'name' => 'GRADUATE NAME', 'course' => 'DEGREE/COURSE', 'school' => 'SCHOOL', 'honor' => 'LATIN HONOR',
+                                    'graduated' => 'DATE OF GRADUATION', 'status' => 'HGE STATUS', 'applied' => 'DATE APPLIED', 'approved' => 'DATE APPROVED',
+                                ] as $colKey => $colLabel): ?>
+                                <th class="px-4 py-3"><div class="flex items-center gap-1.5"><span><?= e($colLabel) ?></span><button type="button" class="col-filter-btn rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-csc-navy-600 dark:hover:text-csc-navy-300" data-col="<?= e($colKey) ?>" data-label="<?= e($colLabel) ?>" aria-label="Filter <?= e($colLabel) ?>" title="Filter / sort"><svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h18l-7 8.25V19l-4 1.5v-7.75L3 4.5z" /></svg></button></div></th>
+                                <?php endforeach; ?>
                                 <th class="px-4 py-3 text-right">ACTION</th>
                             </tr>
                         </thead>

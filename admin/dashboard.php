@@ -287,18 +287,18 @@ include __DIR__ . '/../includes/sidebar.php';
                                         <span class="text-gray-700 dark:text-gray-300"><span id="filing-applied-count"><?= number_format($totalApplied) ?></span> (<span id="filing-applied-percent"><?= e((string) $filingRate) ?>%</span>)</span>
                                     </span>
                                 </div>
-                                <div class="flex items-start justify-between gap-3 pl-5 motion-safe:animate-fade-in-up" style="animation-delay: 430ms">
+                                <a href="<?= e(APP_BASE_URL) ?>/admin/lookup.php?status=pending&amp;applied_year=<?= (int) $dashboardDefaultYear ?>" id="filing-processing-link" class="flex items-start justify-between gap-3 -mx-2 px-2 pl-7 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors motion-safe:animate-fade-in-up" style="animation-delay: 430ms" title="View these applications in Honor Graduate Look-Up">
                                     <span class="flex items-center gap-2 text-gray-500 dark:text-gray-500"><span class="h-2 w-2 rounded-full bg-orange-500 shrink-0"></span>PROCESSING</span>
                                     <span id="filing-processing-details" data-tooltip="<?= e($splitNote($filedYearProcessing, $filedYearOtherProcessing, (int) $dashboardDefaultYear)) ?>" class="flex flex-col items-end text-right cursor-help">
                                         <span class="text-gray-700 dark:text-gray-300"><span id="filing-processing-count"><?= number_format($totalProcessing) ?></span> (<span id="filing-processing-percent"><?= e((string) $processingPercent) ?>%</span>)</span>
                                     </span>
-                                </div>
-                                <div class="flex items-start justify-between gap-3 pl-5 motion-safe:animate-fade-in-up" style="animation-delay: 520ms">
+                                </a>
+                                <a href="<?= e(APP_BASE_URL) ?>/admin/lookup.php?status=approved&amp;applied_year=<?= (int) $dashboardDefaultYear ?>" id="filing-approved-link" class="flex items-start justify-between gap-3 -mx-2 px-2 pl-7 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors motion-safe:animate-fade-in-up" style="animation-delay: 520ms" title="View these applications in Honor Graduate Look-Up">
                                     <span class="flex items-center gap-2 text-gray-500 dark:text-gray-500"><span class="h-2 w-2 rounded-full bg-emerald-500 shrink-0"></span>APPROVED</span>
                                     <span id="filing-approved-details" data-tooltip="<?= e($splitNote($filedYearApproved, $filedYearOtherApproved, (int) $dashboardDefaultYear)) ?>" class="flex flex-col items-end text-right cursor-help">
                                         <span class="text-gray-700 dark:text-gray-300"><span id="filing-approved-count"><?= number_format($totalApproved) ?></span> (<span id="filing-approved-percent"><?= e((string) $approvedPercent) ?>%</span>)</span>
                                     </span>
-                                </div>
+                                </a>
                                 <div class="flex items-center justify-between gap-3 motion-safe:animate-fade-in-up" style="animation-delay: 610ms">
                                     <span class="flex items-center gap-2 text-gray-600 dark:text-gray-400"><span class="h-2.5 w-2.5 rounded-full bg-sky-200 dark:bg-sky-500/30 shrink-0"></span>NOT YET APPLIED</span>
                                     <span class="text-gray-700 dark:text-gray-300 text-right"><span id="filing-notyetapplied-count"><?= number_format($notYetAppliedCount) ?></span> (<span id="filing-notyetapplied-percent"><?= e((string) $notYetAppliedPercent) ?>%</span>)</span>

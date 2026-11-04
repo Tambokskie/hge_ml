@@ -12,9 +12,10 @@ header('Content-Type: application/json');
 $schoolId = (isset($_GET['school_id']) && (int) $_GET['school_id'] > 0) ? (int) $_GET['school_id'] : null;
 $year = (isset($_GET['year']) && (int) $_GET['year'] > 0) ? (int) $_GET['year'] : null;
 $name = trim((string) ($_GET['name'] ?? ''));
-$status = ($_GET['status'] ?? '') === 'pending' ? 'pending' : '';
+$status = in_array($_GET['status'] ?? '', ['pending', 'approved'], true) ? $_GET['status'] : '';
 $appliedYear = (isset($_GET['applied_year']) && (int) $_GET['applied_year'] > 0) ? (int) $_GET['applied_year'] : null;
 $page = max(1, (int) ($_GET['page'] ?? 1));
+[$sortColumn, $sortDir] = parse_graduate_sort($_GET['sort'] ?? null, $_GET['dir'] ?? null);
 
 $filters = [
     'school_id' => $schoolId,
@@ -22,6 +23,9 @@ $filters = [
     'name' => $name,
     'status' => $status,
     'applied_year' => $appliedYear,
+    'columns' => parse_graduate_column_filters($_GET['cf'] ?? null),
+    'sort' => $sortColumn,
+    'sort_dir' => $sortDir,
 ];
 
 // Same as admin/lookup.php: ALL YEARS is the default year filter, so a search with
