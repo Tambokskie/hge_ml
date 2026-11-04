@@ -166,7 +166,7 @@ include __DIR__ . '/../includes/sidebar.php';
                                     'name' => 'GRADUATE NAME', 'course' => 'DEGREE/COURSE', 'school' => 'SCHOOL', 'honor' => 'LATIN HONOR',
                                     'graduated' => 'DATE OF GRADUATION', 'status' => 'HGE STATUS', 'applied' => 'DATE APPLIED', 'approved' => 'DATE APPROVED',
                                 ] as $colKey => $colLabel): ?>
-                                <th class="px-4 py-3"><div class="flex items-center gap-1.5"><span><?= e($colLabel) ?></span><button type="button" class="col-filter-btn rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-csc-navy-600 dark:hover:text-csc-navy-300" data-col="<?= e($colKey) ?>" data-label="<?= e($colLabel) ?>" aria-label="Filter <?= e($colLabel) ?>" title="Filter / sort"><svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h18l-7 8.25V19l-4 1.5v-7.75L3 4.5z" /></svg></button></div></th>
+                                <?= column_filter_header_cell($colKey, $colLabel) ?>
                                 <?php endforeach; ?>
                                 <th class="px-4 py-3 text-right">ACTION</th>
                             </tr>
@@ -304,4 +304,5 @@ window.HGE_LOOKUP = {
     isAdmin: <?= json_encode($isAdmin) ?>
 };
 </script>
+<script src="<?= e(asset_url('assets/js/column_filters.js')) ?>"></script>
 <script src="<?= e(asset_url('assets/js/lookup.js')) ?>"></script>

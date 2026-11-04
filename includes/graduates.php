@@ -30,41 +30,14 @@ function graduate_filter_columns(): array
  *
  * @return array<string, list<?string>>
  */
+/**
+ * Pure. Reads the column filters from their JSON form (?cf=...): only known Look-Up columns, see parse_column_filters().
+ *
+ * @return array<string, list<?string>>
+ */
 function parse_graduate_column_filters(?string $json): array
 {
-    if ($json === null || trim($json) === '') {
-        return [];
-    }
-
-    $decoded = json_decode($json, true);
-    if (!is_array($decoded)) {
-        return [];
-    }
-
-    $known = graduate_filter_columns();
-    $result = [];
-    foreach ($decoded as $column => $values) {
-        if (!is_string($column) || !isset($known[$column]) || !is_array($values)) {
-            continue;
-        }
-
-        $clean = [];
-        foreach ($values as $value) {
-            if ($value === null) {
-                $clean['blank'] = null;
-            } elseif (is_string($value) && mb_strlen($value) <= 255) {
-                $clean['v:' . $value] = $value;
-            }
-            if (count($clean) >= 500) {
-                break;
-            }
-        }
-        if ($clean !== []) {
-            $result[$column] = array_values($clean);
-        }
-    }
-
-    return $result;
+    return parse_column_filters($json, array_keys(graduate_filter_columns()));
 }
 
 /**
@@ -72,14 +45,14 @@ function parse_graduate_column_filters(?string $json): array
  *
  * @return array{0: string, 1: string}
  */
+/**
+ * Pure. The header sort from the request: a known Look-Up column and asc/desc, or none.
+ *
+ * @return array{0: string, 1: string}
+ */
 function parse_graduate_sort(?string $column, ?string $direction): array
 {
-    $column = (string) $column;
-    if (!isset(graduate_filter_columns()[$column])) {
-        return ['', 'asc'];
-    }
-
-    return [$column, $direction === 'desc' ? 'desc' : 'asc'];
+    return parse_column_sort($column, $direction, array_keys(graduate_filter_columns()));
 }
 
 /**
@@ -134,30 +107,9 @@ function build_graduate_search_conditions(array $filters, ?string $excludeColumn
     }
 
 
-    $expressions = graduate_filter_columns();
-    foreach (($filters['columns'] ?? []) as $column => $values) {
-        if ($column === $excludeColumn || !isset($expressions[$column]) || !is_array($values) || $values === []) {
-            continue;
-        }
+    [$columnConditions, $columnParams] = build_column_filter_conditions($filters['columns'] ?? [], graduate_filter_columns(), $excludeColumn);
 
-        $parts = [];
-        $placeholders = [];
-        foreach ($values as $i => $value) {
-            if ($value === null) {
-                $parts[] = $expressions[$column] . ' IS NULL';
-            } else {
-                $key = 'cf_' . $column . '_' . $i;
-                $placeholders[] = ':' . $key;
-                $params[$key] = (string) $value;
-            }
-        }
-        if ($placeholders !== []) {
-            $parts[] = $expressions[$column] . ' IN (' . implode(', ', $placeholders) . ')';
-        }
-        $conditions[] = '(' . implode(' OR ', $parts) . ')';
-    }
-
-    return [$conditions, $params];
+    return [array_merge($conditions, $columnConditions), array_merge($params, $columnParams)];
 }
 
 /**
@@ -167,52 +119,28 @@ function build_graduate_search_conditions(array $filters, ?string $excludeColumn
  *
  * @return array{values: list<array{value: string, count: int}>, blank_count: int, truncated: bool}
  */
+/**
+ * The distinct values of one Look-Up column (with how many records carry each) among the records the other
+ * filters allow, for the Excel-style filter box; see get_column_value_list().
+ *
+ * @return array{values: list<array{value: string, count: int}>, blank_count: int, truncated: bool}
+ */
 function get_graduate_column_values(PDO $pdo, array $filters, string $column, string $search = '', int $limit = 200): array
 {
-    $expressions = graduate_filter_columns();
-    if (!isset($expressions[$column])) {
-        throw new InvalidArgumentException('Unknown column.');
-    }
-    $expr = $expressions[$column];
-
     [$conditions, $params] = build_graduate_search_conditions($filters, $column);
-    $from = 'FROM latin_honor_graduates g
-             JOIN schools s ON s.id = g.school_id
-             LEFT JOIN graduate_applications a ON a.graduate_id = g.id';
 
-    $valueConditions = $conditions;
-    $valueConditions[] = $expr . ' IS NOT NULL';
-    $valueParams = $params;
-    $search = trim($search);
-    if ($search !== '') {
-        $valueConditions[] = $expr . ' LIKE :cf_search';
-        $valueParams['cf_search'] = '%' . addcslashes($search, '\\%_') . '%';
-    }
-
-    $stmt = $pdo->prepare(
-        "SELECT {$expr} AS v, COUNT(*) AS c {$from}
-         WHERE " . implode(' AND ', $valueConditions) . '
-         GROUP BY v ORDER BY v ASC LIMIT ' . ($limit + 1)
+    return get_column_value_list(
+        $pdo,
+        'FROM latin_honor_graduates g
+         JOIN schools s ON s.id = g.school_id
+         LEFT JOIN graduate_applications a ON a.graduate_id = g.id',
+        graduate_filter_columns(),
+        $column,
+        $conditions,
+        $params,
+        $search,
+        $limit
     );
-    $stmt->execute($valueParams);
-    $rows = $stmt->fetchAll();
-
-    $truncated = count($rows) > $limit;
-    $values = [];
-    foreach (array_slice($rows, 0, $limit) as $row) {
-        $values[] = ['value' => (string) $row['v'], 'count' => (int) $row['c']];
-    }
-
-    $blankCount = 0;
-    if ($search === '') {
-        $blankConditions = $conditions;
-        $blankConditions[] = $expr . ' IS NULL';
-        $blankStmt = $pdo->prepare('SELECT COUNT(*) ' . $from . ' WHERE ' . implode(' AND ', $blankConditions));
-        $blankStmt->execute($params);
-        $blankCount = (int) $blankStmt->fetchColumn();
-    }
-
-    return ['values' => $values, 'blank_count' => $blankCount, 'truncated' => $truncated];
 }
 
 function search_graduates(PDO $pdo, array $filters, int $page, int $perPage = 25): array

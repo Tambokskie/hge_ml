@@ -472,3 +472,165 @@ function log_activity(PDO $pdo, ?int $userId, string $action, ?string $details =
 
     $pdo->exec('DELETE FROM activity_log WHERE created_at < (NOW() - INTERVAL 6 MONTH)');
 }
+
+/**
+ * Pure. Reads Excel-style column filters from their JSON form (?cf={"school":["X","Y"],"date":[null,"2025-07-05"]}):
+ * only the known columns, each a list of strings (null = BLANKS), capped so a hand-built URL cannot ask for
+ * thousands of bound values. Anything malformed gives an empty result (no column filters).
+ *
+ * @param list<string> $knownColumns
+ * @return array<string, list<?string>>
+ */
+function parse_column_filters(?string $json, array $knownColumns): array
+{
+    if ($json === null || trim($json) === '') {
+        return [];
+    }
+
+    $decoded = json_decode($json, true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+
+    $result = [];
+    foreach ($decoded as $column => $values) {
+        if (!is_string($column) || !in_array($column, $knownColumns, true) || !is_array($values)) {
+            continue;
+        }
+
+        $clean = [];
+        foreach ($values as $value) {
+            if ($value === null) {
+                $clean['blank'] = null;
+            } elseif (is_string($value) && mb_strlen($value) <= 255) {
+                $clean['v:' . $value] = $value;
+            }
+            if (count($clean) >= 500) {
+                break;
+            }
+        }
+        if ($clean !== []) {
+            $result[$column] = array_values($clean);
+        }
+    }
+
+    return $result;
+}
+
+/**
+ * Pure. The header sort from the request: a known column and asc/desc, or none.
+ *
+ * @param list<string> $knownColumns
+ * @return array{0: string, 1: string}
+ */
+function parse_column_sort(?string $column, ?string $direction, array $knownColumns): array
+{
+    $column = (string) $column;
+    if (!in_array($column, $knownColumns, true)) {
+        return ['', 'asc'];
+    }
+
+    return [$column, $direction === 'desc' ? 'desc' : 'asc'];
+}
+
+/**
+ * WHERE conditions for the chosen column values. $expressions maps a column key to the SQL expression that yields
+ * the value shown in that column (NULL = BLANKS). $excludeColumn leaves that column's own filter out, which is how
+ * an Excel filter list works: it offers every value the OTHER filters still allow.
+ *
+ * @param array<string, list<?string>> $columns
+ * @param array<string, string> $expressions
+ * @return array{0: list<string>, 1: array<string, string>}
+ */
+function build_column_filter_conditions(array $columns, array $expressions, ?string $excludeColumn = null): array
+{
+    $conditions = [];
+    $params = [];
+
+    foreach ($columns as $column => $values) {
+        if ($column === $excludeColumn || !isset($expressions[$column]) || !is_array($values) || $values === []) {
+            continue;
+        }
+
+        $parts = [];
+        $placeholders = [];
+        foreach ($values as $i => $value) {
+            if ($value === null) {
+                $parts[] = $expressions[$column] . ' IS NULL';
+            } else {
+                $key = 'cf_' . $column . '_' . $i;
+                $placeholders[] = ':' . $key;
+                $params[$key] = (string) $value;
+            }
+        }
+        if ($placeholders !== []) {
+            $parts[] = $expressions[$column] . ' IN (' . implode(', ', $placeholders) . ')';
+        }
+        $conditions[] = '(' . implode(' OR ', $parts) . ')';
+    }
+
+    return [$conditions, $params];
+}
+
+/**
+ * The distinct values of one column (with how many rows carry each) among the rows the other conditions allow,
+ * for the Excel-style filter box. $fromSql is the FROM/JOIN part of the listing query. $search narrows the list;
+ * at most $limit values come back (truncated = more exist). blank_count is how many rows have no value (only
+ * counted without a search).
+ *
+ * @param array<string, string> $expressions
+ * @param list<string> $conditions
+ * @param array<string, mixed> $params
+ * @return array{values: list<array{value: string, count: int}>, blank_count: int, truncated: bool}
+ */
+function get_column_value_list(PDO $pdo, string $fromSql, array $expressions, string $column, array $conditions, array $params, string $search = '', int $limit = 200): array
+{
+    if (!isset($expressions[$column])) {
+        throw new InvalidArgumentException('Unknown column.');
+    }
+    $expr = $expressions[$column];
+
+    $valueConditions = $conditions;
+    $valueConditions[] = $expr . ' IS NOT NULL';
+    $valueParams = $params;
+    $search = trim($search);
+    if ($search !== '') {
+        $valueConditions[] = $expr . ' LIKE :cf_search';
+        $valueParams['cf_search'] = '%' . addcslashes($search, '\\%_') . '%';
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT {$expr} AS v, COUNT(*) AS c {$fromSql}
+         WHERE " . implode(' AND ', $valueConditions) . '
+         GROUP BY v ORDER BY v ASC LIMIT ' . ($limit + 1)
+    );
+    $stmt->execute($valueParams);
+    $rows = $stmt->fetchAll();
+
+    $truncated = count($rows) > $limit;
+    $values = [];
+    foreach (array_slice($rows, 0, $limit) as $row) {
+        $values[] = ['value' => (string) $row['v'], 'count' => (int) $row['c']];
+    }
+
+    $blankCount = 0;
+    if ($search === '') {
+        $blankConditions = $conditions;
+        $blankConditions[] = $expr . ' IS NULL';
+        $blankStmt = $pdo->prepare('SELECT COUNT(*) ' . $fromSql . ' WHERE ' . implode(' AND ', $blankConditions));
+        $blankStmt->execute($params);
+        $blankCount = (int) $blankStmt->fetchColumn();
+    }
+
+    return ['values' => $values, 'blank_count' => $blankCount, 'truncated' => $truncated];
+}
+
+/**
+ * A table header cell with its Excel-style filter button (assets/js/column_filters.js attaches to .col-filter-btn).
+ */
+function column_filter_header_cell(string $key, string $label): string
+{
+    return '<th class="px-4 py-3"><div class="flex items-center gap-1.5"><span>' . e($label) . '</span>'
+        . '<button type="button" class="col-filter-btn rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-csc-navy-600 dark:hover:text-csc-navy-300" data-col="' . e($key) . '" data-label="' . e($label) . '" aria-label="Filter ' . e($label) . '" title="Filter / sort">'
+        . '<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h18l-7 8.25V19l-4 1.5v-7.75L3 4.5z" /></svg></button></div></th>';
+}

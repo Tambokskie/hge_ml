@@ -198,6 +198,8 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
 
+        <div id="review-column-chips" class="mb-4 flex flex-wrap items-center gap-2 hidden"></div>
+
         <div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto overflow-y-hidden hge-shadow">
             <table class="w-full text-sm text-left">
                 <thead>
@@ -206,13 +208,12 @@ include __DIR__ . '/../includes/sidebar.php';
                             <input type="checkbox" id="review-select-all" aria-label="Select all records"
                                 class="h-4 w-4 rounded border-gray-300 dark:border-white/20 text-csc-navy-600 focus:ring-csc-navy-500/40">
                         </th>
-                        <th class="px-4 py-3">NO.</th>
-                        <th class="px-4 py-3">GRADUATE NAME</th>
-                        <th class="px-4 py-3">DEGREE/COURSE</th>
-                        <th class="px-4 py-3">LATIN HONOR</th>
-                        <th class="px-4 py-3">DATE OF GRADUATION</th>
-                        <th class="px-4 py-3">YEAR</th>
-                        <th class="px-4 py-3">STATUS</th>
+                        <?php foreach ([
+                            'no' => 'NO.', 'name' => 'GRADUATE NAME', 'course' => 'DEGREE/COURSE', 'honor' => 'LATIN HONOR',
+                            'graduated' => 'DATE OF GRADUATION', 'year' => 'YEAR', 'status' => 'STATUS',
+                        ] as $colKey => $colLabel): ?>
+                        <?= column_filter_header_cell($colKey, $colLabel) ?>
+                        <?php endforeach; ?>
                         <th class="px-4 py-3 text-right">ACTION</th>
                     </tr>
                 </thead>
@@ -224,7 +225,15 @@ include __DIR__ . '/../includes/sidebar.php';
                             <?php $status = staged_row_status($row); $dup = $duplicateMatches[$index] ?? null; $isLocked = staged_row_is_locked($row); ?>
                             <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 motion-safe:animate-fade-in-up<?= $dup !== null ? ' bg-orange-500/5' : '' ?>" style="animation-delay: <?= (int) ($index * 50) ?>ms"
                                 data-filter-name="<?= e(mb_strtoupper($row['graduate_name'])) ?>"
-                                data-filter-course="<?= e($row['course'] ?? '') ?>">
+                                data-filter-course="<?= e($row['course'] ?? '') ?>"
+                                data-order="<?= (int) $index ?>"
+                                data-cf-no="<?= (int) ($index + 1) ?>"
+                                data-cf-name="<?= e(mb_strtoupper($row['graduate_name'])) ?>"
+                                data-cf-course="<?= e(mb_strtoupper(trim((string) ($row['course'] ?? '')))) ?>"
+                                data-cf-honor="<?= e((string) $row['latin_honor']) ?>"
+                                data-cf-graduated="<?= e(substr((string) ($row['graduation_date'] ?? ''), 0, 10)) ?>"
+                                data-cf-year="<?= e((string) $row['graduation_year']) ?>"
+                                data-cf-status="<?= e(($isLocked ? 'APPLIED' : $status) . ($dup !== null ? ' — DUPLICATE' : '')) ?>">
                                 <td class="px-4 py-3">
                                     <input type="checkbox" class="review-row-checkbox h-4 w-4 rounded border-gray-300 dark:border-white/20 text-csc-navy-600 focus:ring-csc-navy-500/40"
                                         data-row-index="<?= $index ?>" data-duplicate="<?= $dup !== null ? '1' : '0' ?>" aria-label="Select record"<?= $isLocked ? ' disabled title="HAS A FILED APPLICATION — KEPT AS SAVED"' : '' ?>>
@@ -292,7 +301,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </table>
         </div>
 
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-4">TOTAL RECORDS: <?= count($rows) ?></p>
+        <p id="review-total-line" class="text-sm text-gray-500 dark:text-gray-400 mt-4" data-total="<?= count($rows) ?>">TOTAL RECORDS: <?= count($rows) ?></p>
     </div>
     <?php include __DIR__ . '/../includes/pdf_drawer.php'; ?>
 </main>
@@ -311,4 +320,5 @@ window.HGE_REVIEW = {
     }
 };
 </script>
+<script src="<?= e(asset_url('assets/js/column_filters.js')) ?>"></script>
 <script src="<?= e(asset_url('assets/js/review.js')) ?>"></script>

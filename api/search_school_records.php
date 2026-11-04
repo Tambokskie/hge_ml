@@ -12,10 +12,14 @@ header('Content-Type: application/json');
 $schoolId = (isset($_GET['school_id']) && (int) $_GET['school_id'] > 0) ? (int) $_GET['school_id'] : null;
 $schoolYear = trim((string) ($_GET['school_year'] ?? ''));
 $page = max(1, (int) ($_GET['page'] ?? 1));
+[$sortColumn, $sortDir] = parse_upload_sort($_GET['sort'] ?? null, $_GET['dir'] ?? null);
 
 $filters = [
     'school_id' => $schoolId,
     'school_year' => $schoolYear !== '' ? $schoolYear : null,
+    'columns' => parse_upload_column_filters($_GET['cf'] ?? null),
+    'sort' => $sortColumn,
+    'sort_dir' => $sortDir,
 ];
 
 try {

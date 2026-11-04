@@ -15,8 +15,15 @@ $schoolYears = get_distinct_upload_school_years($pdo);
 $schoolId = (isset($_GET['school_id']) && (int) $_GET['school_id'] > 0) ? (int) $_GET['school_id'] : null;
 $schoolYear = trim((string) ($_GET['school_year'] ?? ''));
 $page = max(1, (int) ($_GET['page'] ?? 1));
+[$sortColumn, $sortDir] = parse_upload_sort($_GET['sort'] ?? null, $_GET['dir'] ?? null);
 
-$filters = ['school_id' => $schoolId, 'school_year' => $schoolYear !== '' ? $schoolYear : null];
+$filters = [
+    'school_id' => $schoolId,
+    'school_year' => $schoolYear !== '' ? $schoolYear : null,
+    'columns' => parse_upload_column_filters($_GET['cf'] ?? null),
+    'sort' => $sortColumn,
+    'sort_dir' => $sortDir,
+];
 
 $searchResult = null;
 $searchFailed = false;
@@ -130,6 +137,8 @@ include __DIR__ . '/../includes/sidebar.php';
             </form>
         </div>
 
+        <div id="school-records-column-chips" class="mb-4 flex flex-wrap items-center gap-2 hidden"></div>
+
         <div id="school-records-results">
             <?php if ($searchFailed): ?>
                 <div class="rounded-xl border border-red-500/30 bg-red-500/10 p-10 text-center text-red-400 hge-shadow">
@@ -144,12 +153,12 @@ include __DIR__ . '/../includes/sidebar.php';
                     <table class="w-full text-sm text-left">
                         <thead>
                             <tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">
-                                <th class="px-4 py-3">SCHOOL</th>
-                                <th class="px-4 py-3">YEAR</th>
-                                <th class="px-4 py-3">RECORDS EXTRACTED</th>
-                                <th class="px-4 py-3">DATE UPLOADED</th>
-                                <th class="px-4 py-3">STATUS</th>
-                                <th class="px-4 py-3">FILE NAME</th>
+                                <?php foreach ([
+                                    'school' => 'SCHOOL', 'year' => 'YEAR', 'records' => 'RECORDS EXTRACTED',
+                                    'uploaded' => 'DATE UPLOADED', 'status' => 'STATUS', 'file' => 'FILE NAME',
+                                ] as $colKey => $colLabel): ?>
+                                <?= column_filter_header_cell($colKey, $colLabel) ?>
+                                <?php endforeach; ?>
                                 <th class="px-4 py-3 text-right">ACTION</th>
                             </tr>
                         </thead>
@@ -249,4 +258,5 @@ window.HGE_SCHOOL_RECORDS = {
     viewUploadUrl: <?= json_encode(APP_BASE_URL . '/admin/view_upload.php') ?>
 };
 </script>
+<script src="<?= e(asset_url('assets/js/column_filters.js')) ?>"></script>
 <script src="<?= e(asset_url('assets/js/school_records.js')) ?>"></script>

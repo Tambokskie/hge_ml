@@ -42,118 +42,47 @@ document.addEventListener('DOMContentLoaded', function () {
     // no form control, shown in the same badge and cleared with it.
     var approvedOnly = new URLSearchParams(window.location.search).get('status') === 'approved';
 
-    // ---- Excel-style column filters / sort on the table headers (see includes/graduates.php:graduate_filter_columns()).
-    // columnFilters = { columnKey: [value | null, ...] } where null stands for BLANKS; kept in the URL as ?cf=<json>.
-    var COLUMNS = [
-        { key: 'name', label: 'GRADUATE NAME', type: 'text' },
-        { key: 'course', label: 'DEGREE/COURSE', type: 'text' },
-        { key: 'school', label: 'SCHOOL', type: 'text' },
-        { key: 'honor', label: 'LATIN HONOR', type: 'text' },
-        { key: 'graduated', label: 'DATE OF GRADUATION', type: 'date' },
-        { key: 'status', label: 'HGE STATUS', type: 'text' },
-        { key: 'applied', label: 'DATE APPLIED', type: 'date' },
-        { key: 'approved', label: 'DATE APPROVED', type: 'date' },
-    ];
-    var FUNNEL_ICON = '<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h18l-7 8.25V19l-4 1.5v-7.75L3 4.5z" /></svg>';
-    var ACTIVE_BTN_CLASSES = ['text-csc-navy-600', 'bg-csc-navy-600/15', 'dark:text-csc-navy-300'];
-
-    function columnByKey(key) {
-        for (var i = 0; i < COLUMNS.length; i++) {
-            if (COLUMNS[i].key === key) {
-                return COLUMNS[i];
-            }
-        }
-        return null;
-    }
-
-    function parseColumnFiltersParam(raw) {
-        var result = {};
-        try {
-            var decoded = JSON.parse(raw || '{}');
-            Object.keys(decoded || {}).forEach(function (key) {
-                if (columnByKey(key) && Array.isArray(decoded[key]) && decoded[key].length > 0) {
-                    result[key] = decoded[key].filter(function (v) {
-                        return v === null || typeof v === 'string';
-                    });
-                }
-            });
-        } catch (e) {
-            result = {};
-        }
-        return result;
-    }
-
+    // ---- Excel-style column filters / sort on the table headers (assets/js/column_filters.js; the columns are
+    // those of includes/graduates.php:graduate_filter_columns()). The state lives in the URL as ?cf=<json>&sort=&dir=.
+    var columnFilters = HgeColumnFilters.create({
+        columns: [
+            { key: 'name', label: 'GRADUATE NAME', type: 'text' },
+            { key: 'course', label: 'DEGREE/COURSE', type: 'text' },
+            { key: 'school', label: 'SCHOOL', type: 'text' },
+            { key: 'honor', label: 'LATIN HONOR', type: 'text' },
+            { key: 'graduated', label: 'DATE OF GRADUATION', type: 'date' },
+            { key: 'status', label: 'HGE STATUS', type: 'text' },
+            { key: 'applied', label: 'DATE APPLIED', type: 'date' },
+            { key: 'approved', label: 'DATE APPROVED', type: 'date' },
+        ],
+        chipsEl: document.getElementById('lookup-column-chips'),
+        fetchValues: function (col, query) {
+            var params = currentParams(1);
+            delete params.page;
+            delete params.sort;
+            delete params.dir;
+            params.column = col.key;
+            params.q = query;
+            return fetch(config.apiBase + '/api/lookup_column_values.php?' + buildQueryString(params))
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (data.status !== 'success') {
+                        throw new Error(data.message);
+                    }
+                    return data;
+                });
+        },
+        onChange: function () {
+            performSearch(currentParams(1), true);
+        },
+    });
     var initialUrlParams = new URLSearchParams(window.location.search);
-    var columnFilters = parseColumnFiltersParam(initialUrlParams.get('cf'));
-    var sortCol = columnByKey(initialUrlParams.get('sort')) ? initialUrlParams.get('sort') : '';
-    var sortDir = initialUrlParams.get('dir') === 'desc' ? 'desc' : 'asc';
+    columnFilters.setState(initialUrlParams.get('cf'), initialUrlParams.get('sort'), initialUrlParams.get('dir'));
 
     function columnHeaderHtml() {
-        return COLUMNS.map(function (col) {
-            return '<th class="px-4 py-3"><div class="flex items-center gap-1.5"><span>' + col.label + '</span>' +
-                '<button type="button" class="col-filter-btn rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-csc-navy-600 dark:hover:text-csc-navy-300" data-col="' + col.key + '" data-label="' + col.label + '" aria-label="Filter ' + col.label + '" title="Filter / sort">' + FUNNEL_ICON + '</button></div></th>';
-        }).join('') + '<th class="px-4 py-3 text-right">ACTION</th>';
-    }
-
-    function columnValueLabel(col, value) {
-        if (value === null) {
-            return '(BLANKS)';
-        }
-        return col.type === 'date' ? formatDisplayDate(value) : String(value).toUpperCase();
-    }
-
-    // Marks the header buttons of filtered / sorted columns and shows one removable chip per active filter
-    // (also the way back out when a filter leaves no rows, because then there is no table header to click).
-    function refreshColumnIndicators() {
-        document.querySelectorAll('.col-filter-btn').forEach(function (btn) {
-            var active = !!columnFilters[btn.dataset.col] || sortCol === btn.dataset.col;
-            ACTIVE_BTN_CLASSES.forEach(function (c) {
-                btn.classList.toggle(c, active);
-            });
-            btn.classList.toggle('text-gray-400', !active);
-        });
-
-        var chips = document.getElementById('lookup-column-chips');
-        if (!chips) {
-            return;
-        }
-        var html = '';
-        Object.keys(columnFilters).forEach(function (key) {
-            var col = columnByKey(key);
-            var values = columnFilters[key];
-            var summary = values.length === 1 ? columnValueLabel(col, values[0]) : values.length + ' SELECTED';
-            html += '<span class="inline-flex items-center gap-2 rounded-full bg-csc-navy-600/10 dark:bg-csc-navy-600/15 px-3 py-1.5 text-sm font-medium text-csc-navy-600 dark:text-csc-navy-300">' +
-                '<span>' + escapeHtml(col.label) + ': ' + escapeHtml(summary) + '</span>' +
-                '<button type="button" class="column-chip-clear rounded-full p-0.5 hover:bg-csc-navy-600/20 dark:hover:bg-csc-navy-600/25" data-clear="' + key + '" title="Clear this filter" aria-label="Clear this filter">' +
-                '<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></span>';
-        });
-        if (sortCol) {
-            var sortColumn = columnByKey(sortCol);
-            var ascText = sortColumn.type === 'date' ? 'OLDEST FIRST' : 'A TO Z';
-            var descText = sortColumn.type === 'date' ? 'NEWEST FIRST' : 'Z TO A';
-            html += '<span class="inline-flex items-center gap-2 rounded-full bg-gray-100 dark:bg-white/5 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300">' +
-                '<span>SORTED BY ' + escapeHtml(sortColumn.label) + ' (' + (sortDir === 'desc' ? descText : ascText) + ')</span>' +
-                '<button type="button" class="column-chip-clear rounded-full p-0.5 hover:bg-gray-200 dark:hover:bg-white/10" data-clear="__sort" title="Clear the sort" aria-label="Clear the sort">' +
-                '<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></span>';
-        }
-        chips.innerHTML = html;
-        chips.classList.toggle('hidden', html === '');
-    }
-
-    function updateAppliedYearBadge(year, approved) {
-        appliedYear = year || '';
-        approvedOnly = !!approved;
-        var slot = document.getElementById('lookup-applied-year-badge-slot');
-        var text = document.getElementById('lookup-applied-year-badge-text');
-        if (!slot || !text) {
-            return;
-        }
-        if (!appliedYear && !approvedOnly) {
-            slot.classList.add('hidden');
-            return;
-        }
-        text.textContent = (approvedOnly ? 'SHOWING APPROVED APPLICATIONS' : 'SHOWING APPLICATIONS') + (appliedYear ? ' FILED IN ' + appliedYear : '');
-        slot.classList.remove('hidden');
+        return columnFilters.headerCellsHtml() + '<th class="px-4 py-3 text-right">ACTION</th>';
     }
 
     function currentParams(page) {
@@ -164,9 +93,9 @@ document.addEventListener('DOMContentLoaded', function () {
             name: document.getElementById('filter-name').value,
             status: (needsActionBtn && needsActionBtn.getAttribute('aria-pressed') === 'true') ? 'pending' : (approvedOnly ? 'approved' : ''),
             applied_year: appliedYear,
-            cf: Object.keys(columnFilters).length > 0 ? JSON.stringify(columnFilters) : '',
-            sort: sortCol,
-            dir: sortCol ? sortDir : '',
+            cf: columnFilters.params().cf,
+            sort: columnFilters.params().sort,
+            dir: columnFilters.params().dir,
             page: page || 1,
         };
     }
@@ -387,7 +316,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(function (data) {
                 if (data.status === 'success') {
                     renderResults(data);
-                    refreshColumnIndicators();
+                    columnFilters.refresh();
                 } else {
                     showToast('error', data.message);
                 }
@@ -941,10 +870,7 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('filter-name').value = '';
             setNeedsActionPressed(false);
             updateAppliedYearBadge('', false);
-            columnFilters = {};
-            sortCol = '';
-            sortDir = 'asc';
-            refreshColumnIndicators();
+            columnFilters.clear();
             performSearch(currentParams(1), true);
         });
     }
@@ -1053,290 +979,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
 
-    // ---- The Excel-style filter box opened from a column header button.
-    var filterPanel = null;
-    var panelState = null;
-    var panelRequestToken = 0;
-    var panelSearchTimer = null;
-
-    function closeFilterPanel() {
-        if (panelSearchTimer) {
-            clearTimeout(panelSearchTimer);
-            panelSearchTimer = null;
-        }
-        if (filterPanel) {
-            filterPanel.remove();
-        }
-        filterPanel = null;
-        panelState = null;
-    }
-
-    function panelDisplayedKeys() {
-        var keys = panelState.values.map(function (v) {
-            return v.value;
-        });
-        if (panelState.blank > 0 && panelState.q === '') {
-            keys.push(null);
-        }
-        return keys;
-    }
-
-    function panelIsChecked(key) {
-        return panelState.allSelected || panelState.selected.has(key);
-    }
-
-    function renderPanelList() {
-        var list = filterPanel.querySelector('.col-panel-list');
-        var col = panelState.col;
-        var keys = panelDisplayedKeys();
-        var checkedCount = keys.filter(panelIsChecked).length;
-
-        var rows = '<label class="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-white/5">' +
-            '<input type="checkbox" class="col-panel-all rounded border-gray-300" ' + (keys.length > 0 && checkedCount === keys.length ? 'checked' : '') + '>' +
-            '<span class="font-medium">(SELECT ALL' + (panelState.q !== '' ? ' SEARCH RESULTS' : '') + ')</span></label>';
-
-        panelState.values.forEach(function (item, i) {
-            rows += '<label class="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-white/5">' +
-                '<input type="checkbox" class="col-panel-item rounded border-gray-300" data-index="' + i + '" ' + (panelIsChecked(item.value) ? 'checked' : '') + '>' +
-                '<span class="flex-1 truncate" title="' + escapeHtml(columnValueLabel(col, item.value)) + '">' + escapeHtml(columnValueLabel(col, item.value)) + '</span>' +
-                '<span class="text-xs text-gray-400">' + item.count + '</span></label>';
-        });
-        if (panelState.blank > 0 && panelState.q === '') {
-            rows += '<label class="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-white/5">' +
-                '<input type="checkbox" class="col-panel-item rounded border-gray-300" data-index="blank" ' + (panelIsChecked(null) ? 'checked' : '') + '>' +
-                '<span class="flex-1">(BLANKS)</span><span class="text-xs text-gray-400">' + panelState.blank + '</span></label>';
-        }
-        if (keys.length === 0) {
-            rows += '<p class="px-3 py-3 text-xs text-gray-500 dark:text-gray-400">' + (panelState.loading ? 'LOADING...' : 'NO MATCHING VALUES.') + '</p>';
-        }
-        list.innerHTML = rows;
-
-        var allBox = list.querySelector('.col-panel-all');
-        if (allBox) {
-            allBox.indeterminate = checkedCount > 0 && checkedCount < keys.length;
-        }
-
-        filterPanel.querySelector('.col-panel-note').classList.toggle('hidden', !(panelState.truncated && panelState.q === ''));
-        var anySelected = panelState.allSelected || panelState.selected.size > 0;
-        filterPanel.querySelector('[data-act="ok"]').disabled = !anySelected;
-    }
-
-    function loadPanelValues() {
-        var token = ++panelRequestToken;
-        var params = currentParams(1);
-        delete params.page;
-        delete params.sort;
-        delete params.dir;
-        params.column = panelState.col.key;
-        params.q = panelState.q;
-        panelState.loading = true;
-
-        fetch(config.apiBase + '/api/lookup_column_values.php?' + buildQueryString(params))
-            .then(function (response) {
-                return response.json();
-            })
-            .then(function (data) {
-                if (token !== panelRequestToken || !filterPanel) {
-                    return;
-                }
-                panelState.loading = false;
-                if (data.status !== 'success') {
-                    showToast('error', data.message);
-                    return;
-                }
-                panelState.values = data.values;
-                panelState.blank = data.blank_count;
-                panelState.truncated = data.truncated;
-                renderPanelList();
-            })
-            .catch(function () {
-                if (token === panelRequestToken && filterPanel) {
-                    panelState.loading = false;
-                    showToast('error', 'THE VALUES COULD NOT BE LOADED. PLEASE TRY AGAIN.');
-                }
-            });
-    }
-
-    // Turns "everything ticked" into an explicit set of the listed values, so one of them can then be unticked.
-    function materializePanelSelection() {
-        if (!panelState.allSelected) {
-            return;
-        }
-        panelState.allSelected = false;
-        panelState.selected = new Set(panelDisplayedKeys());
-    }
-
-    function applyColumnChange() {
-        closeFilterPanel();
-        refreshColumnIndicators();
-        performSearch(currentParams(1), true);
-    }
-
-    function openFilterPanel(btn) {
-        closeFilterPanel();
-        var col = columnByKey(btn.dataset.col);
-        var existing = columnFilters[col.key];
-        var isDate = col.type === 'date';
-
-        panelState = {
-            col: col,
-            q: '',
-            values: [],
-            blank: 0,
-            truncated: false,
-            loading: true,
-            allSelected: !existing,
-            selected: new Set(existing || []),
-        };
-
-        filterPanel = document.createElement('div');
-        filterPanel.id = 'col-filter-panel';
-        filterPanel.className = 'absolute z-[5] w-72 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-surface-900 shadow-xl p-2 text-sm font-normal text-gray-800 dark:text-gray-200';
-        var itemClass = 'w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-40 disabled:pointer-events-none';
-        filterPanel.innerHTML =
-            '<button type="button" data-act="sort-asc" class="' + itemClass + '">' + (isDate ? 'SORT OLDEST TO NEWEST' : 'SORT A TO Z') + '</button>' +
-            '<button type="button" data-act="sort-desc" class="' + itemClass + '">' + (isDate ? 'SORT NEWEST TO OLDEST' : 'SORT Z TO A') + '</button>' +
-            '<div class="my-1 border-t border-gray-200 dark:border-white/10"></div>' +
-            '<button type="button" data-act="clear" class="' + itemClass + '"' + (existing ? '' : ' disabled') + '>CLEAR FILTER FROM "' + escapeHtml(col.label) + '"</button>' +
-            '<div class="my-1 border-t border-gray-200 dark:border-white/10"></div>' +
-            '<input type="search" class="col-panel-search w-full rounded-lg bg-gray-50 dark:bg-surface-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-csc-navy-500 focus:ring-2 focus:ring-csc-navy-500/20 focus:outline-none" placeholder="SEARCH" autocomplete="off">' +
-            '<div class="col-panel-list mt-2 max-h-60 overflow-y-auto rounded-lg border border-gray-200 dark:border-white/10"></div>' +
-            '<p class="col-panel-note hidden mt-2 px-1 text-xs text-gray-500 dark:text-gray-400">ONLY THE FIRST VALUES ARE LISTED. SEARCH, THEN TICK THE ONES YOU WANT.</p>' +
-            '<div class="mt-2 flex justify-end gap-2">' +
-            '<button type="button" data-act="cancel" class="rounded-lg border border-gray-300 dark:border-white/15 px-4 py-1.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5">CANCEL</button>' +
-            '<button type="button" data-act="ok" class="rounded-lg bg-csc-navy-600 hover:bg-csc-navy-500 text-white px-4 py-1.5 text-sm font-semibold disabled:opacity-40 disabled:pointer-events-none">OK</button></div>';
-        document.body.appendChild(filterPanel);
-
-        var rect = btn.getBoundingClientRect();
-        var panelWidth = filterPanel.offsetWidth;
-        var left = rect.left + window.scrollX;
-        left = Math.max(window.scrollX + 8, Math.min(left, window.scrollX + document.documentElement.clientWidth - panelWidth - 8));
-        filterPanel.style.left = left + 'px';
-        filterPanel.style.top = (rect.bottom + window.scrollY + 6) + 'px';
-
-        renderPanelList();
-        loadPanelValues();
-        filterPanel.querySelector('.col-panel-search').focus();
-
-        filterPanel.addEventListener('click', function (event) {
-            var actBtn = event.target.closest('[data-act]');
-            if (!actBtn) {
-                return;
-            }
-            var act = actBtn.dataset.act;
-            if (act === 'cancel') {
-                closeFilterPanel();
-            } else if (act === 'sort-asc' || act === 'sort-desc') {
-                sortCol = col.key;
-                sortDir = act === 'sort-desc' ? 'desc' : 'asc';
-                applyColumnChange();
-            } else if (act === 'clear') {
-                delete columnFilters[col.key];
-                applyColumnChange();
-            } else if (act === 'ok') {
-                if (panelState.allSelected && panelState.q === '') {
-                    delete columnFilters[col.key];
-                } else {
-                    materializePanelSelection();
-                    columnFilters[col.key] = Array.from(panelState.selected);
-                }
-                applyColumnChange();
-            }
-        });
-
-        filterPanel.addEventListener('change', function (event) {
-            var target = event.target;
-            if (target.classList.contains('col-panel-all')) {
-                if (target.checked) {
-                    if (panelState.q === '') {
-                        panelState.allSelected = true;
-                        panelState.selected = new Set();
-                    } else {
-                        materializePanelSelection();
-                        panelDisplayedKeys().forEach(function (key) {
-                            panelState.selected.add(key);
-                        });
-                    }
-                } else if (panelState.q === '') {
-                    panelState.allSelected = false;
-                    panelState.selected = new Set();
-                } else {
-                    materializePanelSelection();
-                    panelDisplayedKeys().forEach(function (key) {
-                        panelState.selected.delete(key);
-                    });
-                }
-            } else if (target.classList.contains('col-panel-item')) {
-                var key = target.dataset.index === 'blank' ? null : panelState.values[parseInt(target.dataset.index, 10)].value;
-                if (panelState.allSelected && panelState.truncated && panelState.q === '') {
-                    // too many values to start from "everything": begin a fresh selection with this one
-                    panelState.allSelected = false;
-                    panelState.selected = new Set([key]);
-                } else {
-                    materializePanelSelection();
-                    if (target.checked) {
-                        panelState.selected.add(key);
-                    } else {
-                        panelState.selected.delete(key);
-                    }
-                }
-            }
-            renderPanelList();
-        });
-
-        filterPanel.querySelector('.col-panel-search').addEventListener('input', function (event) {
-            var value = event.target.value.trim();
-            if (panelSearchTimer) {
-                clearTimeout(panelSearchTimer);
-            }
-            panelSearchTimer = setTimeout(function () {
-                if (filterPanel && panelState.q !== value) {
-                    panelState.q = value;
-                    loadPanelValues();
-                }
-            }, 250);
-        });
-    }
-
-    document.addEventListener('click', function (event) {
-        var filterBtn = event.target.closest('.col-filter-btn');
-        if (filterBtn) {
-            var sameColumnOpen = filterPanel && panelState && panelState.col.key === filterBtn.dataset.col;
-            if (sameColumnOpen) {
-                closeFilterPanel();
-            } else {
-                openFilterPanel(filterBtn);
-            }
-            return;
-        }
-        if (filterPanel && !filterPanel.contains(event.target)) {
-            closeFilterPanel();
-        }
-    });
-    document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape' && filterPanel) {
-            closeFilterPanel();
-        }
-    });
-
-    var columnChips = document.getElementById('lookup-column-chips');
-    if (columnChips) {
-        columnChips.addEventListener('click', function (event) {
-            var clearBtn = event.target.closest('.column-chip-clear');
-            if (!clearBtn) {
-                return;
-            }
-            if (clearBtn.dataset.clear === '__sort') {
-                sortCol = '';
-                sortDir = 'asc';
-            } else {
-                delete columnFilters[clearBtn.dataset.clear];
-            }
-            refreshColumnIndicators();
-            performSearch(currentParams(1), true);
-        });
-    }
-    refreshColumnIndicators();
+    columnFilters.refresh();
 
     window.addEventListener('popstate', function () {
         var urlParams = new URLSearchParams(window.location.search);
@@ -1351,10 +994,7 @@ document.addEventListener('DOMContentLoaded', function () {
             dir: urlParams.get('dir') || '',
             page: urlParams.get('page') || 1,
         };
-        columnFilters = parseColumnFiltersParam(params.cf);
-        sortCol = columnByKey(params.sort) ? params.sort : '';
-        sortDir = params.dir === 'desc' ? 'desc' : 'asc';
-        refreshColumnIndicators();
+        columnFilters.setState(params.cf, params.sort, params.dir);
         document.getElementById('filter-school').value = params.school_id;
         document.getElementById('filter-year').value = params.year;
         document.getElementById('filter-name').value = params.name;

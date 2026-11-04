@@ -32,12 +32,62 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function currentParams(page) {
+        var state = columnFilters.params();
         return {
             school_id: document.getElementById('filter-school').value,
             school_year: document.getElementById('filter-year').value,
+            cf: state.cf,
+            sort: state.sort,
+            dir: state.dir,
             page: page || 1,
         };
     }
+
+    // ---- Excel-style column filters / sort on the table headers (assets/js/column_filters.js; the columns are
+    // those of includes/uploads.php:upload_filter_columns()). The state lives in the URL as ?cf=<json>&sort=&dir=.
+    var columnFilters = HgeColumnFilters.create({
+        columns: [
+            { key: 'school', label: 'SCHOOL', type: 'text' },
+            { key: 'year', label: 'YEAR', type: 'text' },
+            { key: 'records', label: 'RECORDS EXTRACTED', type: 'number' },
+            { key: 'uploaded', label: 'DATE UPLOADED', type: 'date' },
+            { key: 'status', label: 'STATUS', type: 'text' },
+            { key: 'file', label: 'FILE NAME', type: 'text' },
+        ],
+        chipsEl: document.getElementById('school-records-column-chips'),
+        formatValue: function (col, value) {
+            if (col.key === 'status') {
+                return uploadStatusPill(value).label;
+            }
+            if (col.key === 'records') {
+                return value + (value === '1' ? ' RECORD' : ' RECORDS');
+            }
+            return col.type === 'date' ? HgeColumnFilters.formatIsoDate(value) : String(value).toUpperCase();
+        },
+        fetchValues: function (col, query) {
+            var params = currentParams(1);
+            delete params.page;
+            delete params.sort;
+            delete params.dir;
+            params.column = col.key;
+            params.q = query;
+            return fetch(config.apiBase + '/api/school_records_column_values.php?' + buildQueryString(params))
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (data.status !== 'success') {
+                        throw new Error(data.message);
+                    }
+                    return data;
+                });
+        },
+        onChange: function () {
+            performSearch(currentParams(1), true);
+        },
+    });
+    var initialUrlParams = new URLSearchParams(window.location.search);
+    columnFilters.setState(initialUrlParams.get('cf'), initialUrlParams.get('sort'), initialUrlParams.get('dir'));
 
     function currentPageFromUrl() {
         return parseInt(new URLSearchParams(window.location.search).get('page'), 10) || 1;
@@ -200,8 +250,7 @@ document.addEventListener('DOMContentLoaded', function () {
         resultsContainer.innerHTML =
             '<div class="bg-white dark:bg-surface-900 border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto overflow-y-hidden"><table class="w-full text-sm text-left">' +
             '<thead><tr class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-white/10">' +
-            '<th class="px-4 py-3">SCHOOL</th><th class="px-4 py-3">YEAR</th><th class="px-4 py-3">RECORDS EXTRACTED</th>' +
-            '<th class="px-4 py-3">DATE UPLOADED</th><th class="px-4 py-3">STATUS</th><th class="px-4 py-3">FILE NAME</th><th class="px-4 py-3 text-right">ACTION</th></tr></thead>' +
+            columnFilters.headerCellsHtml() + '<th class="px-4 py-3 text-right">ACTION</th></tr></thead>' +
             '<tbody id="school-records-tbody">' + rowsHtml + '</tbody></table></div>' + paginationHtml;
 
         bindDeleteButtons();
@@ -222,6 +271,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(function (data) {
                 if (data.status === 'success') {
                     renderResults(data);
+                    columnFilters.refresh();
                 } else {
                     showToast('error', data.message);
                 }
@@ -257,6 +307,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             close();
                             var params = currentParams(1);
                             delete params.page;
+                            delete params.cf;
+                            delete params.sort;
+                            delete params.dir;
                             var query = buildQueryString(params);
                             window.location.href = config.apiBase + '/api/download_school_records_report.php' + (query ? '?' + query : '');
                         },
@@ -271,6 +324,7 @@ document.addEventListener('DOMContentLoaded', function () {
         clearFiltersBtn.addEventListener('click', function () {
             document.getElementById('filter-school').value = '';
             document.getElementById('filter-year').value = '';
+            columnFilters.clear();
             performSearch(currentParams(1), true);
         });
     }
@@ -296,8 +350,12 @@ document.addEventListener('DOMContentLoaded', function () {
         var params = {
             school_id: urlParams.get('school_id') || '',
             school_year: urlParams.get('school_year') || '',
+            cf: urlParams.get('cf') || '',
+            sort: urlParams.get('sort') || '',
+            dir: urlParams.get('dir') || '',
             page: urlParams.get('page') || 1,
         };
+        columnFilters.setState(params.cf, params.sort, params.dir);
         document.getElementById('filter-school').value = params.school_id;
         document.getElementById('filter-year').value = params.school_year;
         performSearch(params, false);

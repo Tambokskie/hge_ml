@@ -85,17 +85,48 @@ function get_recent_uploads(PDO $pdo, int $limit = 5): array
 }
 
 /**
- * Filterable, paginated upload listing for the SCHOOL RECORDS page — the
- * same shape of query as search_graduates() in includes/graduates.php, but
- * grouped at the upload/PDF level instead of the individual-graduate level
- * so an admin can find and reopen the PDF a record actually lives in.
- *
- * Sort mirrors get_recent_uploads()'s pending-first tiering: not-yet-reviewed
- * uploads (the ones the STATUS column shows an "AGING" line for) surface
- * above reviewed ones, oldest-uploaded (highest aging) first within that
- * group, so the most neglected pending item is always the very first row.
+ * Columns of the SCHOOL RECORDS table that can carry an Excel-style filter / sort, each with the SQL expression
+ * that yields the value shown in that column (dates as Y-m-d, so every distinct date is its own entry).
  */
-function search_uploads(PDO $pdo, array $filters, int $page, int $perPage = 20): array
+function upload_filter_columns(): array
+{
+    return [
+        'school' => "IF(s.campus IS NULL OR TRIM(s.campus) = '', s.school_name, CONCAT(s.school_name, '-', TRIM(s.campus)))",
+        'year' => 'u.school_year',
+        'records' => 'u.records_extracted',
+        'uploaded' => "DATE_FORMAT(u.uploaded_at, '%Y-%m-%d')",
+        'status' => 'u.extraction_status',
+        'file' => 'u.original_filename',
+    ];
+}
+
+/**
+ * Pure. The column filters of the SCHOOL RECORDS request (?cf=...), known columns only.
+ *
+ * @return array<string, list<?string>>
+ */
+function parse_upload_column_filters(?string $json): array
+{
+    return parse_column_filters($json, array_keys(upload_filter_columns()));
+}
+
+/**
+ * Pure. The header sort of the SCHOOL RECORDS request.
+ *
+ * @return array{0: string, 1: string}
+ */
+function parse_upload_sort(?string $column, ?string $direction): array
+{
+    return parse_column_sort($column, $direction, array_keys(upload_filter_columns()));
+}
+
+/**
+ * WHERE conditions shared by the upload listing and the per-column value lists ($excludeColumn: see
+ * build_column_filter_conditions()).
+ *
+ * @return array{0: list<string>, 1: array<string, mixed>}
+ */
+function build_upload_search_conditions(array $filters, ?string $excludeColumn = null): array
 {
     $conditions = [];
     $params = [];
@@ -110,6 +141,47 @@ function search_uploads(PDO $pdo, array $filters, int $page, int $perPage = 20):
         $params['school_year'] = (string) $filters['school_year'];
     }
 
+    [$columnConditions, $columnParams] = build_column_filter_conditions($filters['columns'] ?? [], upload_filter_columns(), $excludeColumn);
+
+    return [array_merge($conditions, $columnConditions), array_merge($params, $columnParams)];
+}
+
+/**
+ * The distinct values of one SCHOOL RECORDS column for its filter box; see get_column_value_list().
+ *
+ * @return array{values: list<array{value: string, count: int}>, blank_count: int, truncated: bool}
+ */
+function get_upload_column_values(PDO $pdo, array $filters, string $column, string $search = '', int $limit = 200): array
+{
+    [$conditions, $params] = build_upload_search_conditions($filters, $column);
+
+    return get_column_value_list(
+        $pdo,
+        'FROM latin_honor_uploads u JOIN schools s ON s.id = u.school_id',
+        upload_filter_columns(),
+        $column,
+        $conditions,
+        $params,
+        $search,
+        $limit
+    );
+}
+
+/**
+ * Filterable, paginated upload listing for the SCHOOL RECORDS page — the
+ * same shape of query as search_graduates() in includes/graduates.php, but
+ * grouped at the upload/PDF level instead of the individual-graduate level
+ * so an admin can find and reopen the PDF a record actually lives in.
+ *
+ * Sort mirrors get_recent_uploads()'s pending-first tiering: not-yet-reviewed
+ * uploads (the ones the STATUS column shows an "AGING" line for) surface
+ * above reviewed ones, oldest-uploaded (highest aging) first within that
+ * group, so the most neglected pending item is always the very first row.
+ */
+function search_uploads(PDO $pdo, array $filters, int $page, int $perPage = 20): array
+{
+    [$conditions, $params] = build_upload_search_conditions($filters);
+
     $whereSql = empty($conditions) ? '' : ('WHERE ' . implode(' AND ', $conditions));
 
     $countStmt = $pdo->prepare("SELECT COUNT(*) FROM latin_honor_uploads u JOIN schools s ON s.id = u.school_id {$whereSql}");
@@ -118,14 +190,23 @@ function search_uploads(PDO $pdo, array $filters, int $page, int $perPage = 20):
 
     $pagination = paginate($totalRows, $page, $perPage);
 
+    // Default order surfaces the neglected pending uploads first; a header sort (column menu) replaces it.
+    $orderSql = "(u.extraction_status != 'reviewed') DESC,
+                     CASE WHEN u.extraction_status != 'reviewed' THEN u.uploaded_at END ASC,
+                     u.uploaded_at DESC, u.id DESC";
+    $expressions = upload_filter_columns();
+    $sortColumn = (string) ($filters['sort'] ?? '');
+    if (isset($expressions[$sortColumn])) {
+        $direction = (($filters['sort_dir'] ?? 'asc') === 'desc') ? 'DESC' : 'ASC';
+        $orderSql = $expressions[$sortColumn] . ' ' . $direction . ', u.id ASC';
+    }
+
     $sql = "SELECT u.id, u.school_year, u.original_filename, u.uploaded_at, u.updated_at, u.records_extracted,
                    u.extraction_status, s.school_name, s.campus
             FROM latin_honor_uploads u
             JOIN schools s ON s.id = u.school_id
             {$whereSql}
-            ORDER BY (u.extraction_status != 'reviewed') DESC,
-                     CASE WHEN u.extraction_status != 'reviewed' THEN u.uploaded_at END ASC,
-                     u.uploaded_at DESC, u.id DESC
+            ORDER BY {$orderSql}
             LIMIT :limit OFFSET :offset";
 
     $stmt = $pdo->prepare($sql);

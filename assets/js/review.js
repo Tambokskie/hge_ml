@@ -97,26 +97,151 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // ---- Excel-style column filters / sort on the table headers (assets/js/column_filters.js). The staged rows only
+    // live in this page (and the session), so the filtering is done here on the rows' data-cf-* values instead of by
+    // a database search; nothing is persisted, and the filters reset when the page reloads.
+    var REVIEW_VALUE_LIMIT = 200;
+    var reviewTotalLine = document.getElementById('review-total-line');
+    var rowsAreReordered = false;
+
+    function allReviewRows() {
+        return rowsTbody ? Array.prototype.slice.call(rowsTbody.querySelectorAll('tr[data-filter-name]')) : [];
+    }
+
+    function reviewRowValue(row, key) {
+        var value = row.getAttribute('data-cf-' + key);
+        return value === null || value === '' ? null : value;
+    }
+
+    function passesPageFilters(row) {
+        var nameQuery = (filterNameInput ? filterNameInput.value : '').trim().toUpperCase();
+        var courseQuery = filterCourseSelect ? filterCourseSelect.value : '';
+        var matchesName = nameQuery === '' || row.dataset.filterName.indexOf(nameQuery) !== -1;
+        var matchesCourse = courseQuery === '' || row.dataset.filterCourse === courseQuery;
+        return matchesName && matchesCourse;
+    }
+
+    function passesColumnFilters(row, ignoreKey) {
+        return Object.keys(columnFilters.filters).every(function (key) {
+            return key === ignoreKey || columnFilters.filters[key].indexOf(reviewRowValue(row, key)) !== -1;
+        });
+    }
+
+    var columnFilters = HgeColumnFilters.create({
+        columns: [
+            { key: 'no', label: 'NO.', type: 'number' },
+            { key: 'name', label: 'GRADUATE NAME', type: 'text' },
+            { key: 'course', label: 'DEGREE/COURSE', type: 'text' },
+            { key: 'honor', label: 'LATIN HONOR', type: 'text' },
+            { key: 'graduated', label: 'DATE OF GRADUATION', type: 'date' },
+            { key: 'year', label: 'YEAR', type: 'number' },
+            { key: 'status', label: 'STATUS', type: 'text' },
+        ],
+        chipsEl: document.getElementById('review-column-chips'),
+        fetchValues: function (col, query) {
+            var counts = {};
+            var blank = 0;
+            allReviewRows().forEach(function (row) {
+                if (!passesPageFilters(row) || !passesColumnFilters(row, col.key)) {
+                    return;
+                }
+                var value = reviewRowValue(row, col.key);
+                if (value === null) {
+                    blank++;
+                } else {
+                    counts[value] = (counts[value] || 0) + 1;
+                }
+            });
+
+            var needle = query.trim().toUpperCase();
+            var values = Object.keys(counts).filter(function (value) {
+                return needle === '' || value.toUpperCase().indexOf(needle) !== -1 ||
+                    (col.type === 'date' && HgeColumnFilters.formatIsoDate(value).indexOf(needle) !== -1);
+            });
+            values.sort(function (a, b) {
+                return col.type === 'number' ? (parseFloat(a) - parseFloat(b)) : (a < b ? -1 : (a > b ? 1 : 0));
+            });
+            var truncated = values.length > REVIEW_VALUE_LIMIT;
+            return Promise.resolve({
+                values: values.slice(0, REVIEW_VALUE_LIMIT).map(function (value) {
+                    return { value: value, count: counts[value] };
+                }),
+                blank_count: needle === '' ? blank : 0,
+                truncated: truncated,
+            });
+        },
+        onChange: function () {
+            applyRowFilter();
+        },
+    });
+
+    function compareReviewRows(a, b) {
+        var col = columnFilters.byKey(columnFilters.sortCol);
+        var av = reviewRowValue(a, col.key);
+        var bv = reviewRowValue(b, col.key);
+        var result;
+        if (av === null || bv === null) {
+            result = av === bv ? 0 : (av === null ? -1 : 1);
+        } else if (col.type === 'number') {
+            result = parseFloat(av) - parseFloat(bv);
+        } else {
+            result = av < bv ? -1 : (av > bv ? 1 : 0);
+        }
+        if (columnFilters.sortDir === 'desc') {
+            result = -result;
+        }
+        return result !== 0 ? result : (parseInt(a.dataset.order, 10) - parseInt(b.dataset.order, 10));
+    }
+
     function applyRowFilter() {
         if (!rowsTbody) {
             return;
         }
-        var nameQuery = (filterNameInput ? filterNameInput.value : '').trim().toUpperCase();
-        var courseQuery = filterCourseSelect ? filterCourseSelect.value : '';
+        var rows = allReviewRows();
         var visibleCount = 0;
 
-        rowsTbody.querySelectorAll('tr[data-filter-name]').forEach(function (row) {
-            var matchesName = nameQuery === '' || row.dataset.filterName.indexOf(nameQuery) !== -1;
-            var matchesCourse = courseQuery === '' || row.dataset.filterCourse === courseQuery;
-            var visible = matchesName && matchesCourse;
+        rows.forEach(function (row) {
+            var visible = passesPageFilters(row) && passesColumnFilters(row, null);
             row.classList.toggle('hidden', !visible);
             if (visible) {
                 visibleCount++;
+            } else {
+                // a row that is not shown can never be part of a bulk action
+                var checkbox = row.querySelector('.review-row-checkbox');
+                if (checkbox) {
+                    checkbox.checked = false;
+                }
             }
         });
 
+        // Re-inserting the rows replays their fade-in, so only reorder when a sort is (or was just) in use.
+        if (columnFilters.sortCol || rowsAreReordered) {
+            if (columnFilters.sortCol) {
+                rows.sort(compareReviewRows);
+            } else {
+                rows.sort(function (a, b) {
+                    return parseInt(a.dataset.order, 10) - parseInt(b.dataset.order, 10);
+                });
+            }
+            rows.forEach(function (row) {
+                rowsTbody.appendChild(row);
+            });
+            rowsAreReordered = columnFilters.sortCol !== '';
+        }
+
+        var selectAll = document.getElementById('review-select-all');
+        if (selectAll) {
+            selectAll.checked = false;
+        }
+
         if (filterEmptyMessage) {
             filterEmptyMessage.classList.toggle('hidden', visibleCount !== 0);
+        }
+        if (reviewTotalLine) {
+            var total = parseInt(reviewTotalLine.dataset.total, 10);
+            reviewTotalLine.textContent = visibleCount === total
+                ? 'TOTAL RECORDS: ' + total
+                : 'SHOWING ' + visibleCount + ' OF ' + total + ' RECORDS';
         }
     }
 
@@ -325,7 +450,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function () {
             document.querySelectorAll('.review-row-checkbox').forEach(function (checkbox) {
-                if (!checkbox.disabled) {
+                // only the rows currently shown (a filter may hide the others)
+                if (!checkbox.disabled && !checkbox.closest('tr').classList.contains('hidden')) {
                     checkbox.checked = selectAllCheckbox.checked;
                 }
             });
@@ -343,7 +469,9 @@ document.addEventListener('DOMContentLoaded', function () {
     var multipleDeletionBtn = document.getElementById('multiple-deletion-btn');
     if (multipleDeletionBtn) {
         multipleDeletionBtn.addEventListener('click', function () {
-            var checkedBoxes = Array.prototype.slice.call(document.querySelectorAll('.review-row-checkbox:checked'));
+            var checkedBoxes = Array.prototype.slice.call(document.querySelectorAll('.review-row-checkbox:checked')).filter(function (checkbox) {
+                return !checkbox.closest('tr').classList.contains('hidden');
+            });
 
             if (checkedBoxes.length === 0) {
                 showToast('error', 'PLEASE SELECT AT LEAST ONE RECORD TO REMOVE.');
